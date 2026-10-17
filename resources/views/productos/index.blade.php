@@ -25,12 +25,13 @@
 
             @endif
 
-            <a href="{{ route('productos.exportar.excel') }}"
+            <a href="{{ route('productos.exportar.excel', request()->query()) }}"
                class="rounded-md border border-[#b52f25] px-4 py-2 font-medium text-[#9f2f25] hover:bg-[#f7e8e6]">
                 Excel
             </a>
 
-            <a href="{{ route('productos.exportar.pdf') }}"
+            <a href="{{ route('productos.exportar.pdf', request()->query()) }}"
+               target="_blank"
                class="rounded-md bg-[#b52f25] px-4 py-2 font-medium text-white hover:bg-[#8f241d]">
                 PDF
             </a>

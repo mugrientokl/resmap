@@ -15,7 +15,84 @@ class ProductoController extends Controller
     {
         $categorias = Categoria::orderBy('nombre_categoria')->get();
 
-        $productos = Producto::with('categoria')
+        $productos = $this->consultaProductos($request)
+            ->paginate(20)
+            ->withQueryString();
+
+        return view('productos.index', compact('productos', 'categorias'));
+    }
+
+    public function exportarExcel(Request $request)
+    {
+        $productos = $this->consultaProductos($request)->get();
+        $filtros = $this->filtrosInventario($request);
+        $fechaGeneracion = now();
+
+        return response()->streamDownload(function () use ($productos, $filtros, $fechaGeneracion): void {
+            $handle = fopen('php://output', 'w');
+
+            fwrite($handle, "\xEF\xBB\xBF");
+
+            fputcsv($handle, ['REPORTE DE INVENTARIO'], ';');
+            fputcsv($handle, ['Fecha de generación', $fechaGeneracion->format('d/m/Y H:i')], ';');
+
+            foreach ($filtros as $nombre => $valor) {
+                fputcsv($handle, [$nombre, $valor], ';');
+            }
+
+            fputcsv($handle, ['Total de productos', $productos->count()], ';');
+            fputcsv($handle, [], ';');
+
+            fputcsv($handle, [
+                'Código de barra',
+                'Código origen',
+                'Nombre',
+                'Categoría',
+                'Precio',
+                'Stock actual',
+                'Stock crítico',
+                'Estado del stock',
+                'Ubicación',
+                'Unidad',
+            ], ';');
+
+            foreach ($productos as $producto) {
+                fputcsv($handle, [
+                    $producto->codigo_barra,
+                    $producto->codigo_origen,
+                    $producto->nombre,
+                    $producto->categoria?->nombre_categoria,
+                    $producto->precio,
+                    $producto->stock,
+                    $producto->stock_critico,
+                    $this->estadoStock($producto),
+                    $producto->ubicacion,
+                    $producto->unidad,
+                ], ';');
+            }
+
+            fclose($handle);
+        }, 'inventario-'.now()->format('Y-m-d').'.csv', [
+            'Content-Type' => 'text/csv; charset=UTF-8',
+        ]);
+    }
+
+    public function exportarPdf(Request $request)
+    {
+        $productos = $this->consultaProductos($request)->get();
+        $filtros = $this->filtrosInventario($request);
+        $fechaGeneracion = now();
+
+        return Pdf::loadView('productos.export-pdf', compact(
+            'productos',
+            'filtros',
+            'fechaGeneracion'
+        ))->download('inventario-'.now()->format('Y-m-d').'.pdf');
+    }
+
+    private function consultaProductos(Request $request)
+    {
+        return Producto::with('categoria')
             ->when($request->filled('nombre'), function ($query) use ($request): void {
                 $nombre = $request->string('nombre')->toString();
 
@@ -40,73 +117,40 @@ class ProductoController extends Controller
                     $query->whereColumn('stock', '>', 'stock_critico');
                 }
             })
-            ->orderBy('nombre')
-            ->paginate(20)
-            ->withQueryString();
-
-        return view('productos.index', compact('productos', 'categorias'));
+            ->orderBy('nombre');
     }
 
-    public function exportarExcel()
+    private function filtrosInventario(Request $request): array
     {
-        $productos = Producto::with('categoria')->orderBy('nombre')->get();
+        $categoria = $request->filled('categoria')
+            ? Categoria::find($request->integer('categoria'))
+            : null;
 
-        return response()->streamDownload(function () use ($productos): void {
-            $handle = fopen('php://output', 'w');
-            fwrite($handle, "\xEF\xBB\xBF");
-
-            fputcsv(
-                $handle,
-                [
-                    'Código de barra',
-                    'Código origen',
-                    'Nombre',
-                    'Categoría',
-                    'Precio',
-                    'Stock',
-                    'Stock crítico',
-                    'Ubicación',
-                    'Unidad',
-                ],
-                ';'
-            );
-
-            foreach ($productos as $producto) {
-                fputcsv(
-                    $handle,
-                    [
-                        $producto->codigo_barra,
-                        $producto->codigo_origen,
-                        $producto->nombre,
-                        $producto->categoria?->nombre_categoria,
-                        $producto->precio,
-                        $producto->stock,
-                        $producto->stock_critico,
-                        $producto->ubicacion,
-                        $producto->unidad,
-                    ],
-                    ';'
-                );
-            }
-
-            fclose($handle);
-        }, 'inventario-'.now()->format('Y-m-d').'.csv', [
-            'Content-Type' => 'text/csv; charset=UTF-8',
-        ]);
+        return [
+            'Filtro de nombre o código' => $request->filled('nombre')
+                ? $request->string('nombre')->toString()
+                : 'Todos',
+            'Categoría' => $categoria?->nombre_categoria ?? 'Todas',
+            'Estado del stock' => match ($request->string('stock')->toString()) {
+                'agotado' => 'Sin stock',
+                'critico' => 'Stock crítico',
+                'disponible' => 'Stock disponible',
+                default => 'Todos',
+            },
+        ];
     }
 
-    public function exportarPdf()
+    private function estadoStock(Producto $producto): string
     {
-        $productos = Producto::with('categoria')
-            ->orderBy('nombre')
-            ->get();
+        if ((int) $producto->stock <= 0) {
+            return 'Agotado';
+        }
 
-        return Pdf::loadView(
-            'productos.export-pdf',
-            compact('productos')
-        )->download(
-            'inventario-'.now()->format('Y-m-d').'.pdf'
-        );
+        if ((int) $producto->stock <= (int) $producto->stock_critico) {
+            return 'Crítico';
+        }
+
+        return 'Disponible';
     }
 
     public function buscarPorCodigo(Request $request)
@@ -281,7 +325,6 @@ class ProductoController extends Controller
     public function destroy($id)
     {
         $producto = Producto::findOrFail($id);
-
         $producto->delete();
 
         return redirect()
