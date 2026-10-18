@@ -137,6 +137,8 @@
                     <th class="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">Código</th>
                     <th class="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">Nombre</th>
                     <th class="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">Categoría</th>
+                    <th class="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">Unidad</th>
+                    <th class="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">Estado catálogo</th>
                     <th class="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">Precio</th>
                     <th class="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">Stock</th>
                     <th class="px-6 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">Acciones</th>
@@ -162,8 +164,18 @@
                             {{ $producto->categoria->nombre_categoria ?? 'Sin Categoría' }}
                         </td>
 
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {{ ucfirst($producto->unidad) }}
+                        </td>
+
+                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                            <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {{ $producto->activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' }}">
+                                {{ $producto->activo ? 'Activo' : 'Inactivo' }}
+                            </span>
+                        </td>
+
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                            $ {{ number_format($producto->precio, 0, ',', '.') }}
+                            $ {{ number_format($producto->precio, 0, ',', '.') }}@if($producto->unidad === 'metro') / metro @endif
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap text-sm">

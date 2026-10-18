@@ -108,7 +108,6 @@ class ProductoRealSeeder extends Seeder
                         'stock_critico' => 3,
                         'id_categoria' => $categoria->id_categoria,
                         'ubicacion' => $this->texto($row[1]),
-                        'unidad' => $this->texto($row[5]),
                         'fila_origen' => $filaOrigen,
                         'estado_importacion' => $estado,
                     ]

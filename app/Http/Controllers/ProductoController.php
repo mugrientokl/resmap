@@ -54,6 +54,7 @@ class ProductoController extends Controller
                 'Estado del stock',
                 'Ubicación',
                 'Unidad',
+                'Estado catálogo',
             ], ';');
 
             foreach ($productos as $producto) {
@@ -68,6 +69,7 @@ class ProductoController extends Controller
                     $this->estadoStock($producto),
                     $producto->ubicacion,
                     $producto->unidad,
+                    $producto->activo ? 'Activo' : 'Inactivo',
                 ], ';');
             }
 
@@ -163,8 +165,11 @@ class ProductoController extends Controller
             ], 422);
         }
 
-        $producto = Producto::where('codigo_barra', $codigo)
-            ->orWhere('codigo_origen', $codigo)
+        $producto = Producto::where('activo', true)
+            ->where(function ($query) use ($codigo): void {
+                $query->where('codigo_barra', $codigo)
+                    ->orWhere('codigo_origen', $codigo);
+            })
             ->first();
 
         if (! $producto) {
@@ -215,6 +220,8 @@ class ProductoController extends Controller
             'precio' => 'required|numeric|min:0|max:99999999.99',
             'stock' => 'required|integer|min:0|max:2147483647',
             'stock_critico' => 'required|integer|min:0|max:2147483647',
+            'unidad' => 'required|in:unidad,metro',
+            'activo' => 'required|boolean',
             'id_categoria' => 'required|exists:categorias,id_categoria',
             'imagen' => 'nullable|image|max:4096',
         ], [
@@ -228,7 +235,8 @@ class ProductoController extends Controller
                 ->with('validation_error', $validator->errors()->first());
         }
 
-        $datos = $request->except('imagen');
+        $datos = $validator->validated();
+        unset($datos['imagen']);
 
         if ($request->hasFile('imagen')) {
             $datos['imagen'] = $request->file('imagen')->store('productos', 'public');
@@ -281,6 +289,8 @@ class ProductoController extends Controller
             'precio' => 'required|numeric|min:0|max:99999999.99',
             'stock' => 'required|integer|min:0|max:2147483647',
             'stock_critico' => 'required|integer|min:0|max:2147483647',
+            'unidad' => 'required|in:unidad,metro',
+            'activo' => 'required|boolean',
             'id_categoria' => 'required|exists:categorias,id_categoria',
             'imagen' => 'nullable|image|max:4096',
         ], [
@@ -294,7 +304,8 @@ class ProductoController extends Controller
                 ->with('validation_error', $validator->errors()->first());
         }
 
-        $datos = $request->except('imagen');
+        $datos = $validator->validated();
+        unset($datos['imagen']);
 
         if ($request->hasFile('imagen')) {
             $datos['imagen'] = $request->file('imagen')->store('productos', 'public');

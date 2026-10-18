@@ -25,9 +25,17 @@ class Producto extends Model
         'id_categoria',
         'ubicacion',
         'unidad',
+        'activo',
         'fila_origen',
         'estado_importacion',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'activo' => 'boolean',
+        ];
+    }
 
     public function categoria()
     {

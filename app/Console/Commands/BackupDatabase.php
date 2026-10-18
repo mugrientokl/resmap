@@ -29,7 +29,15 @@ class BackupDatabase extends Command
         } else {
             $filename = 'database-'.now()->format('Y-m-d_H-i-s').'.sql';
             $path = $directory.'/'.$filename;
-            $command = sprintf('mysqldump --host=%s --port=%s --user=%s --password=%s %s', escapeshellarg(env('DB_HOST')), escapeshellarg(env('DB_PORT', '3306')), escapeshellarg(env('DB_USERNAME')), escapeshellarg(env('DB_PASSWORD')), escapeshellarg(env('DB_DATABASE')));
+            $connection = config('database.connections.'.config('database.default'));
+            $command = sprintf(
+                'mysqldump --host=%s --port=%s --user=%s --password=%s %s',
+                escapeshellarg($connection['host']),
+                escapeshellarg($connection['port']),
+                escapeshellarg($connection['username']),
+                escapeshellarg($connection['password']),
+                escapeshellarg($connection['database'])
+            );
             exec($command.' > '.escapeshellarg($disk->path($path)), $output, $status);
             if ($status !== 0) {
                 $this->warn('mysqldump no está disponible; se creará un respaldo portable JSON.');

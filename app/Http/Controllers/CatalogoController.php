@@ -12,6 +12,7 @@ use App\Rules\RutChileno;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\ValidationException;
 
 class CatalogoController extends Controller
 {
@@ -20,18 +21,23 @@ class CatalogoController extends Controller
         $kitsSetsCategory = Categoria::where('nombre_categoria', 'KITS Y SETS')->first();
 
         return view('welcome', [
-            'categorias' => Categoria::withCount('productos')->orderByDesc('productos_count')->limit(6)->get(),
+            'categorias' => Categoria::withCount([
+                'productos' => fn ($query) => $query->where('activo', true),
+            ])->orderByDesc('productos_count')->limit(6)->get(),
             'kitsSetsCategory' => $kitsSetsCategory,
             'kitsYSets' => $kitsSetsCategory
-                ? Producto::with('categoria')->where('id_categoria', $kitsSetsCategory->id_categoria)->orderByDesc('precio')->limit(8)->get()
+                ? Producto::with('categoria')->where('activo', true)->where('id_categoria', $kitsSetsCategory->id_categoria)->orderByDesc('precio')->limit(8)->get()
                 : collect(),
         ]);
     }
 
     public function index(Request $request)
     {
-        $categorias = Categoria::withCount('productos')->orderBy('nombre_categoria')->get();
+        $categorias = Categoria::withCount([
+            'productos' => fn ($query) => $query->where('activo', true),
+        ])->orderBy('nombre_categoria')->get();
         $productos = Producto::with('categoria')
+            ->where('activo', true)
             ->when($request->filled('nombre'), fn ($query) => $query->where('nombre', 'like', '%'.$request->string('nombre')->toString().'%'))
             ->when($request->filled('categoria'), fn ($query) => $query->where('id_categoria', $request->integer('categoria')))
             ->orderBy('nombre')->paginate(24)->withQueryString();
@@ -67,6 +73,45 @@ class CatalogoController extends Controller
         $telefono = $data['prefijo_telefono'].$data['telefono'];
 
         $solicitud = DB::transaction(function () use ($data, $telefono): SolicitudWeb {
+            $cantidadesSolicitadas = collect($data['detalles_productos'])
+                ->groupBy(fn (array $detalle): int => (int) $detalle['id_producto'])
+                ->map(fn ($detalles): int => $detalles->sum(fn (array $detalle): int => (int) $detalle['cantidad']));
+            $productos = Producto::query()
+                ->whereIn('id_producto', $cantidadesSolicitadas->keys())
+                ->orderBy('id_producto')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id_producto');
+            $inactivos = $cantidadesSolicitadas->keys()->filter(
+                fn (int|string $idProducto): bool => ! $productos->get($idProducto)?->activo
+            );
+
+            if ($inactivos->isNotEmpty()) {
+                $nombres = $inactivos->map(fn (int|string $idProducto): string => $productos->get($idProducto)?->nombre ?? 'Producto #'.$idProducto);
+
+                throw ValidationException::withMessages([
+                    'detalles_productos' => 'No se pueden solicitar productos inactivos: '.$nombres->implode(', ').'.',
+                ]);
+            }
+
+            $faltantes = $cantidadesSolicitadas->filter(
+                fn (int $cantidad, int|string $idProducto): bool => $cantidad > (int) ($productos->get($idProducto)?->stock ?? 0)
+            );
+
+            if ($faltantes->isNotEmpty()) {
+                $mensajes = $faltantes->map(function (int $cantidad, int|string $idProducto) use ($productos): string {
+                    $producto = $productos->get($idProducto);
+                    $nombre = $producto?->nombre ?? 'Producto #'.$idProducto;
+                    $stock = (int) ($producto?->stock ?? 0);
+
+                    return "Stock insuficiente para {$nombre}: solicitaste {$cantidad} y quedan {$stock}.";
+                });
+
+                throw ValidationException::withMessages([
+                    'detalles_productos' => $mensajes->implode(' '),
+                ]);
+            }
+
             $cliente = Cliente::updateOrCreate(['rut' => $data['rut']], [
                 'nombre' => $data['nombre'], 'correo' => $data['correo'] ?? null,
                 'telefono' => $telefono, 'direccion' => $data['direccion'] ?? null,
@@ -78,12 +123,6 @@ class CatalogoController extends Controller
                 'detalles_productos' => $data['detalles_productos'],
             ]);
         });
-
-        $cantidadesSolicitadas = collect($data['detalles_productos'])
-            ->groupBy('id_producto')
-            ->map(fn ($detalles): int => $detalles->sum(fn (array $detalle): int => (int) $detalle['cantidad']));
-        $productos = Producto::whereIn('id_producto', $cantidadesSolicitadas->keys())->get()->keyBy('id_producto');
-        $faltantes = $cantidadesSolicitadas->filter(fn (int $cantidad, $idProducto): bool => $cantidad > (int) ($productos->get($idProducto)?->stock ?? 0));
 
         User::whereIn('rol', ['Administrador', 'Vendedor'])->get()->each(function (User $user) use ($solicitud): void {
             try {
@@ -97,11 +136,7 @@ class CatalogoController extends Controller
             }
         });
 
-        $mensaje = 'Solicitud enviada. El equipo de RESMAP se pondrá en contacto contigo.';
-        if ($faltantes->isNotEmpty()) {
-            $mensaje .= ' Algunos productos no tienen stock suficiente; la solicitud no reserva unidades y el plazo puede ser mayor.';
-        }
-
-        return redirect()->route('catalogo.index')->with('success', $mensaje);
+        return redirect()->route('catalogo.index')
+            ->with('success', 'Solicitud enviada. El equipo de RESMAP se pondrá en contacto contigo.');
     }
 }

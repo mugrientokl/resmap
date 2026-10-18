@@ -60,6 +60,17 @@ class AccessControlTest extends TestCase
         $this->actingAs($seller)->get('/usuarios')->assertForbidden();
     }
 
+    public function test_administrator_can_view_sales_reports(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+
+        $this->actingAs($admin)
+            ->get('/reportes')
+            ->assertOk()
+            ->assertSee('Reporte de ventas')
+            ->assertSee('Aplicar filtros');
+    }
+
     public function test_administrator_can_create_a_seller_account(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);

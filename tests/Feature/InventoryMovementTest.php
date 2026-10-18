@@ -59,6 +59,8 @@ class InventoryMovementTest extends TestCase
                 'stock' => '3',
                 'stock_critico' => $producto->stock_critico,
                 'id_categoria' => $producto->id_categoria,
+                'unidad' => $producto->unidad,
+                'activo' => '1',
             ])
             ->assertRedirect(route('productos.index'));
 

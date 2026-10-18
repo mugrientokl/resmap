@@ -83,6 +83,8 @@
                 <th>Código</th>
                 <th>Nombre</th>
                 <th>Categoría</th>
+                <th>Unidad</th>
+                <th>Estado catálogo</th>
                 <th>Precio</th>
                 <th>Stock actual</th>
                 <th>Stock crítico</th>
@@ -94,13 +96,15 @@
                     <td>{{ $producto->codigo_barra }}</td>
                     <td>{{ $producto->nombre }}</td>
                     <td>{{ $producto->categoria?->nombre_categoria ?? 'Sin categoría' }}</td>
+                    <td>{{ ucfirst($producto->unidad) }}</td>
+                    <td>{{ $producto->activo ? 'Activo' : 'Inactivo' }}</td>
                     <td>$ {{ number_format($producto->precio, 0, ',', '.') }}</td>
                     <td>{{ $producto->stock }}</td>
                     <td>{{ $producto->stock_critico }}</td>
                 </tr>
             @empty
                 <tr>
-                    <td colspan="6" class="vacio">
+                    <td colspan="8" class="vacio">
                         No hay productos que coincidan con los filtros seleccionados.
                     </td>
                 </tr>

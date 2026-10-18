@@ -23,8 +23,8 @@
             </div>
             <div class="stat-content">
                 <h3>Total Ventas</h3>
-                <p class="stat-value">${{ number_format($estadisticasGenerales['total_ventas'], 0, ',', '.') }}</p>
-                <small>Registros: {{ $estadisticasGenerales['total_ventas'] }}</small>
+                <p class="stat-value">{{ number_format($estadisticasGenerales['total_ventas'], 0, ',', '.') }}</p>
+                <small>Ventas registradas</small>
             </div>
         </div>
 

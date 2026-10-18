@@ -47,6 +47,21 @@
             </select>
         </div>
 
+        <div class="grid gap-4 sm:grid-cols-2">
+            <div>
+                <label for="unidad" class="block text-sm font-medium text-gray-700">Unidad de venta</label>
+                <select id="unidad" name="unidad" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+                    <option value="unidad" @selected(old('unidad', $producto->unidad) === 'unidad')>Unidad</option>
+                    <option value="metro" @selected(old('unidad', $producto->unidad) === 'metro')>Metro</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-2 pt-6">
+                <input type="hidden" name="activo" value="0">
+                <input id="activo" type="checkbox" name="activo" value="1" @checked((bool) old('activo', $producto->activo)) class="rounded border-gray-300 text-[#b52f25] shadow-sm focus:ring-[#b52f25]">
+                <label for="activo" class="text-sm font-medium text-gray-700">Activo y visible en el catálogo</label>
+            </div>
+        </div>
+
         <div>
             <label class="block text-sm font-medium text-gray-700">Descripción</label>
             <textarea name="descripcion" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">{{ old('descripcion', $producto->descripcion) }}</textarea>
