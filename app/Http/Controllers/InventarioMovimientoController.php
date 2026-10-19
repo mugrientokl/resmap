@@ -11,7 +11,7 @@ class InventarioMovimientoController extends Controller
 {
     public function index(Request $request)
     {
-        $movimientos = InventarioMovimiento::with(['producto', 'usuario', 'venta.cliente'])
+        $movimientos = InventarioMovimiento::with(['producto.categoria', 'usuario', 'venta.cliente'])
             ->when($request->filled('producto'), function ($query) use ($request): void {
                 $query->where('id_producto', $request->integer('producto'));
             })
@@ -24,17 +24,18 @@ class InventarioMovimientoController extends Controller
 
         return view('inventario.movimientos', [
             'movimientos' => $movimientos,
-            'productos' => Producto::orderBy('nombre')->get(),
+            'productos' => Producto::with('categoria')->orderBy('nombre')->get(),
         ]);
     }
 
     public function show(InventarioMovimiento $movimiento)
     {
-        $movimiento->load(['producto', 'usuario', 'venta.cliente', 'venta.detalles.producto']);
+        $movimiento->load(['producto.categoria', 'usuario', 'venta.cliente', 'venta.detalles.producto']);
 
         return response()->json([
             'id_movimiento' => $movimiento->id_movimiento,
             'fecha' => $movimiento->created_at?->format('d/m/Y H:i'),
+            'fecha_evento' => $movimiento->fecha_evento ? \Carbon\Carbon::parse($movimiento->fecha_evento)->format('d/m/Y') : null,
             'tipo' => $movimiento->tipo,
             'motivo' => $movimiento->motivo,
             'cantidad' => $movimiento->cantidad,
@@ -71,10 +72,11 @@ class InventarioMovimientoController extends Controller
     {
         $validated = $request->validate([
             'id_producto' => ['required', 'exists:productos,id_producto'],
-            'tipo' => ['nullable', 'string', 'in:adquisicion,merma,ajuste'],
+            'tipo' => ['nullable', 'string', 'in:adquisicion,merma,ajuste,ingreso,egreso'],
             'stock_nuevo' => ['nullable', 'required_if:tipo,ajuste', 'integer', 'min:0', 'max:2147483647'],
-            'cantidad' => ['nullable', 'required_if:tipo,adquisicion,merma', 'integer', 'min:1', 'max:2147483647'],
+            'cantidad' => ['nullable', 'required_if:tipo,adquisicion,merma,ingreso,egreso', 'integer', 'min:1', 'max:2147483647'],
             'motivo' => ['required', 'string', 'max:255'],
+            'fecha_evento' => ['required', 'date'],
             'proveedor' => ['nullable', 'required_if:tipo,adquisicion', 'string', 'max:255'],
             'documento_proveedor' => ['nullable', 'string', 'max:100'],
             'precio_entrada' => ['nullable', 'required_if:tipo,adquisicion', 'numeric', 'min:0', 'max:9999999999.99'],
@@ -87,20 +89,24 @@ class InventarioMovimientoController extends Controller
                     ->whereKey($validated['id_producto'])
                     ->lockForUpdate()
                     ->firstOrFail();
+
                 $stockAnterior = $producto->stock;
                 $tipo = $validated['tipo'] ?? 'ajuste';
+
                 $cantidad = match ($tipo) {
-                    'adquisicion' => (int) $validated['cantidad'],
-                    'merma' => -((int) $validated['cantidad']),
+                    'adquisicion', 'ingreso' => (int) $validated['cantidad'],
+                    'merma', 'egreso' => -((int) $validated['cantidad']),
                     default => (int) $validated['stock_nuevo'] - $stockAnterior,
                 };
+
                 $stockNuevo = $stockAnterior + $cantidad;
 
                 if ($stockNuevo < 0) {
-                    throw new \RuntimeException('La merma no puede superar el stock disponible.');
+                    throw new \RuntimeException('La merma o egreso no puede superar el stock disponible.');
                 }
 
                 $producto->update(['stock' => $stockNuevo]);
+
                 InventarioMovimiento::create([
                     'id_producto' => $producto->id_producto,
                     'user_id' => $request->user()->id,
@@ -109,10 +115,11 @@ class InventarioMovimientoController extends Controller
                     'stock_anterior' => $stockAnterior,
                     'stock_nuevo' => $stockNuevo,
                     'motivo' => $validated['motivo'],
+                    'fecha_evento' => $validated['fecha_evento'],
                     'proveedor' => $validated['proveedor'] ?? null,
                     'documento_proveedor' => $validated['documento_proveedor'] ?? null,
                     'precio_entrada' => $validated['precio_entrada'] ?? null,
-                    'cantidad_adquirida' => $tipo === 'adquisicion' ? $validated['cantidad'] : null,
+                    'cantidad_adquirida' => in_array($tipo, ['adquisicion', 'ingreso']) ? $validated['cantidad'] : null,
                     'observaciones' => $validated['observaciones'] ?? null,
                 ]);
             });
@@ -120,6 +127,6 @@ class InventarioMovimientoController extends Controller
             return redirect()->back()->withInput()->withErrors(['cantidad' => $exception->getMessage()]);
         }
 
-        return redirect()->route('inventario.movimientos')->with('success', 'Stock ajustado y movimiento registrado.');
+        return redirect()->back()->with('success', 'Stock ajustado y movimiento registrado.');
     }
 }
