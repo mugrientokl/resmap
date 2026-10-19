@@ -25,7 +25,7 @@
             <input name="username" value="{{ old('username') }}" required placeholder="Usuario" class="rounded-md border p-2">
             <input name="name" value="{{ old('name') }}" required placeholder="Nombre completo" class="rounded-md border p-2">
             <input type="email" name="email" value="{{ old('email') }}" required placeholder="Correo electrónico" class="rounded-md border p-2">
-            <input type="password" name="password" required minlength="8" placeholder="Contraseña (mínimo 8 caracteres)" class="rounded-md border p-2">
+            <input type="password" name="password" required minlength="12" placeholder="Contraseña (mínimo 12 caracteres)" class="rounded-md border p-2">
             <select name="rol" required class="rounded-md border p-2">
                 <option value="Vendedor" @selected(old('rol', 'Vendedor') === 'Vendedor')>Vendedor</option>
                 <option value="Administrador" @selected(old('rol') === 'Administrador')>Administrador</option>

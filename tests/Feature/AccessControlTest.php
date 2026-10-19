@@ -79,7 +79,7 @@ class AccessControlTest extends TestCase
             'username' => 'nuevo-vendedor',
             'name' => 'Nuevo Vendedor',
             'email' => 'nuevo-vendedor@example.com',
-            'password' => 'password123',
+            'password' => 'Vendedor-Seguro-2026-Frase',
             'rol' => 'Vendedor',
         ]);
 

@@ -44,7 +44,7 @@ Route::middleware([
     Route::get('/password/forgot', [AuthController::class, 'showForgotPasswordForm'])->name('password.request');
     Route::post('/password/email', [AuthController::class, 'sendResetLink'])->middleware('throttle:5,1')->name('password.email');
     Route::get('/password/reset/{token}', [AuthController::class, 'showResetPasswordForm'])->name('password.reset');
-    Route::post('/password/reset', [AuthController::class, 'resetPassword'])->name('password.update');
+    Route::post('/password/reset', [AuthController::class, 'resetPassword'])->middleware('throttle:5,1')->name('password.update');
     Route::post('/logout', [AuthController::class, 'destroy'])->middleware('auth')->name('logout');
     Route::get('/dashboard', [DashboardController::class, 'index'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('dashboard');
     Route::get('/notificaciones', [NotificacionController::class, 'index'])->middleware('auth')->name('notificaciones.index');

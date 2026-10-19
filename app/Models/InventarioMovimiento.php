@@ -12,7 +12,7 @@ class InventarioMovimiento extends Model
 
     protected $fillable = [
         'id_producto', 'user_id', 'tipo', 'cantidad', 'stock_anterior',
-        'stock_nuevo', 'motivo', 'id_venta', 'proveedor', 'documento_proveedor',
+        'stock_nuevo', 'motivo', 'fecha_evento', 'id_venta', 'proveedor', 'documento_proveedor',
         'precio_entrada', 'cantidad_adquirida', 'observaciones',
     ];
 
@@ -20,6 +20,7 @@ class InventarioMovimiento extends Model
     {
         return [
             'precio_entrada' => 'decimal:2',
+            'fecha_evento' => 'date',
         ];
     }
 

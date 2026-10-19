@@ -9,8 +9,8 @@
     <form method="POST" action="{{ route('password.update') }}" class="mt-8 space-y-5">@csrf
         <input type="hidden" name="token" value="{{ $token }}">
         <div><label for="email" class="block text-sm font-bold">Correo</label><input id="email" name="email" type="email" value="{{ old('email', $email) }}" required class="mt-2 w-full border border-gray-300 p-3"></div>
-        <div><label for="password" class="block text-sm font-bold">Nueva contraseña</label><input id="password" name="password" type="password" required minlength="8" class="mt-2 w-full border border-gray-300 p-3"></div>
-        <div><label for="password_confirmation" class="block text-sm font-bold">Repetir contraseña</label><input id="password_confirmation" name="password_confirmation" type="password" required minlength="8" class="mt-2 w-full border border-gray-300 p-3"></div>
+        <div><label for="password" class="block text-sm font-bold">Nueva contraseña</label><input id="password" name="password" type="password" required minlength="12" autocomplete="new-password" class="mt-2 w-full border border-gray-300 p-3"><p class="mt-1 text-sm text-gray-500">Usa al menos 12 caracteres; una frase larga es más fácil de recordar.</p></div>
+        <div><label for="password_confirmation" class="block text-sm font-bold">Repetir contraseña</label><input id="password_confirmation" name="password_confirmation" type="password" required minlength="12" autocomplete="new-password" class="mt-2 w-full border border-gray-300 p-3"></div>
         <button class="w-full bg-[#b52f25] p-3 font-bold text-white">Cambiar contraseña</button>
     </form>
 </main>

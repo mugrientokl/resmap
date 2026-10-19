@@ -15,7 +15,7 @@
 
                 <a href="{{ route('inventario.movimientos') }}"
                    class="rounded-md border border-[#b52f25] px-4 py-2 font-medium text-[#9f2f25] hover:bg-[#f7e8e6]">
-                    Historial de movimientos
+                    Movimientos de Inventario
                 </a>
 
                 <a href="{{ route('productos.create') }}"

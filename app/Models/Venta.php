@@ -17,19 +17,11 @@ class Venta extends Model
         'fecha',
         'tipo_documento',
         'folio_sii',
-        'codigo_dte_temporal',
         'neto',
         'iva',
         'total',
         'medio_pago',
         'estado_sii',
-        'estado_dte',
-        'track_id_sii',
-        'xml_dte',
-        'pdf_dte',
-        'fecha_envio_sii',
-        'fecha_respuesta_sii',
-        'error_sii',
         'user_id',
         'id_cliente',
     ];
@@ -38,8 +30,6 @@ class Venta extends Model
     {
         return [
             'fecha' => 'datetime',
-            'fecha_envio_sii' => 'datetime',
-            'fecha_respuesta_sii' => 'datetime',
         ];
     }
 
@@ -56,10 +46,5 @@ class Venta extends Model
     public function detalles()
     {
         return $this->hasMany(DetalleVenta::class, 'id_venta', 'id_venta');
-    }
-
-    public function getCodigoDteAttribute(): int
-    {
-        return $this->tipo_documento === 'Factura Electrónica' ? 33 : 39;
     }
 }

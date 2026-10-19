@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\NoStoreMiddleware;
 use App\Http\Middleware\RoleMiddleware;
 use Illuminate\Console\Scheduling\Schedule;
@@ -19,7 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('app:backup-database')->dailyAt('02:00');
     })
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->appendToGroup('web', [InjectBoost::class, NoStoreMiddleware::class]);
+        $middleware->trustProxies(at: env('TRUSTED_PROXIES'));
+        $middleware->appendToGroup('web', [ForceHttps::class, InjectBoost::class, NoStoreMiddleware::class]);
         $middleware->alias(['role' => RoleMiddleware::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

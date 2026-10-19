@@ -118,7 +118,7 @@ Usa `.env.production.example` como referencia y configura valores reales:
 - ejecución periódica del scheduler
 - permisos de escritura únicamente en `storage` y `bootstrap/cache`
 
-La integración SII/DTE, la impresora Niimbot y la configuración SMTP dependen de credenciales, hardware y datos que debe entregar el administrador.
+La impresora Niimbot y la configuración SMTP dependen de hardware, credenciales y datos que debe entregar el administrador.
 
 ## Verificación antes de entregar
 

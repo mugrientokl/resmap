@@ -3,6 +3,7 @@
 namespace App\Observers;
 
 use App\Models\Auditoria;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Auth;
 
@@ -25,6 +26,12 @@ class AuditoriaObserver
 
     private function registrar(Model $modelo, string $accion, ?array $anteriores, ?array $nuevos): void
     {
+        if ($modelo instanceof User) {
+            $sensitiveAttributes = array_flip(['password', 'remember_token']);
+            $anteriores = $anteriores === null ? null : array_diff_key($anteriores, $sensitiveAttributes);
+            $nuevos = $nuevos === null ? null : array_diff_key($nuevos, $sensitiveAttributes);
+        }
+
         Auditoria::create([
             'user_id' => Auth::id(),
             'modelo' => $modelo::class,

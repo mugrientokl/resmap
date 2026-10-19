@@ -170,7 +170,6 @@ class SolicitudWebController extends Controller
                     'total' => $total,
                     'medio_pago' => 'Pendiente de emisión',
                     'estado_sii' => 'Pendiente',
-                    'estado_dte' => 'pendiente',
                     'user_id' => $request->user()->id,
                     'id_cliente' => $solicitud->id_cliente,
                 ]);

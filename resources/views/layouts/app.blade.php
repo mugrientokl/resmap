@@ -98,7 +98,7 @@
                         <div id="profile-menu" class="absolute right-0 mt-1 hidden min-w-48 rounded-md bg-white py-1 text-sm text-gray-700 shadow-xl">
                             @if(auth()->user()->rol === 'Administrador')
                                 <a href="{{ route('reportes.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Reportes</a>
-                                <a href="{{ route('inventario.movimientos') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Historial de movimientos</a>
+                                <a href="{{ route('inventario.movimientos') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Movimientos de Inventario</a>
                             @endif
                             @if(auth()->user()->rol === 'Administrador')
                                 <a href="{{ route('categorias.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Categorías</a>

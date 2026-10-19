@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Categoria;
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
 use Illuminate\Http\Request;
@@ -11,12 +12,25 @@ class InventarioMovimientoController extends Controller
 {
     public function index(Request $request)
     {
+        $filters = $request->validate([
+            'producto' => ['nullable', 'integer', 'exists:productos,id_producto'],
+            'tipo' => ['nullable', 'string', 'in:adquisicion,merma,ajuste,ingreso,egreso'],
+            'fecha_desde' => ['nullable', 'date_format:Y-m-d'],
+            'fecha_hasta' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:fecha_desde'],
+        ]);
+
         $movimientos = InventarioMovimiento::with(['producto.categoria', 'usuario', 'venta.cliente'])
-            ->when($request->filled('producto'), function ($query) use ($request): void {
-                $query->where('id_producto', $request->integer('producto'));
+            ->when(isset($filters['producto']), function ($query) use ($filters): void {
+                $query->where('id_producto', $filters['producto']);
             })
-            ->when($request->filled('tipo'), function ($query) use ($request): void {
-                $query->where('tipo', $request->string('tipo')->toString());
+            ->when(isset($filters['tipo']), function ($query) use ($filters): void {
+                $query->where('tipo', $filters['tipo']);
+            })
+            ->when(isset($filters['fecha_desde']), function ($query) use ($filters): void {
+                $query->whereDate('fecha_evento', '>=', $filters['fecha_desde']);
+            })
+            ->when(isset($filters['fecha_hasta']), function ($query) use ($filters): void {
+                $query->whereDate('fecha_evento', '<=', $filters['fecha_hasta']);
             })
             ->latest()
             ->paginate(30)
@@ -25,6 +39,10 @@ class InventarioMovimientoController extends Controller
         return view('inventario.movimientos', [
             'movimientos' => $movimientos,
             'productos' => Producto::with('categoria')->orderBy('nombre')->get(),
+            'categorias' => Categoria::orderBy('nombre_categoria')->get(),
+            'productoFiltrado' => isset($filters['producto'])
+                ? Producto::with('categoria')->find($filters['producto'])
+                : null,
         ]);
     }
 
@@ -35,7 +53,7 @@ class InventarioMovimientoController extends Controller
         return response()->json([
             'id_movimiento' => $movimiento->id_movimiento,
             'fecha' => $movimiento->created_at?->format('d/m/Y H:i'),
-            'fecha_evento' => $movimiento->fecha_evento ? \Carbon\Carbon::parse($movimiento->fecha_evento)->format('d/m/Y') : null,
+            'fecha_evento' => $movimiento->fecha_evento?->format('d/m/Y'),
             'tipo' => $movimiento->tipo,
             'motivo' => $movimiento->motivo,
             'cantidad' => $movimiento->cantidad,
@@ -76,7 +94,7 @@ class InventarioMovimientoController extends Controller
             'stock_nuevo' => ['nullable', 'required_if:tipo,ajuste', 'integer', 'min:0', 'max:2147483647'],
             'cantidad' => ['nullable', 'required_if:tipo,adquisicion,merma,ingreso,egreso', 'integer', 'min:1', 'max:2147483647'],
             'motivo' => ['required', 'string', 'max:255'],
-            'fecha_evento' => ['required', 'date'],
+            'fecha_evento' => ['required', 'date_format:Y-m-d'],
             'proveedor' => ['nullable', 'required_if:tipo,adquisicion', 'string', 'max:255'],
             'documento_proveedor' => ['nullable', 'string', 'max:100'],
             'precio_entrada' => ['nullable', 'required_if:tipo,adquisicion', 'numeric', 'min:0', 'max:9999999999.99'],
@@ -127,6 +145,6 @@ class InventarioMovimientoController extends Controller
             return redirect()->back()->withInput()->withErrors(['cantidad' => $exception->getMessage()]);
         }
 
-        return redirect()->back()->with('success', 'Stock ajustado y movimiento registrado.');
+        return redirect()->route('inventario.movimientos')->with('success', 'Stock ajustado y movimiento registrado.');
     }
 }

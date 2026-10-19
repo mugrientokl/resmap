@@ -10,7 +10,6 @@ use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\ProductoStockCritico;
 use App\Rules\RutChileno;
-use App\Services\Facturacion\LibreDteService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +17,7 @@ use Illuminate\Support\Facades\Log;
 
 class VentaController extends Controller
 {
-    public function store(Request $request, LibreDteService $libreDteService): JsonResponse
+    public function store(Request $request): JsonResponse
     {
         $request->validate([
             'tipo_documento' => 'required|string|in:Boleta Electrónica,Factura Electrónica',
@@ -101,7 +100,6 @@ class VentaController extends Controller
                     'total' => $totalBruto,
                     'medio_pago' => $request->medio_pago,
                     'estado_sii' => 'Pendiente',
-                    'estado_dte' => 'pendiente',
                     'user_id' => $request->user()->id,
                     'id_cliente' => $cliente->id_cliente,
                 ]);
@@ -142,10 +140,8 @@ class VentaController extends Controller
                 }
             }
 
-            $resultado['dte'] = $libreDteService->emitir($resultado['venta']->load(['cliente', 'detalles.producto']));
-
             return response()->json([
-                'message' => $resultado['dte']['message'] ?? 'Venta registrada con éxito, stock actualizado y cliente sincronizado.',
+                'message' => 'Venta registrada con éxito, stock actualizado y cliente sincronizado.',
                 'resultado' => $resultado,
             ], 201);
 
