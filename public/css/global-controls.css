@@ -1,0 +1,14 @@
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="hidden"]):not([type="submit"]):not([type="button"]):not([type="reset"]),
+select,
+textarea {
+    border-radius: 0.5rem;
+}
+
+button,
+input[type="submit"],
+input[type="button"],
+input[type="reset"],
+a[role="button"],
+a[class*="bg-"][class*="px-"][class*="py-"] {
+    border-radius: 0.5rem;
+}

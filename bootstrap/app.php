@@ -8,6 +8,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Laravel\Boost\Middleware\InjectBoost;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -17,7 +18,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withSchedule(function (Schedule $schedule): void {
-        $schedule->command('app:backup-database')->dailyAt('02:00');
+        $schedule->command('app:backup-database')
+            ->dailyAt('02:00')
+            ->withoutOverlapping()
+            ->onFailure(function (): void {
+                Log::critical('Falló la tarea diaria de backup de la base de datos.');
+            });
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: env('TRUSTED_PROXIES'));

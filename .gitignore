@@ -3,6 +3,9 @@
 .env
 .env.backup
 .env.production
+/storage/app/private/backups/
+/storage/app/private/backup-work/
+/storage/app/private/restore-work/
 .phpactor.json
 .phpunit.result.cache
 /.codex

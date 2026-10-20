@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Acceso interno | RESMAP</title><script src="https://cdn.tailwindcss.com"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Acceso interno | RESMAP</title><script src="https://cdn.tailwindcss.com"></script><link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"></head>
 <body class="flex min-h-screen items-center justify-center bg-[#8f241d] px-6 text-[#241817]">
     <main class="grid w-full max-w-4xl overflow-hidden bg-white shadow-2xl md:grid-cols-2">
         <div class="hidden min-h-130 bg-[linear-gradient(135deg,rgba(143,36,29,.9),rgba(55,16,13,.78)),url('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center p-10 text-white md:flex md:flex-col md:justify-between"><span class="text-xl font-black tracking-[.2em]">RESMAP</span><div><p class="text-sm font-bold uppercase tracking-[.25em] text-[#ffd5c9]">Centro de operaciones</p><h1 class="mt-3 text-4xl font-black leading-tight">Todo el trabajo, en un solo lugar.</h1></div></div>

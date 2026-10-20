@@ -4,7 +4,7 @@
 
 ### 1. **Kits y Sets Restaurados** ✓
 - Se creó un seeder `KitsSetSeeder.php` con 8 productos (KIT-001 a JUEGO-002)
-- Ahora se crean automáticamente cuando ejecutas `php artisan migrate:fresh --seed`
+- Se crean automáticamente al ejecutar las migraciones y seeders correspondientes en una base nueva.
 - Categoría: **KITS Y SETS**
 
 ### 2. **Dashboard Colores Rojizos** ✓
@@ -154,7 +154,8 @@ Negro:        #8B0000
 
 ### Comprobar Kits y Sets en BD:
 ```bash
-php artisan migrate:fresh --seed
+php artisan migrate
+php artisan db:seed --class=KitsSetSeeder
 ```
 
 ### Comprobar Colores:

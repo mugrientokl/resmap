@@ -104,6 +104,7 @@ Route::middleware([
     Route::get('/reportes/ventas/{id}/factura', [ReporteController::class, 'facturaVenta'])->middleware(['auth', 'role:Administrador'])->name('reportes.ventas.factura');
     Route::get('/auditoria', [ReporteController::class, 'auditoria'])->middleware(['auth', 'role:Administrador'])->name('reportes.auditoria');
     Route::get('/backups', [BackupController::class, 'index'])->middleware(['auth', 'role:Administrador'])->name('backups.index');
+    Route::post('/backups/{filename}/restore', [BackupController::class, 'restore'])->middleware(['auth', 'role:Administrador'])->name('backups.restore');
     Route::get('/backups/{filename}', [BackupController::class, 'download'])->middleware(['auth', 'role:Administrador'])->name('backups.download');
 
     Route::get('/detalle-ventas', [DetalleVentaController::class, 'index'])->middleware(['auth', 'role:Administrador']);

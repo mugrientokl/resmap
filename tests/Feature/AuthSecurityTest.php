@@ -22,6 +22,29 @@ class AuthSecurityTest extends TestCase
         $this->assertSame('lax', config('session.same_site'));
     }
 
+    public function test_global_control_stylesheet_is_loaded_on_application_and_auth_pages(): void
+    {
+        $stylesheet = asset('css/global-controls.css');
+
+        foreach ([
+            route('home'),
+            route('login'),
+            route('password.request'),
+            route('password.reset', ['token' => 'test-token']),
+        ] as $url) {
+            $this->get($url)
+                ->assertOk()
+                ->assertSee($stylesheet, false);
+        }
+
+        $this->assertFileExists(public_path('css/global-controls.css'));
+        $styles = file_get_contents(public_path('css/global-controls.css'));
+
+        $this->assertIsString($styles);
+        $this->assertStringContainsString('border-radius: 0.5rem', $styles);
+        $this->assertStringContainsString(':not([type="checkbox"])', $styles);
+    }
+
     public function test_seller_login_regenerates_the_session_and_logout_invalidates_it(): void
     {
         $seller = User::factory()->create([

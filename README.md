@@ -60,8 +60,8 @@ Las cuentas de prueba del `UserSeeder` son `admin` y `vendedor1`, ambas con cont
 - `app/Observers/AuditoriaObserver.php`: registra automáticamente creación, edición y eliminación.
 - `app/Rules/RutChileno.php`: valida formato y dígito verificador de RUT.
 - `app/Notifications`: notificaciones de solicitudes y stock crítico.
-- `app/Console/Commands/BackupDatabase.php`: crea backups SQLite o MySQL; usa JSON como fallback si `mysqldump` no está disponible.
-- `app/Console/Commands/RestoreDatabaseBackup.php`: restaura un JSON con confirmación explícita.
+- `app/Console/Commands/BackupDatabase.php`: crea backups ZIP verificados de toda la base de datos y de los archivos subidos.
+- `app/Console/Commands/RestoreDatabaseBackup.php`: restaura un ZIP verificado tras crear primero un backup de seguridad.
 - `app/Http/Middleware/RoleMiddleware.php`: restringe rutas por rol.
 - `app/Http/Middleware/NoStoreMiddleware.php`: evita cachear pantallas internas.
 
@@ -91,7 +91,9 @@ php artisan migrate:status
 php artisan db:seed --class=UserSeeder
 php artisan db:seed --class=ProductoRealSeeder
 php artisan app:backup-database
-php artisan app:restore-database-backup database-AAAA-MM-DD_HH-mm-ss.json --force
+php artisan app:backup-database --baseline
+php artisan app:verify-database-backup database-AAAA-MM-DD_HH-mm-ss.zip
+php artisan app:restore-database-backup database-AAAA-MM-DD_HH-mm-ss.zip --force
 php artisan schedule:run
 php artisan route:list
 php artisan view:cache
@@ -100,9 +102,17 @@ php artisan test --compact
 vendor/bin/pint --dirty --format agent
 ```
 
-`app:backup-database` guarda archivos en `storage/app/private/backups` y conserva la cantidad indicada por `BACKUP_KEEP`, cuyo valor recomendado es 14. `app:restore-database-backup` reemplaza datos de tablas de aplicación, por eso exige `--force`; no restaura migraciones, sesiones ni cachés.
+`app:backup-database` guarda ZIPs en `storage/app/private/backups`, incluye todas las tablas del esquema configurado y los archivos de `storage/app/public`, y comprueba los checksums SHA-256 antes de guardarlos. No usa JSON como alternativa: si `mysqldump` falla, el comando falla explícitamente. `--baseline` conserva una copia inicial fuera de la rotación automática; los backups diarios mantienen los últimos `BACKUP_KEEP` archivos (14 por defecto). En producción, `BACKUP_ARCHIVE_PASSWORD` es obligatorio y cifra el ZIP con AES-256; guarda esa clave fuera de los backups y consérvala para poder verificar o restaurar.
 
-El scheduler ejecuta el backup todos los días a las 02:00. En Windows hay que programar `php artisan schedule:run` cada minuto en el Programador de tareas. En Linux se usa una entrada cron cada minuto.
+El scheduler ejecuta el backup todos los días a las 02:00 y registra los fallos como críticos. La tarea del sistema operativo no se activa sola. En Windows, crea una tarea en el Programador de tareas con trigger diario a las 02:00, programa `php.exe` (obtenlo con `where.exe php`), argumentos `artisan schedule:run` y directorio de inicio `C:\laragon\www\resmap-app`; el equipo debe estar encendido. En Linux, configura la entrada cron estándar cada minuto.
+
+Para una segunda copia, configura `BACKUP_SECONDARY_PATH` con una ruta de otro disco, un NAS o una carpeta de sincronización cloud. El comando fallará si no puede guardar la copia secundaria. Para cumplir 3-2-1, verifica que esa ruta realmente esté en un medio distinto y fuera del sitio; una carpeta local o partición del mismo disco no cuenta como copia off-site. Esta configuración usa un destino de archivos local/montado; el adaptador S3 no está instalado en este proyecto.
+
+En `/backups`, los administradores pueden restaurar cualquier ZIP nuevo con dos confirmaciones en pantalla; la segunda requiere escribir `RESTAURAR`. El servidor vuelve a validar el nombre y la confirmación y genera un backup preventivo antes de llamar al proceso de restauración. Los backups JSON, SQL o SQLite antiguos siguen descargables, pero no se pueden restaurar desde la interfaz porque no incluyen el manifiesto/integridad del formato nuevo.
+
+Prueba recomendada: crea un backup manual, ejecuta `php artisan app:verify-database-backup <archivo.zip>` y verifica que el resultado diga que todos los archivos coinciden. Para comprobar recuperación, restaura primero en un entorno aislado con otra base de datos, confirma conteos de productos, ventas, movimientos y solicitudes, y abre imágenes restauradas. La restauración real exige `--force` y genera primero un backup preventivo; no la pruebes contra producción.
+
+Las migraciones habituales (`php artisan migrate`) agregan cambios de esquema y no deben borrar datos. No uses `migrate:fresh` ni `migrate:refresh` en esta base: eliminan tablas/datos. Antes de desplegar migraciones, genera y verifica un backup. La copia baseline conserva el estado actual, pero no bloquea cambios de esquema ni sustituye backups diarios.
 
 ## Configuración de producción
 

@@ -3,6 +3,10 @@
 return [
 
     'backup_keep' => (int) env('BACKUP_KEEP', 14),
+    'backup_archive_password' => env('BACKUP_ARCHIVE_PASSWORD'),
+    'backup_secondary_path' => env('BACKUP_SECONDARY_PATH'),
+    'mysqldump_path' => env('MYSQLDUMP_PATH', 'mysqldump'),
+    'mysql_path' => env('MYSQL_PATH', 'mysql'),
 
     /*
     |--------------------------------------------------------------------------
@@ -60,6 +64,13 @@ return [
             'use_path_style_endpoint' => env('AWS_USE_PATH_STYLE_ENDPOINT', false),
             'throw' => false,
             'report' => false,
+        ],
+
+        'backup_secondary' => [
+            'driver' => 'local',
+            'root' => env('BACKUP_SECONDARY_PATH') ?: storage_path('app/private/backups-secondary'),
+            'throw' => true,
+            'report' => true,
         ],
 
     ],

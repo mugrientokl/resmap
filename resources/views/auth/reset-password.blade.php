@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Nueva contraseña | RESMAP</title><script src="https://cdn.tailwindcss.com"></script></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Nueva contraseña | RESMAP</title><script src="https://cdn.tailwindcss.com"></script><link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"></head>
 <body class="flex min-h-screen items-center justify-center bg-[#8f241d] px-6 text-[#241817]">
 <main class="w-full max-w-md bg-white p-8 shadow-2xl sm:p-12">
     <a href="{{ route('login') }}" class="text-sm font-bold text-[#9f2f25]">← Volver al acceso</a>
