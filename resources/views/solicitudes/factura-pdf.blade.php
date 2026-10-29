@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Resumen de solicitud #{{ $solicitud->id_solicitud }}</title>
+    <title>{{ $solicitud->tipo_solicitud === 'servicio' ? 'Resumen de servicio' : 'Resumen de cotización' }} #{{ $solicitud->id_solicitud }}</title>
     <style>
         @page { margin: 28px 34px; }
         body { color: #241817; font-family: DejaVu Sans, sans-serif; font-size: 10px; }
@@ -26,7 +26,7 @@
     <div class="top">
         <table><tr>
             <td style="border: 0; padding: 0;"><div class="brand">RESMAP</div><div class="muted">Venta de repuestos eléctricos para maquinaria pesada</div></td>
-            <td class="right" style="border: 0; padding: 0;"><div class="label">Resumen de solicitud</div><strong style="font-size: 16px;">Solicitud #{{ $solicitud->id_solicitud }}</strong><br><span class="muted">{{ $solicitud->fecha?->format('d/m/Y') }}</span></td>
+            <td class="right" style="border: 0; padding: 0;"><div class="label">{{ $solicitud->tipo_solicitud === 'servicio' ? 'Resumen de servicio' : 'Resumen de cotización' }}</div><strong style="font-size: 16px;">{{ $solicitud->tipo_solicitud === 'servicio' ? 'Servicio' : 'Cotización' }} #{{ $solicitud->id_solicitud }}</strong><br><span class="muted">{{ $solicitud->fecha?->format('d/m/Y') }}</span></td>
         </tr></table>
     </div>
     <div class="box" style="margin: 18px 0;">
@@ -45,7 +45,7 @@
         <table class="totals"><tr><td class="muted">Neto</td><td class="number">$ {{ number_format($totales['neto'], 0, ',', '.') }}</td></tr><tr><td class="muted">IVA 19%</td><td class="number">$ {{ number_format($totales['iva'], 0, ',', '.') }}</td></tr><tr class="grand"><td>Total</td><td class="number">$ {{ number_format($totales['total'], 0, ',', '.') }}</td></tr></table>
     @endif
     @if($solicitud->observaciones)<div style="margin-top: 24px;"><div class="label">Observaciones</div><p>{{ $solicitud->observaciones }}</p></div>@endif
-    <p class="muted" style="margin-top: 44px; text-align: center;">Este documento es un resumen informativo de la solicitud y no acredita una emisión tributaria.</p>
+    <p class="muted" style="margin-top: 44px; text-align: center;">Este documento es un resumen informativo y no acredita una emisión tributaria.</p>
     <p class="muted" style="margin-top: 12px; text-align: center;">Gracias por preferir RESMAP · Venta de repuestos eléctricos para maquinaria pesada</p>
 </body>
 </html>

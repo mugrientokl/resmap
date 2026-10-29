@@ -17,7 +17,9 @@ class SolicitudWebRecibida extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['mail', 'database'];
+        return $notifiable->rol === 'Administrador'
+            ? ['mail', 'database']
+            : ['database'];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -40,10 +42,13 @@ class SolicitudWebRecibida extends Notification
             ];
         });
 
+        $esServicio = $this->solicitud->tipo_solicitud === 'servicio';
+
         return (new MailMessage)
-            ->subject("Nueva Solicitud #{$this->solicitud->id_solicitud} - {$this->solicitud->tipo_solicitud}")
+            ->subject(($esServicio ? 'Nuevo servicio' : 'Nueva cotización').' #'.$this->solicitud->id_solicitud)
             ->view('emails.solicitud-web', [
                 'solicitud' => $this->solicitud,
+                'esServicio' => $esServicio,
                 'cliente' => $cliente,
                 'items' => $items,
                 'notifiable' => $notifiable,
@@ -59,12 +64,13 @@ class SolicitudWebRecibida extends Notification
     public function toArray(object $notifiable): array
     {
         $faltantes = $this->faltantes();
+        $esServicio = $this->solicitud->tipo_solicitud === 'servicio';
 
         return [
             'tipo' => 'solicitud',
             'tipo_solicitud' => $this->solicitud->tipo_solicitud,
-            'titulo' => 'Nueva solicitud web',
-            'mensaje' => 'Solicitud #'.$this->solicitud->id_solicitud.' de '.$this->solicitud->cliente->nombre.($faltantes ? ' requiere revisar disponibilidad de stock.' : ''),
+            'titulo' => $esServicio ? 'Nuevo servicio solicitado' : 'Nueva cotización web',
+            'mensaje' => ($esServicio ? 'Servicio' : 'Cotización').' #'.$this->solicitud->id_solicitud.' de '.$this->solicitud->cliente->nombre.($faltantes ? ' requiere revisar disponibilidad de stock.' : ''),
             'faltantes_stock' => $faltantes,
             'url' => route('solicitudes.show', $this->solicitud->id_solicitud),
         ];

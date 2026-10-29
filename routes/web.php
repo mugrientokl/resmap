@@ -5,6 +5,7 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\CotizacionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DetalleVentaController;
 use App\Http\Controllers\InventarioMovimientoController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\SolicitudWebController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VentaController;
+use App\Http\Controllers\WhatsAppWebhookController;
 use App\Models\Categoria;
 use App\Models\Producto;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
@@ -37,6 +39,13 @@ Route::middleware([
     Route::get('/', [CatalogoController::class, 'home'])->name('home');
     Route::get('/catalogo', [CatalogoController::class, 'index'])->name('catalogo.index');
     Route::post('/catalogo/solicitudes', [CatalogoController::class, 'storeRequest'])->middleware('throttle:10,1')->name('catalogo.solicitudes.store');
+    Route::get('/cotizaciones/{version}/documento', [CotizacionController::class, 'pdfPublico'])->middleware('signed')->name('cotizaciones.pdf.publico');
+    Route::get('/cotizaciones/{version}/responder/{token}', [CotizacionController::class, 'mostrarRespuesta'])->name('cotizaciones.responder.form');
+    Route::post('/cotizaciones/{version}/responder/{token}', [CotizacionController::class, 'responder'])->middleware('throttle:10,1')->name('cotizaciones.responder');
+    Route::get('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'verificar'])->name('whatsapp.webhook.verificar');
+    Route::post('/webhooks/whatsapp', [WhatsAppWebhookController::class, 'recibir'])
+        ->withoutMiddleware(ValidateCsrfToken::class)
+        ->name('whatsapp.webhook.recibir');
     Route::get('/servicios', [ServicioController::class, 'index'])->name('servicios.index');
     Route::post('/servicios', [ServicioController::class, 'store'])->middleware('throttle:10,1')->name('servicios.store');
     Route::get('/login', [AuthController::class, 'create'])->name('login');
@@ -76,6 +85,7 @@ Route::middleware([
     Route::get('/pos', function (Request $request) {
         $categorias = Categoria::orderBy('nombre_categoria')->get();
         $productos = Producto::with('categoria')
+            ->withSum('reservasActivas as stock_reservado', 'cantidad')
             ->when($request->filled('nombre'), function ($query) use ($request): void {
                 $nombre = $request->string('nombre')->toString();
                 $query->where(function ($productQuery) use ($nombre): void {
@@ -94,6 +104,14 @@ Route::middleware([
         return view('pos.index', compact('productos', 'categorias'));
     })->middleware(['auth', 'role:Administrador,Vendedor'])->name('pos.index');
     Route::post('/ventas', [VentaController::class, 'store'])->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:30,1']);
+    Route::post('/ventas/{venta}/confirmar-comercial', [CotizacionController::class, 'confirmarVenta'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('ventas.confirmar-comercial');
+    Route::post('/ventas/{venta}/registrar-pago-credito', [CotizacionController::class, 'registrarPagoCredito'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('ventas.registrar-pago-credito');
+    Route::post('/ventas/{venta}/simular-facturacion', [CotizacionController::class, 'simularFacturacion'])->middleware(['auth', 'role:Administrador'])->name('ventas.simular-facturacion');
+    Route::post('/ventas/{venta}/registrar-entrega', [CotizacionController::class, 'registrarEntrega'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('ventas.registrar-entrega');
+    Route::get('/cotizaciones/ordenes-compra/{ordenCompra}', [CotizacionController::class, 'descargarOrdenCompra'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('cotizaciones.orden-compra');
+    Route::get('/cotizaciones/ordenes-compra/{ordenCompra}/ver', [CotizacionController::class, 'verOrdenCompra'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('cotizaciones.orden-compra.ver');
+    Route::get('/cotizaciones/versiones/{version}/pdf', [CotizacionController::class, 'pdf'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('cotizaciones.pdf');
+    Route::post('/cotizaciones/versiones/{version}/enviar', [CotizacionController::class, 'enviar'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('cotizaciones.enviar');
     Route::get('/inventario/movimientos', [InventarioMovimientoController::class, 'index'])->middleware(['auth', 'role:Administrador'])->name('inventario.movimientos');
     Route::get('/inventario/movimientos/{movimiento}', [InventarioMovimientoController::class, 'show'])->middleware(['auth', 'role:Administrador'])->name('inventario.movimientos.show');
     Route::post('/inventario/movimientos', [InventarioMovimientoController::class, 'store'])->middleware(['auth', 'role:Administrador'])->name('inventario.movimientos.store');
@@ -102,6 +120,8 @@ Route::middleware([
     Route::get('/reportes/auditoria/exportar/{formato}', [ReporteController::class, 'exportarAuditoria'])->middleware(['auth', 'role:Administrador'])->name('reportes.auditoria.exportar');
     Route::get('/reportes/ventas/{id}', [ReporteController::class, 'detalleVenta'])->middleware(['auth', 'role:Administrador'])->name('reportes.ventas.detalle');
     Route::get('/reportes/ventas/{id}/factura', [ReporteController::class, 'facturaVenta'])->middleware(['auth', 'role:Administrador'])->name('reportes.ventas.factura');
+    Route::get('/reportes/ventas/{id}/resumen-interno', [ReporteController::class, 'facturaVenta'])->middleware(['auth', 'role:Administrador'])->name('reportes.ventas.resumen');
+    Route::get('/reportes/ordenes-compra/{ordenCompra}', [ReporteController::class, 'descargarOrdenCompra'])->middleware(['auth', 'role:Administrador'])->name('reportes.orden-compra');
     Route::get('/auditoria', [ReporteController::class, 'auditoria'])->middleware(['auth', 'role:Administrador'])->name('reportes.auditoria');
     Route::get('/backups', [BackupController::class, 'index'])->middleware(['auth', 'role:Administrador'])->name('backups.index');
     Route::post('/backups/{filename}/restore', [BackupController::class, 'restore'])->middleware(['auth', 'role:Administrador'])->name('backups.restore');
@@ -114,6 +134,7 @@ Route::middleware([
     Route::get('/solicitudes-web/{id}', [SolicitudWebController::class, 'show'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('solicitudes.show');
     Route::get('/solicitudes-web/{id}/pdf', [SolicitudWebController::class, 'descargarSolicitudPdf'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('solicitudes.pdf');
     Route::patch('/solicitudes-web/{id}/estado', [SolicitudWebController::class, 'actualizarEstado'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('solicitudes.estado');
+    Route::post('/solicitudes-web/{solicitud}/cotizacion', [CotizacionController::class, 'crearVersion'])->middleware(['auth', 'role:Administrador,Vendedor'])->name('solicitudes.cotizacion.crear');
 
     Route::get('/usuarios', [UserController::class, 'index'])->middleware(['auth', 'role:Administrador'])->name('usuarios.index');
     Route::post('/usuarios', [UserController::class, 'store'])->middleware(['auth', 'role:Administrador'])->name('usuarios.store');

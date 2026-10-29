@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DetalleVenta;
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
+use App\Models\ReservaInventario;
 use App\Models\SolicitudWeb;
 use App\Models\Venta;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -15,13 +16,56 @@ class SolicitudWebController extends Controller
 {
     public function index(Request $request)
     {
-        $solicitudes = SolicitudWeb::with('cliente')
-            ->when($request->filled('estado'), fn ($query) => $query->where('estado', $request->string('estado')->toString()))
+        $solicitudes = SolicitudWeb::with([
+            'cliente',
+            'cotizacion.versiones.ordenesCompra',
+            'cotizacion.versiones.venta.creditoAutorizadoPor',
+        ])
+            ->when($request->filled('estado'), function ($query) use ($request): void {
+                match ($request->string('estado')->toString()) {
+                    'pendiente_comercial' => $query->where(function ($query): void {
+                        $query->where('tipo_solicitud', '!=', 'servicio')
+                            ->where(function ($query): void {
+                                $query->whereDoesntHave('cotizacion')
+                                    ->orWhereHas('cotizacion', fn ($query) => $query->whereIn('estado', ['pendiente_revision', 'borrador']));
+                            });
+                    }),
+                    'esperando_cliente' => $query->where('tipo_solicitud', '!=', 'servicio')
+                        ->whereHas('cotizacion', fn ($query) => $query->where('estado', 'enviada')
+                            ->orWhere(fn ($query) => $query->where('estado', 'aceptada')->whereDoesntHave('versiones.ordenesCompra'))),
+                    'cambios_solicitados' => $query->where('tipo_solicitud', '!=', 'servicio')
+                        ->whereHas('cotizacion', fn ($query) => $query->where('estado', 'cambios_solicitados')),
+                    'aceptada' => $query->where('tipo_solicitud', '!=', 'servicio')
+                        ->whereHas('cotizacion', fn ($query) => $query->where('estado', 'aceptada')),
+                    'pendiente_equipo' => $query->where('tipo_solicitud', '!=', 'servicio')
+                        ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_venta', 'pendiente_confirmacion')),
+                    'pendiente_facturacion' => $query->where('tipo_solicitud', '!=', 'servicio')
+                        ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_venta', 'confirmada')
+                            ->where('estado_facturacion', '!=', 'simulada_exitosa')),
+                    'pendiente_entrega' => $query->where('tipo_solicitud', '!=', 'servicio')
+                        ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_facturacion', 'simulada_exitosa')
+                            ->where('estado_entrega', '!=', 'entregada')),
+                    'completada' => $query->where('tipo_solicitud', '!=', 'servicio')
+                        ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_entrega', 'entregada')),
+                    'cerrada' => $query->where(function ($query): void {
+                        $query->where('tipo_solicitud', '!=', 'servicio')
+                            ->where(function ($query): void {
+                                $query->where('estado', 'Entregado y completado')
+                                    ->orWhereHas('cotizacion', fn ($query) => $query->whereIn('estado', ['rechazada', 'cancelada']));
+                            });
+                    }),
+                    default => $query->where('estado', $request->string('estado')->toString()),
+                };
+            })
             ->when($request->filled('desde'), fn ($query) => $query->whereDate('fecha', '>=', $request->date('desde')))
             ->when($request->filled('hasta'), fn ($query) => $query->whereDate('fecha', '<=', $request->date('hasta')))
             ->orderByDesc('id_solicitud')
             ->paginate(20)
             ->withQueryString();
+
+        $solicitudes->getCollection()->each(function (SolicitudWeb $solicitud): void {
+            $solicitud->setAttribute('estado_comercial', $this->estadoComercial($solicitud));
+        });
 
         return request()->expectsJson()
             ? response()->json($solicitudes)
@@ -30,9 +74,17 @@ class SolicitudWebController extends Controller
 
     public function show($id)
     {
-        $solicitud = SolicitudWeb::with('cliente')->findOrFail($id);
+        $solicitud = SolicitudWeb::with([
+            'cliente',
+            'cotizacion.versiones.detalles',
+            'cotizacion.versiones.ordenesCompra',
+            'cotizacion.versiones.venta.creditoAutorizadoPor',
+            'cotizacion.reservas',
+            'venta.creditoAutorizadoPor',
+        ])->findOrFail($id);
         $productos = $this->productosDeSolicitud($solicitud);
         $totales = $this->totalesDeSolicitud($productos);
+        $solicitud->setAttribute('estado_comercial', $this->estadoComercial($solicitud));
 
         return view('solicitudes.show', compact('solicitud', 'productos', 'totales'));
     }
@@ -80,6 +132,135 @@ class SolicitudWebController extends Controller
         ];
     }
 
+    /**
+     * @return array{titulo: string, detalle: string, estado: string}
+     */
+    private function estadoComercial(SolicitudWeb $solicitud): array
+    {
+        if ($solicitud->tipo_solicitud === 'servicio') {
+            return [
+                'titulo' => 'Servicio: '.$solicitud->estado,
+                'detalle' => 'Solicitud de atención técnica; se gestiona desde el equipo de servicio.',
+                'estado' => 'servicio',
+            ];
+        }
+
+        $cotizacion = $solicitud->cotizacion;
+        if (! $cotizacion) {
+            return $solicitud->estado === 'Rechazado'
+                ? [
+                    'titulo' => 'Cotización cerrada',
+                    'detalle' => 'Esta solicitud comercial fue rechazada antes de generar una cotización.',
+                    'estado' => 'cerrada',
+                ]
+                : [
+                    'titulo' => 'Pendiente de revisión comercial',
+                    'detalle' => 'Esperando que un vendedor revise disponibilidad, prepare y envíe la cotización al cliente.',
+                    'estado' => 'pendiente_comercial',
+                ];
+        }
+
+        $version = $cotizacion->versiones->sortByDesc('numero_version')->first();
+        $venta = $version?->venta ?? $solicitud->venta;
+        $tieneOrdenCompra = $version?->ordenesCompra->isNotEmpty() ?? false;
+
+        if ($cotizacion->estado === 'pendiente_revision') {
+            return [
+                'titulo' => 'Pendiente de revisión comercial',
+                'detalle' => 'Esperando que un vendedor prepare la cotización para enviarla al cliente.',
+                'estado' => 'pendiente_comercial',
+            ];
+        }
+
+        if ($cotizacion->estado === 'borrador' || $version?->estado === 'borrador') {
+            return [
+                'titulo' => 'Cotización lista para enviar',
+                'detalle' => 'El equipo comercial debe enviar esta versión al cliente.',
+                'estado' => 'pendiente_comercial',
+            ];
+        }
+
+        if ($cotizacion->estado === 'enviada') {
+            return [
+                'titulo' => 'Esperando respuesta del cliente',
+                'detalle' => 'Pendiente de aceptación o solicitud de cambios y de la orden de compra del cliente.',
+                'estado' => 'esperando_cliente',
+            ];
+        }
+
+        if ($cotizacion->estado === 'cambios_solicitados') {
+            return [
+                'titulo' => 'Cambios solicitados por el cliente',
+                'detalle' => 'El equipo comercial debe revisar los comentarios y preparar una nueva versión.',
+                'estado' => 'cambios_solicitados',
+            ];
+        }
+
+        if (in_array($cotizacion->estado, ['rechazada', 'cancelada'], true)) {
+            return [
+                'titulo' => $cotizacion->estado === 'rechazada' ? 'Cotización rechazada' : 'Cotización cancelada',
+                'detalle' => 'Este proceso comercial está cerrado.',
+                'estado' => 'cerrada',
+            ];
+        }
+
+        if ($cotizacion->estado === 'aceptada' && ! $tieneOrdenCompra) {
+            return [
+                'titulo' => 'Aceptada; falta la orden de compra',
+                'detalle' => 'Esperando que el cliente adjunte o autorice una orden de compra antes de continuar con la venta.',
+                'estado' => 'esperando_cliente',
+            ];
+        }
+
+        if ($venta?->estado_venta === 'pendiente_confirmacion') {
+            return [
+                'titulo' => 'Orden de compra recibida; pendiente del equipo comercial',
+                'detalle' => 'El equipo debe confirmar el pago total o autorizar crédito para continuar.',
+                'estado' => 'pendiente_equipo',
+            ];
+        }
+
+        if ($venta?->estado_venta === 'confirmada' && $venta->estado_facturacion !== 'simulada_exitosa') {
+            $detalle = $venta->estado_pago === 'credito_autorizado'
+                ? 'Crédito autorizado por '.$venta->creditoAutorizadoPor?->name.'; pendiente de facturación de prueba.'
+                : ($venta->estado_pago === 'credito_parcial'
+                    ? 'Abono de crédito registrado; el saldo sigue pendiente mientras se prepara la facturación de prueba.'
+                    : 'La venta está confirmada. El inventario se descontará al completar la facturación.');
+
+            return [
+                'titulo' => $venta->estado_pago === 'credito_autorizado'
+                    ? 'Crédito autorizado; pendiente de facturación'
+                    : ($venta->estado_pago === 'credito_parcial'
+                        ? 'Crédito con abonos; pendiente de facturación'
+                        : 'Pago confirmado; pendiente de facturación'),
+                'detalle' => $detalle.' El inventario se descontará al completar la facturación.',
+                'estado' => 'pendiente_facturacion',
+            ];
+        }
+
+        if ($venta?->estado_facturacion === 'simulada_exitosa' && $venta->estado_entrega !== 'entregada') {
+            return [
+                'titulo' => 'Facturación simulada; pendiente de entrega',
+                'detalle' => 'El stock ya fue descontado. Coordina el despacho o retiro con el cliente.',
+                'estado' => 'pendiente_entrega',
+            ];
+        }
+
+        if ($venta?->estado_entrega === 'entregada') {
+            return [
+                'titulo' => 'Venta completada',
+                'detalle' => 'La venta fue facturada en modo de prueba y marcada como entregada.',
+                'estado' => 'completada',
+            ];
+        }
+
+        return [
+            'titulo' => 'Cotización aceptada; venta en preparación',
+            'detalle' => 'Revisa la orden de compra del cliente para continuar con la venta.',
+            'estado' => 'pendiente_equipo',
+        ];
+    }
+
     public function store(Request $request)
     {
         $request->validate([
@@ -95,7 +276,7 @@ class SolicitudWebController extends Controller
         ]);
 
         return response()->json([
-            'message' => 'Solicitud web registrada con éxito.',
+            'message' => 'Cotización web registrada con éxito.',
             'solicitud' => $solicitud,
         ], 201);
     }
@@ -108,6 +289,14 @@ class SolicitudWebController extends Controller
         ]);
 
         $solicitud = SolicitudWeb::with('cliente')->findOrFail($id);
+        if ($solicitud->tipo_solicitud !== 'servicio' && $solicitud->cotizacion()->exists()) {
+            $mensaje = 'Las cotizaciones de repuestos se gestionan desde el flujo comercial de cotizaciones.';
+            if ($request->expectsJson()) {
+                return response()->json(['message' => $mensaje], 422);
+            }
+
+            return redirect()->route('solicitudes.show', $solicitud)->with('error', $mensaje);
+        }
         $transiciones = [
             'Pendiente' => ['Pagado - pendiente de entrega', 'Entregado - pago pendiente', 'Entregado y completado', 'Rechazado'],
             'Pagado - pendiente de entrega' => ['Entregado y completado'],
@@ -151,8 +340,14 @@ class SolicitudWebController extends Controller
 
                 foreach ($items as $idProducto => $cantidad) {
                     $producto = Producto::query()->whereKey($idProducto)->lockForUpdate()->firstOrFail();
-                    if ($producto->stock < $cantidad) {
-                        throw new \RuntimeException("Stock insuficiente para {$producto->nombre}.");
+                    $reservado = ReservaInventario::query()
+                        ->where('producto_id', $producto->id_producto)
+                        ->where('estado', 'activa')
+                        ->where('expira_at', '>', now())
+                        ->sum('cantidad');
+                    $disponible = max(0, (int) $producto->stock - (int) $reservado);
+                    if ($disponible < $cantidad) {
+                        throw new \RuntimeException("Stock disponible insuficiente para {$producto->nombre}; hay {$disponible} unidades libres.");
                     }
 
                     $subtotal = (float) $producto->precio * $cantidad;

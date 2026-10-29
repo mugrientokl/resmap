@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Categoria;
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
+use App\Models\ReservaInventario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -121,6 +122,14 @@ class InventarioMovimientoController extends Controller
 
                 if ($stockNuevo < 0) {
                     throw new \RuntimeException('La merma o egreso no puede superar el stock disponible.');
+                }
+                $stockReservado = ReservaInventario::query()
+                    ->where('producto_id', $producto->id_producto)
+                    ->where('estado', 'activa')
+                    ->where('expira_at', '>', now())
+                    ->sum('cantidad');
+                if ($stockNuevo < $stockReservado) {
+                    throw new \RuntimeException('El ajuste dejaría menos stock físico que las unidades reservadas para cotizaciones vigentes.');
                 }
 
                 $producto->update(['stock' => $stockNuevo]);

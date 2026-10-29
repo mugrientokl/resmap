@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class SolicitudWeb extends Model
 {
@@ -26,6 +28,13 @@ class SolicitudWeb extends Model
         'atendida_at',
         'observaciones',
         'atendida_at',
+        'metodo_entrega',
+        'direccion_calle',
+        'direccion_numero',
+        'direccion_comuna',
+        'direccion_ciudad',
+        'direccion_region',
+        'direccion_referencias',
     ];
 
     protected $casts = [
@@ -34,13 +43,18 @@ class SolicitudWeb extends Model
         'atendida_at' => 'datetime',
     ];
 
-    public function cliente()
+    public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class, 'id_cliente', 'id_cliente');
     }
 
-    public function venta()
+    public function venta(): BelongsTo
     {
         return $this->belongsTo(Venta::class, 'venta_id', 'id_venta');
+    }
+
+    public function cotizacion(): HasOne
+    {
+        return $this->hasOne(Cotizacion::class, 'solicitud_id', 'id_solicitud');
     }
 }

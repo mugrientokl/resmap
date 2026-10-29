@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Categoria;
 use App\Models\Producto;
 use App\Models\ProductoImportado;
+use App\Models\ReservaInventario;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -97,14 +98,35 @@ class ProductoRealSeeder extends Seeder
                     ['descripcion' => 'Categoría importada desde inventario RESMAP']
                 );
 
+                $codigoBarra = $this->codigoInterno($filaOrigen);
+                $stockNuevo = $this->stock($stockOrigen);
+                $productoExistente = Producto::query()
+                    ->where('codigo_barra', $codigoBarra)
+                    ->lockForUpdate()
+                    ->first();
+
+                if ($productoExistente) {
+                    $stockReservado = ReservaInventario::query()
+                        ->where('producto_id', $productoExistente->id_producto)
+                        ->where('estado', 'activa')
+                        ->where('expira_at', '>', now())
+                        ->sum('cantidad');
+
+                    if ($stockNuevo < $stockReservado) {
+                        throw new \RuntimeException(
+                            "La importación no puede reducir el stock de {$productoExistente->nombre} por debajo de sus reservas vigentes."
+                        );
+                    }
+                }
+
                 Producto::updateOrCreate(
-                    ['codigo_barra' => $this->codigoInterno($filaOrigen)],
+                    ['codigo_barra' => $codigoBarra],
                     [
                         'codigo_origen' => $codigoOrigen,
                         'nombre' => $detalle ?: 'Producto sin nombre - fila '.$filaOrigen,
                         'descripcion' => 'Importado desde '.$archivoOrigen.' | Fila '.$filaOrigen,
                         'precio' => $this->precio($precioIvaOrigen),
-                        'stock' => $this->stock($stockOrigen),
+                        'stock' => $stockNuevo,
                         'stock_critico' => 3,
                         'id_categoria' => $categoria->id_categoria,
                         'ubicacion' => $this->texto($row[1]),

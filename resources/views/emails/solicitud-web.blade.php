@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nueva solicitud RESMAP</title>
+    <title>{{ $esServicio ? 'Nuevo servicio' : 'Nueva cotización' }} RESMAP</title>
 </head>
 <body style="margin:0;background:#f3f4f6;color:#1f2933;font-family:Arial,Helvetica,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:28px 12px;">
@@ -17,9 +17,9 @@
                     </tr>
                     <tr>
                         <td style="padding:30px;">
-                            <p style="margin:0 0 8px;color:#8f241d;font-size:13px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">Nueva solicitud web</p>
-                            <h1 style="margin:0 0 24px;color:#17211f;font-size:25px;line-height:1.25;">Solicitud #{{ $solicitud->id_solicitud }}</h1>
-                            <p style="margin:0 0 24px;color:#4b5563;font-size:15px;line-height:1.6;">Hola {{ $notifiable->name }}, se ha recibido una nueva solicitud en RESMAP.</p>
+                            <p style="margin:0 0 8px;color:#8f241d;font-size:13px;font-weight:bold;letter-spacing:1.5px;text-transform:uppercase;">{{ $esServicio ? 'Nuevo servicio recibido' : 'Nueva cotización web' }}</p>
+                            <h1 style="margin:0 0 24px;color:#17211f;font-size:25px;line-height:1.25;">{{ $esServicio ? 'Servicio' : 'Cotización' }} #{{ $solicitud->id_solicitud }}</h1>
+                            <p style="margin:0 0 24px;color:#4b5563;font-size:15px;line-height:1.6;">Hola {{ $notifiable->name }}, {{ $esServicio ? 'se ha recibido una nueva solicitud de servicio' : 'se ha recibido una nueva cotización' }} en RESMAP.</p>
 
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:26px;border-collapse:collapse;">
                                 <tr>
@@ -40,9 +40,12 @@
                                 </tr>
                             </table>
 
-                            @if($faltantes)
+                            @if($esServicio)
+                                <h2 style="margin:0 0 12px;color:#17211f;font-size:18px;">Servicio solicitado</h2>
+                                <p style="margin:0 0 26px;color:#4b5563;font-size:14px;line-height:1.6;">{{ $solicitud->tipo_servicio }}<br>{{ $solicitud->descripcion_servicio }}</p>
+                            @elseif($faltantes)
                                 <div style="margin-bottom:26px;border-left:4px solid #d97706;background:#fffbeb;padding:14px;color:#92400e;font-size:13px;line-height:1.5;">
-                                    <strong>Advertencia de disponibilidad:</strong> la solicitud supera el stock actual y no reserva unidades. Revisa estos productos antes de prometer una fecha de entrega:
+                                    <strong>Advertencia de disponibilidad:</strong> la cantidad solicitada supera el stock disponible actual. Revisa estos productos antes de enviar la cotización:
                                     <ul style="margin:8px 0 0;padding-left:20px;">
                                         @foreach($faltantes as $faltante)
                                             <li>{{ $faltante['nombre'] }}: solicitadas {{ $faltante['solicitado'] }}, disponibles {{ $faltante['disponible'] }}</li>
@@ -51,7 +54,7 @@
                                 </div>
                             @endif
 
-                            <h2 style="margin:0 0 12px;color:#17211f;font-size:18px;">Productos solicitados</h2>
+                            @unless($esServicio)<h2 style="margin:0 0 12px;color:#17211f;font-size:18px;">Productos cotizados</h2>
                             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:26px;">
                                 <thead>
                                     <tr>
@@ -74,9 +77,10 @@
                                     @endforeach
                                 </tbody>
                             </table>
+                            @endunless
 
                             <div style="text-align:center;">
-                                <a href="{{ $urlSolicitud }}" style="display:inline-block;background:#c41e3a;color:#ffffff;text-decoration:none;border-radius:5px;padding:13px 24px;font-size:14px;font-weight:bold;">Ver solicitud</a>
+                                <a href="{{ $urlSolicitud }}" style="display:inline-block;background:#c41e3a;color:#ffffff;text-decoration:none;border-radius:5px;padding:13px 24px;font-size:14px;font-weight:bold;">{{ $esServicio ? 'Ver servicio' : 'Ver cotización' }}</a>
                             </div>
                         </td>
                     </tr>

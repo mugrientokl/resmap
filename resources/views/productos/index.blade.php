@@ -233,7 +233,7 @@
                                     action="{{ route('productos.destroy', $producto->id_producto, absolute: false) }}"
                                     method="POST"
                                     class="inline-block"
-                                    onsubmit="return confirm('¿Estás seguro de eliminar este producto?');"
+                                    data-confirm-message="¿Estás seguro de eliminar este producto? Esta acción no se puede deshacer."
                                 >
 
                                     @csrf

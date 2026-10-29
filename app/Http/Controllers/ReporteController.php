@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Auditoria;
-use App\Models\SolicitudWeb;
+use App\Models\OrdenCompra;
 use App\Models\User;
 use App\Models\Venta;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Storage;
 
 class ReporteController extends Controller
 {
@@ -30,12 +31,6 @@ class ReporteController extends Controller
             ->selectRaw('COUNT(*) as cantidad, COALESCE(SUM(total), 0) as total, COALESCE(SUM(iva), 0) as iva')
             ->first();
 
-        $pendientes = SolicitudWeb::whereIn('estado', [
-            'Pendiente',
-            'Pagado - pendiente de entrega',
-            'Entregado - pago pendiente',
-        ])->count();
-
         $auditorias = $this->auditoriasQuery($request);
         $usuarios = User::orderBy('name')->get(['id', 'name']);
         $modelos = Auditoria::query()->select('modelo')->distinct()->orderBy('modelo')->pluck('modelo');
@@ -45,7 +40,6 @@ class ReporteController extends Controller
         return view('reportes.index', compact(
             'ventas',
             'resumen',
-            'pendientes',
             'auditorias',
             'usuarios',
             'modelos',
@@ -66,7 +60,14 @@ class ReporteController extends Controller
 
     public function detalleVenta(int $id)
     {
-        $venta = Venta::with(['cliente', 'user', 'detalles.producto'])->findOrFail($id);
+        $venta = $this->ventasCompletadasQuery()->with([
+            'cliente',
+            'user',
+            'detalles.producto',
+            'cotizacionVersion.cotizacion',
+            'ordenesCompra',
+            'eventosFacturacion.usuario',
+        ])->findOrFail($id);
 
         return response()->json([
             'id_venta' => $venta->id_venta,
@@ -74,6 +75,10 @@ class ReporteController extends Controller
             'tipo_documento' => $venta->tipo_documento,
             'folio_sii' => $venta->folio_sii,
             'estado_sii' => $venta->estado_sii,
+            'estado_venta' => $venta->estado_venta ?? 'histórica',
+            'estado_pago' => $venta->estado_pago ?? 'histórico',
+            'estado_facturacion' => $venta->estado_facturacion ?? 'sin registro histórico',
+            'estado_entrega' => $venta->estado_entrega ?? 'sin registro histórico',
             'medio_pago' => $venta->medio_pago,
             'cliente' => $venta->cliente?->nombre ?? 'Sin cliente',
             'rut_cliente' => $venta->cliente?->rut,
@@ -81,6 +86,19 @@ class ReporteController extends Controller
             'neto' => (float) $venta->neto,
             'iva' => (float) $venta->iva,
             'total' => (float) $venta->total,
+            'cotizacion_id' => $venta->cotizacionVersion?->cotizacion_id,
+            'cotizacion_version' => $venta->cotizacionVersion?->numero_version,
+            'ordenes_compra' => $venta->ordenesCompra->map(fn (OrdenCompra $orden): array => [
+                'id' => $orden->id_orden_compra,
+                'numero' => $orden->numero,
+                'modalidad' => $orden->modalidad,
+                'archivo' => $orden->archivo_path !== null,
+            ])->values(),
+            'facturacion' => $venta->eventosFacturacion->map(fn ($evento): array => [
+                'proveedor' => $evento->proveedor,
+                'resultado' => $evento->resultado,
+                'fecha' => $evento->created_at?->format('d/m/Y H:i'),
+            ])->values(),
             'detalles' => $venta->detalles->map(fn ($detalle): array => [
                 'producto' => $detalle->producto?->nombre ?? 'Producto eliminado',
                 'cantidad' => $detalle->cantidad,
@@ -92,10 +110,33 @@ class ReporteController extends Controller
 
     public function facturaVenta(int $id)
     {
-        $venta = Venta::with(['cliente', 'user', 'detalles.producto'])->findOrFail($id);
+        $venta = $this->ventasCompletadasQuery()->with([
+            'cliente',
+            'user',
+            'detalles.producto',
+            'cotizacionVersion.cotizacion',
+            'ordenesCompra',
+            'eventosFacturacion',
+        ])->findOrFail($id);
 
         return Pdf::loadView('reportes.venta-pdf', compact('venta'))
-            ->download('factura-venta-'.$venta->id_venta.'.pdf');
+            ->download('resumen-interno-venta-'.$venta->id_venta.'.pdf');
+    }
+
+    public function descargarOrdenCompra(OrdenCompra $ordenCompra)
+    {
+        abort_unless($ordenCompra->archivo_path !== null, 404);
+        abort_unless(Storage::disk('local')->exists($ordenCompra->archivo_path), 404);
+
+        return Storage::disk('local')->download(
+            $ordenCompra->archivo_path,
+            'orden-compra-'.($ordenCompra->numero ?: $ordenCompra->id_orden_compra).'.'.$this->extensionOrden($ordenCompra->archivo_path),
+        );
+    }
+
+    private function extensionOrden(string $path): string
+    {
+        return pathinfo($path, PATHINFO_EXTENSION) ?: 'bin';
     }
 
     public function exportar(Request $request, string $formato)
@@ -276,7 +317,7 @@ class ReporteController extends Controller
 
     private function ventasQuery(Request $request, $desde, $hasta): Builder
     {
-        return Venta::with(['cliente', 'user'])
+        return $this->ventasCompletadasQuery()->with(['cliente', 'user'])
             ->whereBetween('fecha', [$desde, $hasta])
             ->when($request->filled('venta_id'), fn (Builder $query) => $query->where(
                 'id_venta',
@@ -298,6 +339,18 @@ class ReporteController extends Controller
                 'medio_pago',
                 $request->string('medio_pago')->toString()
             ));
+    }
+
+    private function ventasCompletadasQuery(): Builder
+    {
+        return Venta::query()->where(function (Builder $query): void {
+            $query->whereNull('cotizacion_version_id')
+                ->orWhere(function (Builder $query): void {
+                    $query->where('estado_venta', 'confirmada')
+                        ->where('estado_facturacion', 'simulada_exitosa')
+                        ->where('estado_entrega', 'entregada');
+                });
+        });
     }
 
     private function auditoriasQuery(Request $request): LengthAwarePaginator

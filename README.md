@@ -112,6 +112,14 @@ En `/backups`, los administradores pueden restaurar cualquier ZIP nuevo con dos 
 
 Prueba recomendada: crea un backup manual, ejecuta `php artisan app:verify-database-backup <archivo.zip>` y verifica que el resultado diga que todos los archivos coinciden. Para comprobar recuperación, restaura primero en un entorno aislado con otra base de datos, confirma conteos de productos, ventas, movimientos y solicitudes, y abre imágenes restauradas. La restauración real exige `--force` y genera primero un backup preventivo; no la pruebes contra producción.
 
+## Cotizaciones B2B y WhatsApp
+
+Las solicitudes públicas de repuestos crean reservas temporales; no reducen `productos.stock`. El POS y los ajustes manuales respetan esas reservas. Aceptar una versión de cotización crea una venta pendiente, pero tampoco descuenta stock. El descuento ocurre una sola vez cuando la facturación simulada termina correctamente en un entorno no productivo. Esa simulación no se conecta al SII ni emite un DTE real. Si la reserva venció antes de aceptar o facturar, el sistema vuelve a comprobar disponibilidad y no continúa si no alcanza.
+
+El correo usa SMTP configurable; para Mailtrap configura sus credenciales en el `.env` local. Para WhatsApp Cloud API se requieren `WHATSAPP_ENABLED`, la versión de Graph API vigente, el identificador de número, el token, el secreto de aplicación y el token de verificación del webhook. `WHATSAPP_QUOTE_TEMPLATE` debe ser el nombre de una plantilla aprobada que tenga cuatro parámetros de texto en el cuerpo y tres botones de respuesta rápida, en este orden: aceptar, rechazar y solicitar cambios. El idioma debe coincidir con la plantilla aprobada.
+
+En pruebas, mantén `WHATSAPP_TEST_MODE=true` y añade el destinatario autorizado únicamente a `WHATSAPP_TEST_RECIPIENTS` en el `.env` local, nunca en un archivo versionado. Un cliente solo recibe mensajes si registró consentimiento; los mensajes `STOP`, `BAJA`, `SALIR` y `CANCELAR` revocan ese consentimiento. Configura el webhook de Meta con una URL HTTPS pública; las solicitudes entrantes se validan con la firma HMAC del secreto de aplicación. La aceptación de SMTP o Meta confirma recepción del proveedor, no entrega al destinatario.
+
 Las migraciones habituales (`php artisan migrate`) agregan cambios de esquema y no deben borrar datos. No uses `migrate:fresh` ni `migrate:refresh` en esta base: eliminan tablas/datos. Antes de desplegar migraciones, genera y verifica un backup. La copia baseline conserva el estado actual, pero no bloquea cambios de esquema ni sustituye backups diarios.
 
 ## Configuración de producción
@@ -140,7 +148,7 @@ php artisan view:cache
 vendor/bin/pint --dirty --format agent
 ```
 
-La suite actual cubre acceso, roles, validación de categorías y ajustes de inventario. Antes de producción conviene ampliar pruebas de ventas, solicitudes, restauración de backups, recuperación de contraseña y exportaciones.
+La suite incluye pruebas de reservas y cotizaciones B2B, el momento del descuento de inventario, el envío simulado de una plantilla WhatsApp y la baja de consentimiento mediante webhook firmado, además de acceso, roles, ventas y otras áreas de la aplicación.
 
 ## Archivos que se conservaron intencionalmente
 

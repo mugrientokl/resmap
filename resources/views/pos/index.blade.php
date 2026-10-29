@@ -49,9 +49,9 @@
                         <td class="px-4 py-2 text-sm font-mono text-gray-600">{{ $prod->codigo_barra }}</td>
                         <td class="px-4 py-2 text-sm font-medium text-gray-900">{{ $prod->nombre }}</td>
                         <td class="px-4 py-2 text-sm text-gray-900">$ {{ number_format($prod->precio, 0, ',', '.') }}</td>
-                        <td class="px-4 py-2 text-sm text-gray-500">{{ $prod->stock }}</td>
+                        <td class="px-4 py-2 text-sm text-gray-500">{{ $prod->stock_disponible }}</td>
                         <td class="px-4 py-2 text-center text-sm">
-                            <button type="button" onclick="agregarAlCarro({{ $prod->id_producto }}, '{{ addslashes($prod->nombre) }}', {{ $prod->precio }}, {{ $prod->stock }})" class="bg-[#b52f25] text-white px-3 py-1 rounded hover:bg-[#8f241d] text-xs">Agregar</button>
+                            <button type="button" onclick="agregarAlCarro({{ $prod->id_producto }}, '{{ addslashes($prod->nombre) }}', {{ $prod->precio }}, {{ $prod->stock_disponible }})" class="bg-[#b52f25] text-white px-3 py-1 rounded hover:bg-[#8f241d] text-xs">Agregar</button>
                         </td>
                     </tr>
                     @endforeach
@@ -184,7 +184,7 @@
             if (existente.cantidad < stockMax) {
                 existente.cantidad++;
             } else {
-                alert('Stock máximo alcanzado.');
+                window.resmapAlert('Stock máximo alcanzado.', 'warning');
             }
         } else {
             carro.push({ id_producto, nombre, precio, cantidad: 1, stockMax });
@@ -200,7 +200,7 @@
                 carro = carro.filter(i => i.id_producto !== id_producto);
             } else if (item.cantidad > item.stockMax) {
                 item.cantidad = item.stockMax;
-                alert('Stock máximo alcanzado.');
+                window.resmapAlert('Stock máximo alcanzado.', 'warning');
             }
         }
         renderCarro();
@@ -250,7 +250,7 @@
 
     function procesarVenta() {
         if (carro.length === 0) {
-            alert('El carrito está vacío.');
+            window.resmapAlert('El carrito está vacío.', 'warning');
             return;
         }
 
@@ -258,7 +258,7 @@
         let nombre_cliente = document.getElementById('nombre_cliente').value;
 
         if (!rut || !nombre_cliente) {
-            alert('Debe ingresar al menos el RUT y Nombre del cliente.');
+            window.resmapAlert('Ingresa el RUT y el nombre del cliente.', 'warning');
             return;
         }
 
@@ -266,11 +266,11 @@
         const region = document.getElementById('region_cliente').value;
         const comuna = document.getElementById('comuna_cliente').value;
         if (!/^\d{8}$/.test(telefonoLocal)) {
-            alert('El teléfono debe contener exactamente 8 dígitos.');
+            window.resmapAlert('El teléfono debe contener exactamente 8 dígitos.', 'warning');
             return;
         }
         if (!region || !comuna) {
-            alert('Selecciona una región y una comuna.');
+            window.resmapAlert('Selecciona una región y una comuna.', 'warning');
             return;
         }
 
@@ -300,13 +300,16 @@
         .then(response => response.json().then(data => ({ status: response.status, body: data })))
         .then(res => {
             if (res.status === 201) {
-                alert('¡Venta registrada y stock actualizado!');
-                window.location.reload();
+                window.resmapAlert('¡Venta registrada y stock actualizado!', 'success').then(() => window.location.reload());
             } else {
-                alert('Error: ' + (res.body.error || JSON.stringify(res.body.errors)));
+                const errors = Object.values(res.body.errors || {}).flat().join('\n');
+                window.resmapAlert(res.body.error || errors || 'No se pudo registrar la venta.', 'error');
             }
         })
-        .catch(err => console.error('Error:', err));
+        .catch(err => {
+            console.error('No se pudo registrar la venta:', err);
+            window.resmapAlert('No fue posible comunicarse con el sistema para registrar la venta. Inténtalo nuevamente.', 'error');
+        });
     }
 
     const lectorCodigo = document.getElementById('lector-codigo');

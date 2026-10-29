@@ -74,7 +74,7 @@
             </a>
             @auth
                 @php($unreadNotifications = auth()->user()->unreadNotifications()->count())
-                @php($pendingRequests = \App\Models\SolicitudWeb::where('estado', 'Pendiente')->count())
+                @php($pendingRequests = \App\Models\SolicitudWeb::where('tipo_solicitud', '!=', 'servicio')->where(function ($query) { $query->whereDoesntHave('cotizacion')->orWhereHas('cotizacion', fn ($query) => $query->whereIn('estado', ['pendiente_revision', 'borrador'])); })->count())
                 <button type="button" id="mobile-menu-button" class="rounded-md p-2 hover:bg-[#721d18] md:hidden" aria-controls="main-menu" aria-expanded="false" aria-label="Abrir menú">
                     <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
                 </button>
@@ -86,7 +86,7 @@
                     <a href="{{ route('pos.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">POS</a>
                     <a href="{{ route('catalogo.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">Catálogo</a>
                     <a href="{{ route('servicios.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">Servicios</a>
-                    <a href="{{ route('solicitudes.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">Solicitudes @if($pendingRequests)<span class="ml-1 rounded-full bg-[#ffd5c9] px-2 py-0.5 text-xs text-[#8f241d]">{{ $pendingRequests }}</span>@endif</a>
+                    <a href="{{ route('solicitudes.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">Cotizaciones @if($pendingRequests)<span class="ml-1 rounded-full bg-[#ffd5c9] px-2 py-0.5 text-xs text-[#8f241d]">{{ $pendingRequests }}</span>@endif</a>
                     @if(auth()->user()->rol === 'Administrador' || auth()->user()->rol === 'Vendedor')
                         <a href="{{ route('clientes.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">Clientes</a>
                     @endif
@@ -103,7 +103,7 @@
                             @endif
                             @if(auth()->user()->rol === 'Administrador')
                                 <a href="{{ route('categorias.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Categorías</a>
-                                <a href="{{ route('solicitudes.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Solicitudes</a>
+                                <a href="{{ route('solicitudes.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Cotizaciones</a>
                                 <a href="{{ route('backups.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Backups</a>
                                 <a href="{{ route('usuarios.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Usuarios</a>
                             @endif
@@ -172,7 +172,100 @@
         @endif
         <p class="mt-8 border-t border-[#f0ddda] pt-5 text-center">© RESMAP 2026. Todos Los Derechos Reservados.</p>
     </footer>
+    <div id="resmap-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-[#241817]/60 p-4" role="dialog" aria-modal="true" aria-labelledby="resmap-dialog-title" aria-describedby="resmap-dialog-message">
+        <section class="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-2xl">
+            <header class="flex items-center gap-3 bg-[#8f241d] px-6 py-5 text-white">
+                <span id="resmap-dialog-icon" class="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-lg font-black" aria-hidden="true">!</span>
+                <h2 id="resmap-dialog-title" class="text-lg font-black">RESMAP</h2>
+            </header>
+            <div class="p-6">
+                <p id="resmap-dialog-message" class="whitespace-pre-line leading-6 text-gray-700"></p>
+                <div class="mt-6 flex justify-end gap-3">
+                    <button id="resmap-dialog-cancel" type="button" class="hidden rounded-md border border-[#d9aaa3] px-5 py-2.5 font-bold text-[#8f241d] hover:bg-[#fffaf9]">Cancelar</button>
+                    <button id="resmap-dialog-confirm" type="button" class="rounded-md bg-[#b52f25] px-5 py-2.5 font-bold text-white hover:bg-[#8f241d]">Entendido</button>
+                </div>
+            </div>
+        </section>
+    </div>
     <script>
+        const resmapDialog = document.getElementById('resmap-dialog');
+        const resmapDialogTitle = document.getElementById('resmap-dialog-title');
+        const resmapDialogMessage = document.getElementById('resmap-dialog-message');
+        const resmapDialogConfirm = document.getElementById('resmap-dialog-confirm');
+        const resmapDialogCancel = document.getElementById('resmap-dialog-cancel');
+        function showResmapDialog(message, { title = 'Aviso', confirmText = 'Entendido', cancelText = null, type = 'info' } = {}) {
+            if (!resmapDialog) {
+                throw new Error('No se pudo cargar el diálogo de RESMAP.');
+            }
+
+            resmapDialogTitle.textContent = title;
+            resmapDialogMessage.textContent = message;
+            resmapDialogConfirm.textContent = confirmText;
+            resmapDialogCancel.textContent = cancelText ?? 'Cancelar';
+            resmapDialogCancel.classList.toggle('hidden', cancelText === null);
+            document.getElementById('resmap-dialog-icon').textContent = type === 'success' ? '✓' : type === 'error' ? '!' : type === 'warning' ? '!' : 'i';
+
+            resmapDialog.classList.remove('hidden');
+            resmapDialog.classList.add('flex');
+            resmapDialogConfirm.focus();
+
+            return new Promise(resolve => {
+                const finish = result => {
+                    resmapDialog.classList.add('hidden');
+                    resmapDialog.classList.remove('flex');
+                    resmapDialogConfirm.removeEventListener('click', accept);
+                    resmapDialogCancel.removeEventListener('click', cancel);
+                    resmapDialog.removeEventListener('click', clickOutside);
+                    document.removeEventListener('keydown', keydown);
+                    resolve(result);
+                };
+                const accept = () => finish(true);
+                const cancel = () => finish(false);
+                const clickOutside = event => {
+                    if (event.target === resmapDialog && cancelText !== null) {
+                        cancel();
+                    }
+                };
+                const keydown = event => {
+                    if (event.key === 'Escape' && cancelText !== null) {
+                        cancel();
+                    } else if (event.key === 'Enter' && cancelText === null) {
+                        accept();
+                    }
+                };
+
+                resmapDialogConfirm.addEventListener('click', accept);
+                resmapDialogCancel.addEventListener('click', cancel);
+                resmapDialog.addEventListener('click', clickOutside);
+                document.addEventListener('keydown', keydown);
+            });
+        }
+
+        window.resmapAlert = (message, type = 'info') => showResmapDialog(message, {
+            title: type === 'success' ? 'Operación completada' : type === 'error' ? 'No se pudo completar' : type === 'warning' ? 'Revisa esta información' : 'Aviso RESMAP',
+            type,
+        });
+        window.resmapConfirm = message => showResmapDialog(message, {
+            title: 'Confirma esta acción',
+            confirmText: 'Sí, continuar',
+            cancelText: 'Cancelar',
+            type: 'warning',
+        });
+
+        document.addEventListener('submit', event => {
+            const form = event.target;
+            if (!(form instanceof HTMLFormElement) || !form.dataset.confirmMessage) {
+                return;
+            }
+
+            event.preventDefault();
+            window.resmapConfirm(form.dataset.confirmMessage).then(confirmed => {
+                if (confirmed) {
+                    HTMLFormElement.prototype.submit.call(form);
+                }
+            });
+        });
+
         const mobileMenuButton = document.getElementById('mobile-menu-button');
         const mainMenu = document.getElementById('main-menu');
         const profileMenuButton = document.getElementById('profile-menu-button');

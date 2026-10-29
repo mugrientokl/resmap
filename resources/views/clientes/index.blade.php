@@ -43,7 +43,7 @@
                     @if(auth()->user()->rol === 'Administrador')
                         <td class="space-x-2 whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
                             <a href="{{ route('clientes.edit', $cliente->id_cliente) }}" title="Editar cliente" aria-label="Editar cliente" class="inline-flex rounded-md p-2 text-[#9f2f25] hover:bg-[#f7e8e6] hover:text-[#721d18]"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 3.487 3.651 3.651M4 20h4l10.862-10.862a2.587 2.587 0 0 0-3.651-3.651L4.349 16.349A2 2 0 0 0 4 17.763V20Z" /></svg></a>
-                            <form action="{{ route('clientes.destroy', $cliente->id_cliente) }}" method="POST" class="inline-block" onsubmit="return confirm('¿Seguro que deseas eliminar este cliente?');">
+                            <form action="{{ route('clientes.destroy', $cliente->id_cliente) }}" method="POST" class="inline-block" data-confirm-message="¿Seguro que deseas eliminar este cliente? Esta acción no se puede deshacer.">
                                 @csrf
                                 @method('DELETE')
                                 <button type="submit" title="Eliminar cliente" aria-label="Eliminar cliente" class="inline-flex rounded-md p-2 text-red-600 hover:bg-red-50 hover:text-red-900"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 6 12 12M18 6 6 18" /></svg></button>

@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Categoria;
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
+use App\Models\ReservaInventario;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
 class ProductoController extends Controller
@@ -95,6 +98,7 @@ class ProductoController extends Controller
     private function consultaProductos(Request $request)
     {
         return Producto::with('categoria')
+            ->withSum('reservasActivas as stock_reservado', 'cantidad')
             ->when($request->filled('nombre'), function ($query) use ($request): void {
                 $nombre = $request->string('nombre')->toString();
 
@@ -165,7 +169,9 @@ class ProductoController extends Controller
             ], 422);
         }
 
-        $producto = Producto::where('activo', true)
+        $producto = Producto::query()
+            ->withSum('reservasActivas as stock_reservado', 'cantidad')
+            ->where('activo', true)
             ->where(function ($query) use ($codigo): void {
                 $query->where('codigo_barra', $codigo)
                     ->orWhere('codigo_origen', $codigo);
@@ -182,7 +188,7 @@ class ProductoController extends Controller
             'id_producto' => $producto->id_producto,
             'nombre' => $producto->nombre,
             'precio' => (float) $producto->precio,
-            'stock' => $producto->stock,
+            'stock' => $producto->stock_disponible,
         ]);
     }
 
@@ -238,8 +244,11 @@ class ProductoController extends Controller
         $datos = $validator->validated();
         unset($datos['imagen']);
 
-        if ($request->hasFile('imagen')) {
-            $datos['imagen'] = $request->file('imagen')->store('productos', 'public');
+        $imagenNueva = $request->hasFile('imagen')
+            ? $request->file('imagen')->store('productos', 'public')
+            : null;
+        if ($imagenNueva !== null) {
+            $datos['imagen'] = $imagenNueva;
         }
 
         $producto = Producto::create($datos);
@@ -307,25 +316,47 @@ class ProductoController extends Controller
         $datos = $validator->validated();
         unset($datos['imagen']);
 
-        if ($request->hasFile('imagen')) {
-            $datos['imagen'] = $request->file('imagen')->store('productos', 'public');
+        $imagenNueva = $request->hasFile('imagen')
+            ? $request->file('imagen')->store('productos', 'public')
+            : null;
+        if ($imagenNueva !== null) {
+            $datos['imagen'] = $imagenNueva;
         }
 
-        $stockAnterior = (int) $producto->stock;
         $stockNuevo = (int) $datos['stock'];
+        try {
+            DB::transaction(function () use ($datos, $id, $request, $stockNuevo): void {
+                $producto = Producto::query()->whereKey($id)->lockForUpdate()->firstOrFail();
+                $stockAnterior = (int) $producto->stock;
+                $stockReservado = ReservaInventario::query()
+                    ->where('producto_id', $producto->id_producto)
+                    ->where('estado', 'activa')
+                    ->where('expira_at', '>', now())
+                    ->sum('cantidad');
 
-        $producto->update($datos);
+                if ($stockNuevo < $stockReservado) {
+                    throw new \RuntimeException('El stock no puede quedar por debajo de las reservas de cotizaciones vigentes.');
+                }
 
-        if ($stockAnterior !== $stockNuevo) {
-            InventarioMovimiento::create([
-                'id_producto' => $producto->id_producto,
-                'user_id' => $request->user()->id,
-                'tipo' => 'ajuste',
-                'cantidad' => $stockNuevo - $stockAnterior,
-                'stock_anterior' => $stockAnterior,
-                'stock_nuevo' => $stockNuevo,
-                'motivo' => 'Stock editado desde producto',
-            ]);
+                $producto->update($datos);
+                if ($stockAnterior !== $stockNuevo) {
+                    InventarioMovimiento::create([
+                        'id_producto' => $producto->id_producto,
+                        'user_id' => $request->user()->id,
+                        'tipo' => 'ajuste',
+                        'cantidad' => $stockNuevo - $stockAnterior,
+                        'stock_anterior' => $stockAnterior,
+                        'stock_nuevo' => $stockNuevo,
+                        'motivo' => 'Stock editado desde producto',
+                    ]);
+                }
+            });
+        } catch (\RuntimeException $exception) {
+            if ($imagenNueva !== null) {
+                Storage::disk('public')->delete($imagenNueva);
+            }
+
+            return redirect()->back()->withInput()->withErrors(['stock' => $exception->getMessage()]);
         }
 
         return redirect()

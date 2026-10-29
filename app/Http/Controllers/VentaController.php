@@ -6,6 +6,7 @@ use App\Models\Cliente;
 use App\Models\DetalleVenta;
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
+use App\Models\ReservaInventario;
 use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\ProductoStockCritico;
@@ -72,7 +73,14 @@ class VentaController extends Controller
                 foreach ($cantidades as $idProducto => $cantidad) {
                     $producto = Producto::query()->whereKey($idProducto)->lockForUpdate()->firstOrFail();
 
-                    if ($producto->stock < $cantidad) {
+                    $reservado = ReservaInventario::query()
+                        ->where('producto_id', $producto->id_producto)
+                        ->where('estado', 'activa')
+                        ->where('expira_at', '>', now())
+                        ->sum('cantidad');
+                    $disponible = max(0, (int) $producto->stock - (int) $reservado);
+
+                    if ($disponible < $cantidad) {
                         throw new \Exception("Stock insuficiente para el producto: {$producto->nombre}");
                     }
 
@@ -100,6 +108,11 @@ class VentaController extends Controller
                     'total' => $totalBruto,
                     'medio_pago' => $request->medio_pago,
                     'estado_sii' => 'Pendiente',
+                    'estado_venta' => 'confirmada',
+                    'estado_pago' => 'registrado',
+                    'estado_facturacion' => 'pendiente',
+                    'estado_entrega' => 'entregada',
+                    'stock_descontado_at' => now(),
                     'user_id' => $request->user()->id,
                     'id_cliente' => $cliente->id_cliente,
                 ]);
@@ -135,8 +148,18 @@ class VentaController extends Controller
 
             foreach ($resultado['venta']->detalles as $detalle) {
                 if ($detalle->producto->stock <= $detalle->producto->stock_critico) {
-                    User::whereIn('rol', ['Administrador', 'Vendedor'])->get()
-                        ->each(fn (User $user) => $user->notify(new ProductoStockCritico($detalle->producto)));
+                    User::whereIn('rol', ['Administrador', 'Vendedor'])->get()->each(function (User $user) use ($detalle): void {
+                        try {
+                            $user->notify(new ProductoStockCritico($detalle->producto));
+                        } catch (\Throwable $exception) {
+                            Log::warning('La venta se registró, pero no se pudo enviar un aviso de stock crítico.', [
+                                'venta_id' => $detalle->id_venta,
+                                'producto_id' => $detalle->id_producto,
+                                'usuario_id' => $user->id,
+                                'error' => $exception->getMessage(),
+                            ]);
+                        }
+                    });
                 }
             }
 
