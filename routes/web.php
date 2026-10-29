@@ -148,6 +148,14 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('pos.producto.codigo');
 
+    Route::get('/pos/cliente-por-rut', [ClienteController::class, 'buscarPorRut'])
+        ->middleware([
+            'auth',
+            'role:Administrador,Vendedor',
+            'throttle:60,1',
+        ])
+        ->name('pos.cliente.rut');
+
     Route::get('/productos/{id}/etiqueta', [ProductoController::class, 'etiqueta'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('productos.etiqueta');
@@ -175,6 +183,14 @@ Route::middleware([
     Route::get('/clientes', [ClienteController::class, 'index'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('clientes.index');
+
+    Route::get('/clientes/{id}/historial', [ClienteController::class, 'historial'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('clientes.historial');
+
+    Route::get('/clientes/{id}/ventas/{ventaId}/resumen', [ClienteController::class, 'resumenVenta'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('clientes.ventas.resumen');
 
     Route::get('/clientes/{id}/editar', [ClienteController::class, 'edit'])
         ->middleware(['auth', 'role:Administrador'])
