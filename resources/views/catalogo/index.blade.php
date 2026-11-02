@@ -237,7 +237,7 @@
                 placeholder="Nombre o razón social"
                 class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
 
-            <input name="correo" type="email" value="{{ old('correo') }}"
+            <input name="correo" type="email" value="{{ old('correo') }}" required
                 placeholder="Correo"
                 class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
 
@@ -708,22 +708,78 @@ if (solicitudForm) {
             <input name="direccion_region" maxlength="100" placeholder="Región">
             <input name="direccion_referencias" maxlength="1000" placeholder="Referencias (opcional)">
         </div>
-        <label class="flex items-start gap-2 text-sm">
-            <input type="checkbox" name="consentimiento_whatsapp"
-                value="1" class="mt-1">
-            <span>
-                Autorizo a RESMAP a contactarme por WhatsApp sobre esta cotización.
-                Puedo retirar este consentimiento posteriormente.
-            </span>
-        </label>
+        <fieldset class="space-y-2">
+            <legend class="mb-1 text-sm font-bold text-[#241817]">¿Cómo deseas recibir tu cotización?</legend>
+            <label class="flex cursor-pointer items-start gap-3 rounded border border-[#ead8d5] px-3 py-2.5 text-sm leading-5 hover:bg-[#fff8f7]">
+                <input type="radio" name="preferencia_cotizacion"
+                    value="correo_whatsapp" required
+                    @checked(old('preferencia_cotizacion') === 'correo_whatsapp')
+                    class="mt-0.5 h-4 w-4 shrink-0 accent-[#b52f25]">
+                <span>Deseo recibir mi cotización al correo y WhatsApp.</span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded border border-[#ead8d5] px-3 py-2.5 text-sm leading-5 hover:bg-[#fff8f7]">
+                <input type="radio" name="preferencia_cotizacion"
+                    value="solo_correo" required
+                    @checked(old('preferencia_cotizacion') === 'solo_correo')
+                    class="mt-0.5 h-4 w-4 shrink-0 accent-[#b52f25]">
+                <span>Solo al correo.</span>
+            </label>
+        </fieldset>
+        <fieldset id="opciones_whatsapp" class="hidden space-y-2">
+            <legend class="mb-1 text-sm font-bold text-[#241817]">Número de WhatsApp</legend>
+            <label class="flex cursor-pointer items-start gap-3 rounded border border-[#ead8d5] px-3 py-2.5 text-sm leading-5 hover:bg-[#fff8f7]">
+                <input type="radio" name="destino_whatsapp" value="mismo_numero"
+                    @checked(old('destino_whatsapp') === 'mismo_numero')
+                    class="mt-0.5 h-4 w-4 shrink-0 accent-[#b52f25]">
+                <span>Enviar al mismo número de la solicitud.</span>
+            </label>
+            <label class="flex cursor-pointer items-start gap-3 rounded border border-[#ead8d5] px-3 py-2.5 text-sm leading-5 hover:bg-[#fff8f7]">
+                <input type="radio" name="destino_whatsapp" value="otro_numero"
+                    @checked(old('destino_whatsapp') === 'otro_numero')
+                    class="mt-0.5 h-4 w-4 shrink-0 accent-[#b52f25]">
+                <span>Enviar a otro número de teléfono.</span>
+            </label>
+            <div id="telefono_whatsapp_otro" class="hidden">
+                <label for="telefono_whatsapp_otro_input" class="mb-1 block text-sm font-bold text-[#241817]">
+                    Otro número de WhatsApp
+                </label>
+                <div class="flex">
+                    <select id="prefijo_telefono_whatsapp"
+                        name="prefijo_telefono_whatsapp">
+                        <option value="{{ old('prefijo_telefono_whatsapp', '+569') }}" selected></option>
+                    </select>
+                    <input id="telefono_whatsapp_otro_input" name="telefono_whatsapp_otro"
+                        value="{{ old('telefono_whatsapp_otro') }}"
+                        pattern="[0-9]{4,14}" maxlength="14" inputmode="numeric"
+                        placeholder="Número local"
+                        class="min-w-0 flex-1 border border-[#d9aaa3] p-3 text-[#241817]">
+                </div>
+            </div>
+        </fieldset>
     `;
 
-    entrega.querySelectorAll('input:not([type="checkbox"])').forEach(input => {
+    entrega.querySelectorAll(
+        'input:not([type="checkbox"]):not([type="radio"])'
+    ).forEach(input => {
         input.className = 'w-full border border-[#d9aaa3] p-3';
     });
 
     const metodoEntrega = entrega.querySelector('#metodo_entrega');
     const direccionDespacho = entrega.querySelector('#direccion_despacho');
+    const preferenciasCotizacion = entrega.querySelectorAll(
+        'input[name="preferencia_cotizacion"]'
+    );
+    const destinosWhatsApp = entrega.querySelectorAll(
+        'input[name="destino_whatsapp"]'
+    );
+    const opcionesWhatsApp = entrega.querySelector('#opciones_whatsapp');
+    const otroWhatsApp = entrega.querySelector('#telefono_whatsapp_otro');
+    const prefijoTelefonoWhatsApp = entrega.querySelector(
+        '#prefijo_telefono_whatsapp'
+    );
+    const telefonoWhatsAppOtro = entrega.querySelector(
+        '#telefono_whatsapp_otro_input'
+    );
 
     const actualizarEntrega = () => {
         const esDespacho = metodoEntrega.value === 'despacho';
@@ -738,7 +794,47 @@ if (solicitudForm) {
     metodoEntrega.addEventListener('change', actualizarEntrega);
     actualizarEntrega();
 
+    const actualizarPreferenciaCotizacion = () => {
+        const prefiereWhatsApp = entrega.querySelector(
+            'input[name="preferencia_cotizacion"]:checked'
+        )?.value === 'correo_whatsapp';
+        const eligioOtroNumero = entrega.querySelector(
+            'input[name="destino_whatsapp"]:checked'
+        )?.value === 'otro_numero';
+
+        opcionesWhatsApp.classList.toggle('hidden', !prefiereWhatsApp);
+        destinosWhatsApp.forEach(input => {
+            input.required = prefiereWhatsApp;
+        });
+        otroWhatsApp.classList.toggle(
+            'hidden',
+            !prefiereWhatsApp || !eligioOtroNumero
+        );
+        const requiereOtroNumero = prefiereWhatsApp && eligioOtroNumero;
+        telefonoWhatsAppOtro.required = requiereOtroNumero;
+        telefonoWhatsAppOtro.disabled = !requiereOtroNumero;
+        prefijoTelefonoWhatsApp.disabled = !requiereOtroNumero;
+
+        if (!requiereOtroNumero) {
+            telefonoWhatsAppOtro.value = '';
+        }
+    };
+
+    preferenciasCotizacion.forEach(input => {
+        input.addEventListener('change', actualizarPreferenciaCotizacion);
+    });
+    destinosWhatsApp.forEach(input => {
+        input.addEventListener('change', actualizarPreferenciaCotizacion);
+    });
+    actualizarPreferenciaCotizacion();
+
     solicitudForm.querySelector('button[type="submit"]').before(entrega);
+    inicializarSelectorTelefono(
+        'prefijo_telefono_whatsapp',
+        'telefono_whatsapp_otro_input'
+    );
+    telefonoWhatsAppOtro.title =
+        'Ingresa el número local sin el código de país';
 
     const obligatorioLabel = (id, texto) => {
         const label = document.createElement('label');
@@ -767,6 +863,17 @@ if (solicitudForm) {
     nombreWrapper.append(
         obligatorioLabel(nombre.id, 'Nombre o razón social'),
         nombre
+    );
+
+    const correo = solicitudForm.querySelector('input[name="correo"]');
+    correo.id = 'correo_solicitud';
+
+    const correoWrapper = document.createElement('div');
+    correoWrapper.className = 'sm:col-span-2';
+    correo.before(correoWrapper);
+    correoWrapper.append(
+        obligatorioLabel(correo.id, 'Correo electrónico'),
+        correo
     );
 
     const telefonoLabel = solicitudForm.querySelector('label[for="telefono"]');

@@ -61,6 +61,78 @@ class CatalogoStockTest extends TestCase
             ->assertSessionHas('success');
 
         $this->assertDatabaseCount('solicitud_webs', 1);
+        $this->assertDatabaseHas('clientes', [
+            'telefono' => '+56912345678',
+            'telefono_whatsapp' => null,
+            'consentimiento_whatsapp_at' => null,
+        ]);
+    }
+
+    public function test_request_can_send_whatsapp_to_an_alternate_number_without_changing_billing_phone(): void
+    {
+        $productId = $this->createProductWithStock(3);
+
+        $this->post(route('catalogo.solicitudes.store'), [
+            ...$this->validCustomerData(),
+            'preferencia_cotizacion' => 'correo_whatsapp',
+            'destino_whatsapp' => 'otro_numero',
+            'prefijo_telefono_whatsapp' => '+54',
+            'telefono_whatsapp_otro' => '1123456789',
+            'detalles_productos' => [
+                ['id_producto' => $productId, 'cantidad' => 1],
+            ],
+        ])->assertRedirect(route('catalogo.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('clientes', [
+            'telefono' => '+56912345678',
+            'telefono_whatsapp' => '+541123456789',
+            'consentimiento_whatsapp_origen' => 'catalogo',
+        ]);
+        $this->assertDatabaseMissing('clientes', [
+            'consentimiento_whatsapp_at' => null,
+        ]);
+    }
+
+    public function test_request_can_send_whatsapp_to_the_same_number(): void
+    {
+        $productId = $this->createProductWithStock(3);
+
+        $this->post(route('catalogo.solicitudes.store'), [
+            ...$this->validCustomerData(),
+            'preferencia_cotizacion' => 'correo_whatsapp',
+            'destino_whatsapp' => 'mismo_numero',
+            'detalles_productos' => [
+                ['id_producto' => $productId, 'cantidad' => 1],
+            ],
+        ])->assertRedirect(route('catalogo.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('clientes', [
+            'telefono' => '+56912345678',
+            'telefono_whatsapp' => '+56912345678',
+            'consentimiento_whatsapp_origen' => 'catalogo',
+        ]);
+    }
+
+    public function test_stale_alternate_number_is_ignored_when_same_number_is_selected(): void
+    {
+        $productId = $this->createProductWithStock(3);
+
+        $this->post(route('catalogo.solicitudes.store'), [
+            ...$this->validCustomerData(),
+            'preferencia_cotizacion' => 'correo_whatsapp',
+            'destino_whatsapp' => 'mismo_numero',
+            'telefono_whatsapp_otro' => '123',
+            'detalles_productos' => [
+                ['id_producto' => $productId, 'cantidad' => 1],
+            ],
+        ])->assertRedirect(route('catalogo.index'))
+            ->assertSessionHas('success');
+
+        $this->assertDatabaseHas('clientes', [
+            'telefono_whatsapp' => '+56912345678',
+        ]);
     }
 
     public function test_inactive_product_is_hidden_and_cannot_be_requested(): void
@@ -149,8 +221,10 @@ class CatalogoStockTest extends TestCase
         return [
             'rut' => '12345678-5',
             'nombre' => 'Cliente de prueba',
-            'prefijo_telefono' => '+56',
-            'telefono' => '91234567',
+            'correo' => 'cliente@example.com',
+            'prefijo_telefono' => '+569',
+            'telefono' => '12345678',
+            'preferencia_cotizacion' => 'solo_correo',
             'region' => 'Metropolitana',
             'comuna' => 'Santiago',
         ];

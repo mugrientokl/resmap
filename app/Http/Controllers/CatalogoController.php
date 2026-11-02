@@ -107,7 +107,7 @@ class CatalogoController extends Controller
                 new RutChileno,
             ],
             'nombre' => ['required', 'string', 'max:255'],
-            'correo' => ['nullable', 'email', 'max:255'],
+            'correo' => ['required', 'email', 'max:255'],
             'prefijo_telefono' => [
                 'required',
                 'regex:/^\+[1-9][0-9]{0,4}$/',
@@ -159,7 +159,22 @@ class CatalogoController extends Controller
                 'max:100',
             ],
             'direccion_referencias' => ['nullable', 'string', 'max:1000'],
-            'consentimiento_whatsapp' => ['sometimes', 'accepted'],
+            'preferencia_cotizacion' => ['required', 'in:correo_whatsapp,solo_correo'],
+            'destino_whatsapp' => [
+                'exclude_unless:preferencia_cotizacion,correo_whatsapp',
+                'required_if:preferencia_cotizacion,correo_whatsapp',
+                'in:mismo_numero,otro_numero',
+            ],
+            'telefono_whatsapp_otro' => [
+                'exclude_unless:destino_whatsapp,otro_numero',
+                'required_if:destino_whatsapp,otro_numero',
+                'digits_between:4,14',
+            ],
+            'prefijo_telefono_whatsapp' => [
+                'exclude_unless:destino_whatsapp,otro_numero',
+                'required_if:destino_whatsapp,otro_numero',
+                'regex:/^\\+[1-9][0-9]{0,3}$/',
+            ],
         ], [
             'rut.required' => 'Escribe tu RUT sin puntos y con guion, por ejemplo: 12345678-5.',
             'rut.regex' => 'El RUT debe escribirse sin puntos y con guion, por ejemplo: 12345678-5.',
@@ -167,15 +182,36 @@ class CatalogoController extends Controller
             'correo.email' => 'Escribe un correo electrónico válido.',
             'telefono.required' => 'Escribe los 8 dígitos de tu teléfono.',
             'telefono.regex' => 'El teléfono debe contener exactamente 8 dígitos.',
+            'correo.required' => 'Escribe el correo donde recibirás tu cotización.',
+            'preferencia_cotizacion.required' => 'Selecciona cómo deseas recibir tu cotización.',
+            'destino_whatsapp.required_if' => 'Selecciona el número de WhatsApp de destino.',
+            'telefono_whatsapp_otro.required_if' => 'Escribe el número de WhatsApp alternativo.',
+            'telefono_whatsapp_otro.digits_between' => 'Ingresa un número local de 4 a 14 dígitos, sin el código de país.',
+            'prefijo_telefono_whatsapp.required_if' => 'Selecciona el código de país del WhatsApp alternativo.',
+            'prefijo_telefono_whatsapp.regex' => 'Selecciona un código de país válido.',
             'detalles_productos.required' => 'Agrega al menos un repuesto al carrito.',
             'detalles_productos.min' => 'Agrega al menos un repuesto al carrito.',
         ]);
 
         $telefono = $data['prefijo_telefono'].$data['telefono'];
+        $telefonoWhatsApp = null;
+
+        if ($data['preferencia_cotizacion'] === 'correo_whatsapp') {
+            $telefonoWhatsApp = $data['destino_whatsapp'] === 'mismo_numero'
+                ? $data['prefijo_telefono'].$data['telefono']
+                : $data['prefijo_telefono_whatsapp'].$data['telefono_whatsapp_otro'];
+
+            if (! preg_match('/^\\+[1-9][0-9]{6,14}$/', $telefonoWhatsApp)) {
+                throw ValidationException::withMessages([
+                    'telefono_whatsapp_otro' => 'Ingresa un número válido con el código de país seleccionado.',
+                ]);
+            }
+        }
 
         $solicitud = DB::transaction(function () use (
             $data,
             $telefono,
+            $telefonoWhatsApp,
             $reservas
         ): SolicitudWeb {
             $cantidadesSolicitadas = collect($data['detalles_productos'])
@@ -196,29 +232,25 @@ class CatalogoController extends Controller
                 ->keyBy('id_producto');
 
             $inactivos = $cantidadesSolicitadas->keys()->filter(
-                fn (int|string $idProducto): bool =>
-                    ! $productos->get($idProducto)?->activo
+                fn (int|string $idProducto): bool => ! $productos->get($idProducto)?->activo
             );
 
             if ($inactivos->isNotEmpty()) {
                 $nombres = $inactivos->map(
-                    fn (int|string $idProducto): string =>
-                        $productos->get($idProducto)?->nombre
+                    fn (int|string $idProducto): string => $productos->get($idProducto)?->nombre
                         ?? 'Producto #'.$idProducto
                 );
 
                 throw ValidationException::withMessages([
-                    'detalles_productos' =>
-                        'No se pueden solicitar productos inactivos: '
+                    'detalles_productos' => 'No se pueden solicitar productos inactivos: '
                         .$nombres->implode(', ').'.',
                 ]);
             }
 
             $faltantes = $cantidadesSolicitadas->filter(
-                fn (int $cantidad, int|string $idProducto): bool =>
-                    $cantidad > (int) (
-                        $productos->get($idProducto)?->stock ?? 0
-                    )
+                fn (int $cantidad, int|string $idProducto): bool => $cantidad > (int) (
+                    $productos->get($idProducto)?->stock ?? 0
+                )
             );
 
             if ($faltantes->isNotEmpty()) {
@@ -242,15 +274,19 @@ class CatalogoController extends Controller
                 'nombre' => $data['nombre'],
                 'correo' => $data['correo'] ?? null,
                 'telefono' => $telefono,
+                'telefono_whatsapp' => $telefonoWhatsApp,
                 'direccion' => $data['direccion'] ?? null,
                 'region' => $data['region'],
                 'comuna' => $data['comuna'],
                 'ciudad' => $data['comuna'],
             ];
 
-            if (isset($data['consentimiento_whatsapp'])) {
+            if ($telefonoWhatsApp !== null) {
                 $datosCliente['consentimiento_whatsapp_at'] = now();
                 $datosCliente['consentimiento_whatsapp_origen'] = 'catalogo';
+            } else {
+                $datosCliente['consentimiento_whatsapp_at'] = null;
+                $datosCliente['consentimiento_whatsapp_origen'] = null;
             }
 
             $cliente = Cliente::updateOrCreate(
