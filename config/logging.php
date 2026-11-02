@@ -65,6 +65,14 @@ return [
             'replace_placeholders' => true,
         ],
 
+        'actividad' => [
+            'driver' => 'daily',
+            'path' => storage_path('logs/actividad.log'),
+            'level' => 'warning',
+            'days' => 365,
+            'replace_placeholders' => true,
+        ],
+
         'daily' => [
             'driver' => 'daily',
             'path' => storage_path('logs/laravel.log'),

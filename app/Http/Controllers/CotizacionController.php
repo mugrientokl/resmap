@@ -220,17 +220,19 @@ class CotizacionController extends Controller
             $avisos[] = 'El cliente no tiene correo registrado.';
         }
 
-        if ($cliente->consentimiento_whatsapp_at && $cliente->telefono) {
+        $rechazoWhatsApp = $cliente->consentimiento_whatsapp_origen === 'whatsapp_opt_out';
+
+        if ($cliente->telefono && ! $rechazoWhatsApp) {
+            $usarBotonUrl = (bool) config('services.whatsapp.quote_url_button');
+            $parametrosPlantilla = [$cliente->nombre, (string) $cotizacion->id_cotizacion, (string) $version->numero_version];
+            if (! $usarBotonUrl) {
+                $parametrosPlantilla[] = $urlPdf;
+            }
             try {
                 $whatsapp->enviarPlantillaCotizacion(
                     $cliente->telefono,
                     "Cotización #{$cotizacion->id_cotizacion}, versión {$version->numero_version}. Responde aceptar, rechazar o solicitar cambios.",
-                    [
-                        $cliente->nombre,
-                        (string) $cotizacion->id_cotizacion,
-                        (string) $version->numero_version,
-                        $urlPdf,
-                    ],
+                    $parametrosPlantilla,
                     [
                         ['id' => "quote:{$version->id_version}:aceptar:{$token}", 'title' => 'Aceptar'],
                         ['id' => "quote:{$version->id_version}:rechazar:{$token}", 'title' => 'Rechazar'],
@@ -238,6 +240,7 @@ class CotizacionController extends Controller
                     ],
                     $cotizacion,
                     $version,
+                    $usarBotonUrl ? "{$version->id_version}/responder/{$token}" : null,
                 );
                 $version->update(['whatsapp_estado' => 'aceptado_por_meta']);
             } catch (ConnectionException|RequestException|RuntimeException $exception) {
@@ -249,7 +252,7 @@ class CotizacionController extends Controller
                 $avisos[] = 'No fue posible enviar WhatsApp; revisa credenciales, consentimiento y destinatario de prueba.';
             }
         } else {
-            $version->update(['whatsapp_estado' => $cliente->consentimiento_whatsapp_at ? 'sin_telefono' : 'no_autorizado']);
+            $version->update(['whatsapp_estado' => $rechazoWhatsApp ? 'no_autorizado' : 'sin_telefono']);
         }
 
         $cotizacion->update(['estado' => 'enviada']);
@@ -842,13 +845,19 @@ class CotizacionController extends Controller
         }
 
         $version = CotizacionVersion::with('cotizacion.solicitud.cliente')->find((int) $matches[1]);
-        if (! $version || ! $this->tokenValido($version, $matches[3])) {
+        if (! $version) {
             return false;
         }
 
         $telefonoRemitente = $this->soloDigitos($telefono);
         $telefonoCliente = $this->soloDigitos((string) $version->cotizacion->solicitud->cliente->telefono);
         if (! $telefonoRemitente || ! hash_equals($telefonoCliente, $telefonoRemitente)) {
+            return false;
+        }
+
+        if (! $this->tokenValido($version, $matches[3])) {
+            $this->avisarCotizacionYaRespondida($telefono, $version);
+
             return false;
         }
 
@@ -886,6 +895,23 @@ class CotizacionController extends Controller
         });
 
         return true;
+    }
+
+    private function avisarCotizacionYaRespondida(string $telefono, CotizacionVersion $version): void
+    {
+        try {
+            app(WhatsAppCloudApi::class)->enviarTexto(
+                $telefono,
+                'Esta cotización ya fue respondida o ya no está vigente. Si necesitas revisarla, comunícate con RESMAP.',
+                $version->cotizacion,
+                $version,
+            );
+        } catch (ConnectionException|RequestException|RuntimeException $exception) {
+            Log::warning('No fue posible avisar por WhatsApp que la cotización ya fue respondida.', [
+                'version_id' => $version->id_version,
+                'error' => $exception->getMessage(),
+            ]);
+        }
     }
 
     private function crearVentaB2B(CotizacionVersion $version): Venta

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\RegistroActividad;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -53,6 +54,15 @@ class AuthController extends Controller
                 'ip' => $request->ip(),
                 'identity_hash' => hash('sha256', $identity),
             ]);
+
+            app(RegistroActividad::class)->evento(
+                categoria: 'seguridad',
+                accion: 'inicio_sesion_fallido',
+                descripcion: 'Intento de inicio de sesión fallido',
+                modelo: 'Autenticación',
+                resultado: 'fallo',
+                nuevos: ['identidad_hash' => substr(hash('sha256', $identity), 0, 16), 'intentos' => $failures],
+            );
 
             return back()->withErrors(['login' => 'Las credenciales no son válidas.'])->withInput();
         }

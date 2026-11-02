@@ -23,6 +23,7 @@ class WhatsAppCloudApi
         array $botones,
         Cotizacion $cotizacion,
         CotizacionVersion $version,
+        ?string $sufijoUrl = null,
     ): string {
         $nombrePlantilla = (string) config('services.whatsapp.quote_template');
         if ($nombrePlantilla === '') {
@@ -48,6 +49,16 @@ class WhatsAppCloudApi
                 'index' => (string) $indice,
                 'parameters' => [
                     ['type' => 'payload', 'payload' => $boton['id']],
+                ],
+            ];
+        }
+        if ($sufijoUrl !== null) {
+            $componentes[] = [
+                'type' => 'button',
+                'sub_type' => 'url',
+                'index' => (string) config('services.whatsapp.quote_url_button_index', 3),
+                'parameters' => [
+                    ['type' => 'text', 'text' => $sufijoUrl],
                 ],
             ];
         }

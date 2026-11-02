@@ -100,6 +100,9 @@
                             @if(auth()->user()->rol === 'Administrador')
                                 <a href="{{ route('reportes.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Reportes</a>
                                 <a href="{{ route('inventario.movimientos') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Movimientos de Inventario</a>
+                                @can('ver-actividad')
+                                    <a href="{{ route('actividad.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Registro de Actividad</a>
+                                @endcan
                             @endif
                             @if(auth()->user()->rol === 'Administrador')
                                 <a href="{{ route('categorias.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Categorías</a>

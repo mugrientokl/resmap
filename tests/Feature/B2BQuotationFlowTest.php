@@ -462,6 +462,51 @@ class B2BQuotationFlowTest extends TestCase
         $this->assertSame(0, preg_match('/quote:\d+:aceptar:[A-Za-z0-9]{48}/', $datosRegistrados));
     }
 
+    public function test_whatsapp_template_can_send_the_quote_link_as_a_url_button(): void
+    {
+        Mail::fake();
+        Http::fake([
+            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.url-button']], 'contacts' => []]),
+        ]);
+        config([
+            'services.whatsapp.enabled' => true,
+            'services.whatsapp.api_version' => 'v25.0',
+            'services.whatsapp.phone_number_id' => 'test-phone-number-id',
+            'services.whatsapp.access_token' => 'test-access-token',
+            'services.whatsapp.test_mode' => true,
+            'services.whatsapp.test_recipients' => ['+56912345678'],
+            'services.whatsapp.quote_template' => 'resmap_cotizacion_v2',
+            'services.whatsapp.quote_url_button' => true,
+        ]);
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+
+        $this->actingAs($admin)->post(route('solicitudes.cotizacion.crear', $solicitudId));
+        $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
+        $this->post(route('cotizaciones.enviar', $versionId));
+
+        Http::assertSent(function ($request) use ($versionId): bool {
+            $componentes = $request->data()['template']['components'];
+            $boton = collect($componentes)->firstWhere('sub_type', 'url');
+
+            return count($componentes[0]['parameters']) === 3
+                && $boton['index'] === '3'
+                && str_starts_with($boton['parameters'][0]['text'], $versionId.'/responder/');
+        });
+    }
+
+    public function test_whatsapp_webhook_verification_accepts_meta_query_parameters(): void
+    {
+        config(['services.whatsapp.verify_token' => 'token-secreto']);
+
+        $this->get('/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=token-secreto&hub.challenge=12345')
+            ->assertOk()
+            ->assertSee('12345');
+        $this->get('/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=otro&hub.challenge=12345')
+            ->assertForbidden();
+    }
+
     public function test_signed_whatsapp_stop_message_revokes_customer_consent(): void
     {
         $productId = $this->createProductWithStock(5);
@@ -568,6 +613,31 @@ class B2BQuotationFlowTest extends TestCase
         ]);
         $this->assertDatabaseCount('ventas', 1);
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
+
+        $repetido = json_encode([
+            'object' => 'whatsapp_business_account',
+            'entry' => [[
+                'changes' => [[
+                    'value' => [
+                        'messages' => [[
+                            'from' => '56912345678',
+                            'id' => 'wamid.inbound-repeat',
+                            'timestamp' => (string) now()->timestamp,
+                            'type' => 'button',
+                            'button' => ['text' => 'Rechazar', 'payload' => $payloadBoton],
+                        ]],
+                    ],
+                ]],
+            ]],
+        ], JSON_THROW_ON_ERROR);
+        $this->call('POST', route('whatsapp.webhook.recibir'), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $repetido, 'test-app-secret'),
+        ], $repetido)->assertOk();
+
+        Http::assertSent(fn ($request): bool => ($request->data()['type'] ?? null) === 'text'
+            && str_contains($request->data()['text']['body'], 'ya fue respondida'));
+        $this->assertDatabaseHas('cotizacion_versiones', ['id_version' => $versionId, 'estado' => 'aceptada']);
     }
 
     private function createProductRequest(int $productId, int $cantidad, ?string $correo = null): void

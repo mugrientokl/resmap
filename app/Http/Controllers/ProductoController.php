@@ -6,6 +6,7 @@ use App\Models\Categoria;
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
 use App\Models\ReservaInventario;
+use App\Services\RegistroActividad;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,8 @@ class ProductoController extends Controller
         $productos = $this->consultaProductos($request)->get();
         $filtros = $this->filtrosInventario($request);
         $fechaGeneracion = now();
+
+        app(RegistroActividad::class)->evento('exportacion', 'exportado', 'Exportó el inventario (Excel)', 'Producto', nuevos: ['cantidad' => $productos->count()]);
 
         return response()->streamDownload(function () use ($productos, $filtros, $fechaGeneracion): void {
             $handle = fopen('php://output', 'w');
@@ -87,6 +90,8 @@ class ProductoController extends Controller
         $productos = $this->consultaProductos($request)->get();
         $filtros = $this->filtrosInventario($request);
         $fechaGeneracion = now();
+
+        app(RegistroActividad::class)->evento('exportacion', 'exportado', 'Exportó el inventario (PDF)', 'Producto', nuevos: ['cantidad' => $productos->count()]);
 
         return Pdf::loadView('productos.export-pdf', compact(
             'productos',

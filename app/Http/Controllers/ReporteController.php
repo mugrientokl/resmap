@@ -2,15 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Auditoria;
 use App\Models\OrdenCompra;
 use App\Models\User;
 use App\Models\Venta;
+use App\Services\RegistroActividad;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Storage;
 
 class ReporteController extends Controller
@@ -31,30 +29,16 @@ class ReporteController extends Controller
             ->selectRaw('COUNT(*) as cantidad, COALESCE(SUM(total), 0) as total, COALESCE(SUM(iva), 0) as iva')
             ->first();
 
-        $auditorias = $this->auditoriasQuery($request);
         $usuarios = User::orderBy('name')->get(['id', 'name']);
-        $modelos = Auditoria::query()->select('modelo')->distinct()->orderBy('modelo')->pluck('modelo');
-        $acciones = Auditoria::query()->select('accion')->distinct()->orderBy('accion')->pluck('accion');
-        $panel = $request->string('panel', 'ventas')->toString();
+        $panel = 'ventas';
 
         return view('reportes.index', compact(
             'ventas',
             'resumen',
-            'auditorias',
             'usuarios',
-            'modelos',
-            'acciones',
             'desde',
             'hasta',
             'panel'
-        ));
-    }
-
-    public function auditoria(Request $request)
-    {
-        return redirect()->route('reportes.index', array_merge(
-            $request->query(),
-            ['panel' => 'auditoria']
         ));
     }
 
@@ -148,6 +132,8 @@ class ReporteController extends Controller
 
         abort_if($desde->gt($hasta), 422, 'La fecha inicial no puede ser posterior a la fecha final.');
 
+        app(RegistroActividad::class)->evento('exportacion', 'exportado', 'Exportó el reporte de ventas ('.strtoupper($formato).')', 'Venta', nuevos: ['desde' => $desde->toDateString(), 'hasta' => $hasta->toDateString()]);
+
         $ventas = $this->ventasQuery($request, $desde, $hasta)
             ->latest('fecha')
             ->get();
@@ -230,91 +216,6 @@ class ReporteController extends Controller
         ))->download('reporte-ventas-'.$desde->format('Y-m-d').'.pdf');
     }
 
-    public function exportarAuditoria(Request $request, string $formato)
-    {
-        abort_unless(in_array($formato, ['csv', 'pdf'], true), 404);
-
-        $auditorias = $this->auditoriasCollection($request);
-        $fechaGeneracion = now();
-
-        $usuario = $request->filled('audit_usuario')
-            ? User::find($request->integer('audit_usuario'))?->name
-            : null;
-
-        $filtros = [
-            'Acción' => $request->filled('audit_accion')
-                ? $request->string('audit_accion')->toString()
-                : 'Todas',
-            'Módulo o modelo' => $request->filled('audit_modelo')
-                ? class_basename($request->string('audit_modelo')->toString())
-                : 'Todos',
-            'Usuario' => $request->filled('audit_usuario')
-                ? ($usuario ?? 'Usuario no encontrado')
-                : 'Todos',
-            'ID del registro' => $request->filled('audit_registro')
-                ? $request->input('audit_registro')
-                : 'Todos',
-            'Fecha desde' => $request->filled('audit_desde')
-                ? $request->date('audit_desde')->format('d/m/Y')
-                : 'Sin límite inicial',
-            'Fecha hasta' => $request->filled('audit_hasta')
-                ? $request->date('audit_hasta')->format('d/m/Y')
-                : 'Sin límite final',
-        ];
-
-        if ($formato === 'csv') {
-            return response()->streamDownload(function () use ($auditorias, $filtros, $fechaGeneracion): void {
-                $handle = fopen('php://output', 'w');
-
-                fwrite($handle, "\xEF\xBB\xBF");
-
-                fputcsv($handle, ['REPORTE DE AUDITORÍA'], ';');
-                fputcsv($handle, ['Fecha de generación', $fechaGeneracion->format('d/m/Y H:i')], ';');
-
-                foreach ($filtros as $nombre => $valor) {
-                    fputcsv($handle, [$nombre, $valor], ';');
-                }
-
-                fputcsv($handle, ['Cantidad de registros agrupados', $auditorias->count()], ';');
-                fputcsv($handle, [], ';');
-
-                fputcsv($handle, [
-                    'Fecha',
-                    'Usuario',
-                    'Cambio',
-                    'Módulo',
-                    'Detalle',
-                ], ';');
-
-                foreach ($auditorias as $auditoria) {
-                    fputcsv($handle, [
-                        $auditoria->created_at?->format('d/m/Y H:i'),
-                        $auditoria->usuario?->name ?? 'Sistema',
-                        $auditoria->es_importacion
-                            ? 'Importación de datos'
-                            : ucfirst($auditoria->accion),
-                        $auditoria->es_importacion
-                            ? 'Base de datos'
-                            : class_basename($auditoria->modelo),
-                        $auditoria->es_importacion
-                            ? 'Se agruparon '.$auditoria->cantidad_agrupada.' registros'
-                            : 'Registro #'.($auditoria->modelo_id ?? 'N/A'),
-                    ], ';');
-                }
-
-                fclose($handle);
-            }, 'reporte-auditoria-'.$fechaGeneracion->format('Y-m-d').'.csv', [
-                'Content-Type' => 'text/csv; charset=UTF-8',
-            ]);
-        }
-
-        return Pdf::loadView('reportes.auditoria-pdf', compact(
-            'auditorias',
-            'filtros',
-            'fechaGeneracion'
-        ))->download('reporte-auditoria-'.$fechaGeneracion->format('Y-m-d').'.pdf');
-    }
-
     private function ventasQuery(Request $request, $desde, $hasta): Builder
     {
         return $this->ventasCompletadasQuery()->with(['cliente', 'user'])
@@ -351,67 +252,5 @@ class ReporteController extends Controller
                         ->where('estado_entrega', 'entregada');
                 });
         });
-    }
-
-    private function auditoriasQuery(Request $request): LengthAwarePaginator
-    {
-        $registros = $this->auditoriasCollection($request);
-
-        $porPagina = 20;
-        $pagina = LengthAwarePaginator::resolveCurrentPage('auditoria_page');
-
-        return new LengthAwarePaginator(
-            $registros->forPage($pagina, $porPagina)->values(),
-            $registros->count(),
-            $porPagina,
-            $pagina,
-            [
-                'pageName' => 'auditoria_page',
-                'path' => request()->url(),
-                'query' => request()->query(),
-            ]
-        );
-    }
-
-    private function auditoriasCollection(Request $request): Collection
-    {
-        return Auditoria::with('usuario')
-            ->when($request->filled('audit_accion'), fn (Builder $query) => $query->where(
-                'accion',
-                $request->string('audit_accion')->toString()
-            ))
-            ->when($request->filled('audit_modelo'), fn (Builder $query) => $query->where(
-                'modelo',
-                $request->string('audit_modelo')->toString()
-            ))
-            ->when($request->filled('audit_usuario'), fn (Builder $query) => $query->where(
-                'user_id',
-                $request->integer('audit_usuario')
-            ))
-            ->when($request->filled('audit_registro'), fn (Builder $query) => $query->where(
-                'modelo_id',
-                $request->integer('audit_registro')
-            ))
-            ->when($request->filled('audit_desde'), fn (Builder $query) => $query->whereDate(
-                'created_at',
-                '>=',
-                $request->date('audit_desde')
-            ))
-            ->when($request->filled('audit_hasta'), fn (Builder $query) => $query->whereDate(
-                'created_at',
-                '<=',
-                $request->date('audit_hasta')
-            ))
-            ->latest()
-            ->get()
-            ->groupBy(fn (Auditoria $auditoria): string => $auditoria->created_at->format('Y-m-d H:i').'|'.$auditoria->user_id.'|'.$auditoria->accion)
-            ->map(function ($grupo): Auditoria {
-                $principal = $grupo->first();
-                $principal->cantidad_agrupada = $grupo->count();
-                $principal->es_importacion = $grupo->count() > 5;
-
-                return $principal;
-            })
-            ->values();
     }
 }

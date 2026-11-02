@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\RegistroActividad;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,12 +40,15 @@ class BackupController extends Controller
         $path = 'backups/'.$filename;
         abort_unless(Storage::disk('local')->exists($path), 404);
 
+        $actividad = app(RegistroActividad::class);
+
         try {
             $exitCode = Artisan::call('app:restore-database-backup', [
                 'filename' => $filename,
                 '--force' => true,
             ]);
         } catch (Throwable $exception) {
+            $actividad->evento('sistema', 'backup_restaurado', "Falló la restauración del backup {$filename}", 'Backup', resultado: 'fallo');
             Log::error('Falló la restauración desde la pantalla de backups.', [
                 'filename' => $filename,
                 'exception' => $exception,
@@ -54,6 +58,8 @@ class BackupController extends Controller
                 ->route('backups.index')
                 ->with('error', 'No se pudo completar la restauración. La base puede no haber cambiado si el fallo ocurrió antes de iniciar la importación. Revisa el registro del sistema.');
         }
+
+        $actividad->evento('sistema', 'backup_restaurado', "Restauró el backup {$filename}", 'Backup', resultado: $exitCode === 0 ? 'exito' : 'fallo');
 
         if ($exitCode !== 0) {
             return redirect()
@@ -78,6 +84,8 @@ class BackupController extends Controller
         if (! is_resource($stream)) {
             throw new RuntimeException('No se pudo leer el archivo de backup solicitado.');
         }
+
+        app(RegistroActividad::class)->evento('exportacion', 'backup_descargado', "Descargó el backup {$filename}", 'Backup');
 
         return response()->streamDownload(function () use ($stream): void {
             fpassthru($stream);

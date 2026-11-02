@@ -6,6 +6,7 @@ use App\Models\Categoria;
 use App\Models\Producto;
 use App\Models\ProductoImportado;
 use App\Models\ReservaInventario;
+use App\Services\RegistroActividad;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 
@@ -37,107 +38,111 @@ class ProductoRealSeeder extends Seeder
         $importados = 0;
         $revisar = 0;
 
-        DB::transaction(function () use ($file, $archivoOrigen, &$cabeceraEncontrada, &$filaOrigen, &$importados, &$revisar): void {
-            Producto::where(function ($query): void {
-                $query->where('codigo_barra', 'like', 'KIT-%')
-                    ->orWhere('codigo_barra', 'like', 'SET-%')
-                    ->orWhere('codigo_barra', 'like', 'JUEGO-%');
-            })->delete();
+        app(RegistroActividad::class)->enLote('Importación de productos desde '.$archivoOrigen, function () use ($file, $archivoOrigen, &$cabeceraEncontrada, &$filaOrigen, &$importados, &$revisar): array {
+            DB::transaction(function () use ($file, $archivoOrigen, &$cabeceraEncontrada, &$filaOrigen, &$importados, &$revisar): void {
+                Producto::where(function ($query): void {
+                    $query->where('codigo_barra', 'like', 'KIT-%')
+                        ->orWhere('codigo_barra', 'like', 'SET-%')
+                        ->orWhere('codigo_barra', 'like', 'JUEGO-%');
+                })->delete();
 
-            while (($linea = fgets($file)) !== false) {
-                $filaOrigen++;
-                $linea = $this->normalizarCodificacion($linea);
-                $row = str_getcsv($linea, ';');
+                while (($linea = fgets($file)) !== false) {
+                    $filaOrigen++;
+                    $linea = $this->normalizarCodificacion($linea);
+                    $row = str_getcsv($linea, ';');
 
-                if (! $cabeceraEncontrada) {
-                    if ($this->esCabecera($row)) {
-                        $cabeceraEncontrada = true;
-                        $this->command->line('Cabecera detectada en la fila '.$filaOrigen.'.');
+                    if (! $cabeceraEncontrada) {
+                        if ($this->esCabecera($row)) {
+                            $cabeceraEncontrada = true;
+                            $this->command->line('Cabecera detectada en la fila '.$filaOrigen.'.');
+                        }
+
+                        continue;
                     }
 
-                    continue;
-                }
-
-                if ($this->filaVacia($row)) {
-                    continue;
-                }
-
-                $row = array_pad(array_slice($row, 0, self::COLUMN_COUNT), self::COLUMN_COUNT, null);
-                $detalle = $this->texto($row[3]);
-                $codigoOrigen = $this->texto($row[4]);
-                $categoriaOrigen = $this->texto($row[7]);
-                $precioIvaOrigen = $this->texto($row[6]);
-                $precioNetoOrigen = $this->texto($row[8]);
-                $stockOrigen = $this->texto($row[2]);
-                $estado = $this->estadoDeFila($detalle, $precioIvaOrigen, $categoriaOrigen, $stockOrigen);
-
-                ProductoImportado::updateOrCreate(
-                    ['archivo_origen' => $archivoOrigen, 'fila_origen' => $filaOrigen],
-                    [
-                        'it' => $this->texto($row[0]),
-                        'ubicacion' => $this->texto($row[1]),
-                        'stock_origen' => $stockOrigen,
-                        'detalle' => $detalle,
-                        'codigo_origen' => $codigoOrigen,
-                        'unidad' => $this->texto($row[5]),
-                        'precio_iva_origen' => $precioIvaOrigen,
-                        'categoria_origen' => $categoriaOrigen,
-                        'precio_neto_origen' => $precioNetoOrigen,
-                        'datos_originales' => $row,
-                        'estado' => $estado,
-                        'observaciones' => $this->observaciones($detalle, $precioIvaOrigen, $categoriaOrigen, $stockOrigen),
-                    ]
-                );
-
-                $categoriaNombre = $this->esKitOSet($detalle)
-                    ? 'KITS Y SETS'
-                    : ($categoriaOrigen ?: 'GENERAL');
-
-                $categoria = Categoria::firstOrCreate(
-                    ['nombre_categoria' => $categoriaNombre],
-                    ['descripcion' => 'Categoría importada desde inventario RESMAP']
-                );
-
-                $codigoBarra = $this->codigoInterno($filaOrigen);
-                $stockNuevo = $this->stock($stockOrigen);
-                $productoExistente = Producto::query()
-                    ->where('codigo_barra', $codigoBarra)
-                    ->lockForUpdate()
-                    ->first();
-
-                if ($productoExistente) {
-                    $stockReservado = ReservaInventario::query()
-                        ->where('producto_id', $productoExistente->id_producto)
-                        ->where('estado', 'activa')
-                        ->where('expira_at', '>', now())
-                        ->sum('cantidad');
-
-                    if ($stockNuevo < $stockReservado) {
-                        throw new \RuntimeException(
-                            "La importación no puede reducir el stock de {$productoExistente->nombre} por debajo de sus reservas vigentes."
-                        );
+                    if ($this->filaVacia($row)) {
+                        continue;
                     }
+
+                    $row = array_pad(array_slice($row, 0, self::COLUMN_COUNT), self::COLUMN_COUNT, null);
+                    $detalle = $this->texto($row[3]);
+                    $codigoOrigen = $this->texto($row[4]);
+                    $categoriaOrigen = $this->texto($row[7]);
+                    $precioIvaOrigen = $this->texto($row[6]);
+                    $precioNetoOrigen = $this->texto($row[8]);
+                    $stockOrigen = $this->texto($row[2]);
+                    $estado = $this->estadoDeFila($detalle, $precioIvaOrigen, $categoriaOrigen, $stockOrigen);
+
+                    ProductoImportado::updateOrCreate(
+                        ['archivo_origen' => $archivoOrigen, 'fila_origen' => $filaOrigen],
+                        [
+                            'it' => $this->texto($row[0]),
+                            'ubicacion' => $this->texto($row[1]),
+                            'stock_origen' => $stockOrigen,
+                            'detalle' => $detalle,
+                            'codigo_origen' => $codigoOrigen,
+                            'unidad' => $this->texto($row[5]),
+                            'precio_iva_origen' => $precioIvaOrigen,
+                            'categoria_origen' => $categoriaOrigen,
+                            'precio_neto_origen' => $precioNetoOrigen,
+                            'datos_originales' => $row,
+                            'estado' => $estado,
+                            'observaciones' => $this->observaciones($detalle, $precioIvaOrigen, $categoriaOrigen, $stockOrigen),
+                        ]
+                    );
+
+                    $categoriaNombre = $this->esKitOSet($detalle)
+                        ? 'KITS Y SETS'
+                        : ($categoriaOrigen ?: 'GENERAL');
+
+                    $categoria = Categoria::firstOrCreate(
+                        ['nombre_categoria' => $categoriaNombre],
+                        ['descripcion' => 'Categoría importada desde inventario RESMAP']
+                    );
+
+                    $codigoBarra = $this->codigoInterno($filaOrigen);
+                    $stockNuevo = $this->stock($stockOrigen);
+                    $productoExistente = Producto::query()
+                        ->where('codigo_barra', $codigoBarra)
+                        ->lockForUpdate()
+                        ->first();
+
+                    if ($productoExistente) {
+                        $stockReservado = ReservaInventario::query()
+                            ->where('producto_id', $productoExistente->id_producto)
+                            ->where('estado', 'activa')
+                            ->where('expira_at', '>', now())
+                            ->sum('cantidad');
+
+                        if ($stockNuevo < $stockReservado) {
+                            throw new \RuntimeException(
+                                "La importación no puede reducir el stock de {$productoExistente->nombre} por debajo de sus reservas vigentes."
+                            );
+                        }
+                    }
+
+                    Producto::updateOrCreate(
+                        ['codigo_barra' => $codigoBarra],
+                        [
+                            'codigo_origen' => $codigoOrigen,
+                            'nombre' => $detalle ?: 'Producto sin nombre - fila '.$filaOrigen,
+                            'descripcion' => 'Importado desde '.$archivoOrigen.' | Fila '.$filaOrigen,
+                            'precio' => $this->precio($precioIvaOrigen),
+                            'stock' => $stockNuevo,
+                            'stock_critico' => 3,
+                            'id_categoria' => $categoria->id_categoria,
+                            'ubicacion' => $this->texto($row[1]),
+                            'fila_origen' => $filaOrigen,
+                            'estado_importacion' => $estado,
+                        ]
+                    );
+
+                    $importados++;
+                    $revisar += $estado === 'revisar' ? 1 : 0;
                 }
+            });
 
-                Producto::updateOrCreate(
-                    ['codigo_barra' => $codigoBarra],
-                    [
-                        'codigo_origen' => $codigoOrigen,
-                        'nombre' => $detalle ?: 'Producto sin nombre - fila '.$filaOrigen,
-                        'descripcion' => 'Importado desde '.$archivoOrigen.' | Fila '.$filaOrigen,
-                        'precio' => $this->precio($precioIvaOrigen),
-                        'stock' => $stockNuevo,
-                        'stock_critico' => 3,
-                        'id_categoria' => $categoria->id_categoria,
-                        'ubicacion' => $this->texto($row[1]),
-                        'fila_origen' => $filaOrigen,
-                        'estado_importacion' => $estado,
-                    ]
-                );
-
-                $importados++;
-                $revisar += $estado === 'revisar' ? 1 : 0;
-            }
+            return ['archivo' => $archivoOrigen, 'filas' => $importados, 'por_revisar' => $revisar];
         });
 
         fclose($file);

@@ -3,6 +3,7 @@
 use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\NoStoreMiddleware;
 use App\Http\Middleware\RoleMiddleware;
+use App\Services\RegistroActividad;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Console\Scheduling\Schedule;
@@ -31,6 +32,12 @@ return Application::configure(basePath: dirname(__DIR__))
             ->onFailure(function (): void {
                 Log::critical('Falló la tarea diaria de backup de la base de datos.');
             });
+        $schedule->command('actividad:depurar')
+            ->weeklyOn(0, '03:00')
+            ->withoutOverlapping();
+        $schedule->command('actividad:verificar')
+            ->dailyAt('03:30')
+            ->withoutOverlapping();
         $schedule->command('app:liberar-reservas-vencidas')
             ->everyFiveMinutes()
             ->withoutOverlapping();
@@ -58,6 +65,17 @@ return Application::configure(basePath: dirname(__DIR__))
                 $exception instanceof TokenMismatchException => 419,
                 default => 500,
             };
+
+            if ($status === 403) {
+                app(RegistroActividad::class)->evento(
+                    categoria: 'seguridad',
+                    accion: 'acceso_denegado',
+                    descripcion: 'Acceso denegado a /'.ltrim($request->path(), '/'),
+                    modelo: 'Autenticación',
+                    resultado: 'fallo',
+                    nuevos: ['metodo' => $request->method(), 'ruta' => '/'.ltrim($request->path(), '/')],
+                );
+            }
 
             $error = match ($status) {
                 401 => ['title' => 'Necesitas iniciar sesión', 'message' => 'Inicia sesión para continuar con esta operación.'],

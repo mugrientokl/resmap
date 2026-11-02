@@ -45,6 +45,8 @@ return [
         'test_mode' => env('WHATSAPP_TEST_MODE', true),
         'test_recipients' => array_filter(array_map('trim', explode(',', (string) env('WHATSAPP_TEST_RECIPIENTS', '')))),
         'quote_template' => env('WHATSAPP_QUOTE_TEMPLATE'),
+        'quote_url_button' => (bool) env('WHATSAPP_QUOTE_URL_BUTTON', false),
+        'quote_url_button_index' => (int) env('WHATSAPP_QUOTE_URL_BUTTON_INDEX', 3),
         'template_language' => env('WHATSAPP_TEMPLATE_LANGUAGE', 'es_CL'),
     ],
 

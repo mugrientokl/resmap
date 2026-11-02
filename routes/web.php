@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ActividadController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CatalogoController;
@@ -291,9 +292,16 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador'])
         ->name('reportes.exportar');
 
-    Route::get('/reportes/auditoria/exportar/{formato}', [ReporteController::class, 'exportarAuditoria'])
-        ->middleware(['auth', 'role:Administrador'])
-        ->name('reportes.auditoria.exportar');
+    Route::middleware(['auth', 'can:ver-actividad', 'throttle:60,1'])->prefix('actividad')->name('actividad.')->group(function (): void {
+        Route::get('/', [ActividadController::class, 'index'])->name('index');
+        Route::get('/exportar/{formato}', [ActividadController::class, 'exportar'])
+            ->whereIn('formato', ['csv', 'pdf'])
+            ->middleware('throttle:10,1')
+            ->name('exportar');
+        Route::get('/{auditoria}', [ActividadController::class, 'show'])->whereNumber('auditoria')->name('show');
+    });
+
+    Route::redirect('/reportes/auditoria/exportar/{formato}', '/actividad', 301);
 
     Route::get('/reportes/ventas/{id}', [ReporteController::class, 'detalleVenta'])
         ->middleware(['auth', 'role:Administrador'])
@@ -311,9 +319,8 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador'])
         ->name('reportes.orden-compra');
 
-    Route::get('/auditoria', [ReporteController::class, 'auditoria'])
-        ->middleware(['auth', 'role:Administrador'])
-        ->name('reportes.auditoria');
+    Route::get('/auditoria', fn () => redirect()->route('actividad.index', [], 301))
+        ->middleware(['auth', 'can:ver-actividad']);
 
     Route::get('/backups', [BackupController::class, 'index'])
         ->middleware(['auth', 'role:Administrador'])
