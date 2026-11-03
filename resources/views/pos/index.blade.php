@@ -876,11 +876,13 @@ renderCarro();
 
     let ultimoRutConsultado = normalizarRut(rut.value);
 
-    function mostrarMensaje(texto, error = false) {
+    function mostrarMensaje(texto, estado = 'info') {
         mensaje.textContent = texto;
-        mensaje.className = error
-            ? 'mt-1 text-xs text-red-700'
-            : 'mt-1 text-xs text-gray-600';
+        mensaje.className = estado === 'error'
+            ? 'mt-1 text-xs font-medium text-red-700'
+            : estado === 'success'
+                ? 'mt-1 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800'
+                : 'mt-1 text-xs text-gray-600';
     }
 
     function limpiarDatosCliente() {
@@ -965,13 +967,16 @@ renderCarro();
             region.dispatchEvent(new Event('change'));
             comuna.value = cliente.comuna || '';
 
-            mostrarMensaje('Cliente encontrado. Datos completados automáticamente.');
+            mostrarMensaje(
+                'RUT ya registrado. Se autocompletaron los datos del cliente.',
+                'success'
+            );
             guardarBorrador();
         } catch (error) {
             if (error.name === 'AbortError' || consulta !== numeroConsulta) return;
 
             ultimoRutConsultado = '';
-            mostrarMensaje(error.message, true);
+            mostrarMensaje(error.message, 'error');
         } finally {
             if (consulta === numeroConsulta) {
                 busquedaClienteEnProceso = false;
