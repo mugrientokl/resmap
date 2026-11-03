@@ -69,7 +69,7 @@ class ClienteController extends Controller
         return $query;
     }
 
-    public function buscarPorRut(Request $request)
+    public function buscarPorRut(Request $request): JsonResponse
     {
         $datos = $request->validate([
             'rut' => [
@@ -80,16 +80,7 @@ class ClienteController extends Controller
             ],
         ]);
 
-        $rutBuscado = strtoupper(
-            preg_replace('/[^0-9kK]/', '', $datos['rut'])
-        );
-
-        $cliente = Cliente::query()
-            ->whereRaw(
-                "UPPER(REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '')) = ?",
-                [$rutBuscado]
-            )
-            ->first();
+        $cliente = $this->buscarClientePorRut($datos['rut']);
 
         if (! $cliente) {
             return response()->json([
@@ -109,6 +100,52 @@ class ClienteController extends Controller
                 'comuna' => $cliente->comuna,
             ],
         ]);
+    }
+
+    public function buscarParaCatalogo(Request $request): JsonResponse
+    {
+        $datos = $request->validate([
+            'rut' => [
+                'required',
+                'string',
+                'max:20',
+                new RutChileno,
+            ],
+        ]);
+
+        $cliente = $this->buscarClientePorRut($datos['rut']);
+
+        if (! $cliente) {
+            return response()->json([
+                'encontrado' => false,
+            ]);
+        }
+
+        return response()->json([
+            'encontrado' => true,
+            'cliente' => [
+                'nombre' => $cliente->nombre,
+                'correo' => $cliente->correo,
+                'telefono' => $cliente->telefono,
+                'direccion' => $cliente->direccion,
+                'region' => $cliente->region,
+                'comuna' => $cliente->comuna,
+            ],
+        ]);
+    }
+
+    private function buscarClientePorRut(string $rut): ?Cliente
+    {
+        $rutBuscado = strtoupper(
+            preg_replace('/[^0-9kK]/', '', $rut) ?? ''
+        );
+
+        return Cliente::query()
+            ->whereRaw(
+                "UPPER(REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '')) = ?",
+                [$rutBuscado]
+            )
+            ->first();
     }
 
     public function historial(int $id)

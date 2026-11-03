@@ -47,6 +47,10 @@ Route::middleware([
         ->middleware('throttle:10,1')
         ->name('catalogo.solicitudes.store');
 
+    Route::get('/catalogo/cliente-por-rut', [ClienteController::class, 'buscarParaCatalogo'])
+        ->middleware('throttle:20,1')
+        ->name('catalogo.cliente.rut');
+
     Route::get('/cotizaciones/{version}/documento', [CotizacionController::class, 'pdfPublico'])
         ->middleware('signed')
         ->name('cotizaciones.pdf.publico');

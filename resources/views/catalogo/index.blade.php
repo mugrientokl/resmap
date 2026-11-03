@@ -221,11 +221,16 @@
             <div id="detalles_productos" class="contents"></div>
 
             <div>
-                <input name="rut" value="{{ old('rut') }}" required
+                <input id="rut_solicitud" name="rut" value="{{ old('rut') }}" required
                     placeholder="12345678-5" pattern="[0-9]{7,8}-[0-9Kk]"
+                    autocomplete="off"
                     class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
                 <p class="mt-1 text-xs text-gray-500">
                     Escribe tu RUT sin puntos y con guion.
+                </p>
+                <p id="mensaje-cliente-solicitud" class="mt-1 text-xs text-gray-600"
+                    role="status" aria-live="polite">
+                    Ingresa tu RUT para buscar tus datos registrados.
                 </p>
             </div>
 
@@ -694,6 +699,152 @@ inicializarFormularioCatalogo();
 const solicitudForm = document.querySelector('#solicitud-modal form');
 
 if (solicitudForm) {
+    const rutCliente = solicitudForm.querySelector('input[name="rut"]');
+    const mensajeCliente = document.getElementById('mensaje-cliente-solicitud');
+    const camposCliente = {
+        nombre: solicitudForm.querySelector('input[name="nombre"]'),
+        correo: solicitudForm.querySelector('input[name="correo"]'),
+        direccion: solicitudForm.querySelector('input[name="direccion"]'),
+        telefono: solicitudForm.querySelector('#telefono'),
+        prefijo: solicitudForm.querySelector('#prefijo_telefono'),
+        region: solicitudForm.querySelector('#region_solicitud'),
+        comuna: solicitudForm.querySelector('#comuna_solicitud')
+    };
+    let temporizadorBusquedaCliente;
+    let controladorBusquedaCliente;
+    let numeroBusquedaCliente = 0;
+    let ultimoRutConsultado = '';
+
+    const normalizarRut = valor =>
+        valor.replace(/[^0-9kK]/g, '').toUpperCase();
+
+    const mostrarMensajeCliente = (texto, estado = 'info') => {
+        mensajeCliente.textContent = texto;
+        mensajeCliente.className = estado === 'error'
+            ? 'mt-1 text-xs font-medium text-red-700'
+            : estado === 'success'
+                ? 'mt-1 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-xs font-semibold text-green-800'
+                : 'mt-1 text-xs text-gray-600';
+    };
+
+    const limpiarDatosCliente = () => {
+        camposCliente.nombre.value = '';
+        camposCliente.correo.value = '';
+        camposCliente.direccion.value = '';
+        camposCliente.telefono.value = '';
+        camposCliente.prefijo.value = '+569';
+        camposCliente.prefijo.dispatchEvent(new Event('change'));
+        camposCliente.region.value = '';
+        camposCliente.region.dispatchEvent(new Event('change'));
+        camposCliente.comuna.value = '';
+    };
+
+    const buscarClientePorRut = async () => {
+        clearTimeout(temporizadorBusquedaCliente);
+
+        const rutNormalizado = normalizarRut(rutCliente.value);
+
+        if (rutNormalizado.length < 8 || rutNormalizado.length > 9) {
+            mostrarMensajeCliente('Ingresa el RUT completo.');
+            return;
+        }
+
+        if (rutNormalizado === ultimoRutConsultado) return;
+
+        controladorBusquedaCliente?.abort();
+        controladorBusquedaCliente = new AbortController();
+        const numeroConsulta = ++numeroBusquedaCliente;
+        mostrarMensajeCliente('Buscando cliente...');
+
+        try {
+            const parametros = new URLSearchParams({
+                rut: rutCliente.value.trim()
+            });
+            const respuesta = await fetch(
+                '{{ route('catalogo.cliente.rut') }}?' + parametros.toString(),
+                {
+                    headers: { 'Accept': 'application/json' },
+                    signal: controladorBusquedaCliente.signal
+                }
+            );
+            const datos = await respuesta.json();
+
+            if (numeroConsulta !== numeroBusquedaCliente) return;
+
+            if (!respuesta.ok) {
+                const errores = Object.values(datos.errors || {}).flat().join(' ');
+                throw new Error(errores || 'No se pudieron consultar los datos del cliente.');
+            }
+
+            ultimoRutConsultado = rutNormalizado;
+
+            if (!datos.encontrado) {
+                mostrarMensajeCliente(
+                    'RUT no registrado. Completa tus datos para solicitar la cotización.'
+                );
+                return;
+            }
+
+            const cliente = datos.cliente;
+            camposCliente.nombre.value = cliente.nombre || '';
+            camposCliente.correo.value = cliente.correo || '';
+            camposCliente.direccion.value = cliente.direccion || '';
+
+            const digitosTelefono = String(cliente.telefono || '').replace(/\D/g, '');
+            camposCliente.telefono.value = digitosTelefono.length >= 8
+                ? digitosTelefono.slice(-8)
+                : '';
+
+            if (digitosTelefono.length > 8) {
+                const prefijo = '+' + digitosTelefono.slice(0, -8);
+                if (Array.from(camposCliente.prefijo.options).some(
+                    opcion => opcion.value === prefijo
+                )) {
+                    camposCliente.prefijo.value = prefijo;
+                    camposCliente.prefijo.dispatchEvent(new Event('change'));
+                }
+            }
+
+            camposCliente.region.value = cliente.region || '';
+            camposCliente.region.dispatchEvent(new Event('change'));
+            camposCliente.comuna.value = cliente.comuna || '';
+
+            mostrarMensajeCliente(
+                'RUT ya registrado. Se autocompletaron los datos del cliente.',
+                'success'
+            );
+        } catch (error) {
+            if (error.name === 'AbortError' || numeroConsulta !== numeroBusquedaCliente) {
+                return;
+            }
+
+            ultimoRutConsultado = '';
+            mostrarMensajeCliente(error.message, 'error');
+        }
+    };
+
+    rutCliente.addEventListener('input', () => {
+        clearTimeout(temporizadorBusquedaCliente);
+        controladorBusquedaCliente?.abort();
+        numeroBusquedaCliente++;
+        ultimoRutConsultado = '';
+        limpiarDatosCliente();
+        mostrarMensajeCliente('');
+
+        const rutNormalizado = normalizarRut(rutCliente.value);
+        if (rutNormalizado.length >= 8 && rutNormalizado.length <= 9) {
+            temporizadorBusquedaCliente = setTimeout(buscarClientePorRut, 600);
+        }
+    });
+
+    rutCliente.addEventListener('blur', buscarClientePorRut);
+    rutCliente.addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            buscarClientePorRut();
+        }
+    });
+
     const entrega = document.createElement('fieldset');
     entrega.className =
         'space-y-3 rounded border border-[#e8c8c3] p-4 sm:col-span-2';

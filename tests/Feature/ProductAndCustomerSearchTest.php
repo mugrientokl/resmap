@@ -90,6 +90,50 @@ class ProductAndCustomerSearchTest extends TestCase
             ]);
     }
 
+    public function test_public_catalog_rut_lookup_returns_only_fields_needed_to_prefill_the_quote_form(): void
+    {
+        DB::table('clientes')->insert([
+            'rut' => '76.123.456-0',
+            'nombre' => 'Repuestos del Sur',
+            'giro' => 'Venta de repuestos',
+            'correo' => 'compras@example.com',
+            'telefono' => '+56987654321',
+            'direccion' => 'Av. Central 123',
+            'region' => 'Metropolitana de Santiago',
+            'comuna' => 'Santiago',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->getJson(route('catalogo.cliente.rut', ['rut' => '761234560']))
+            ->assertOk()
+            ->assertExactJson([
+                'encontrado' => true,
+                'cliente' => [
+                    'nombre' => 'Repuestos del Sur',
+                    'correo' => 'compras@example.com',
+                    'telefono' => '+56987654321',
+                    'direccion' => 'Av. Central 123',
+                    'region' => 'Metropolitana de Santiago',
+                    'comuna' => 'Santiago',
+                ],
+            ]);
+
+        $this->getJson(route('catalogo.cliente.rut', ['rut' => '12345678-5']))
+            ->assertOk()
+            ->assertExactJson(['encontrado' => false]);
+    }
+
+    public function test_catalog_quote_form_includes_rut_autocomplete_feedback(): void
+    {
+        $this->get(route('catalogo.index'))
+            ->assertOk()
+            ->assertSee('id="rut_solicitud"', false)
+            ->assertSee('id="mensaje-cliente-solicitud"', false)
+            ->assertSee(route('catalogo.cliente.rut'), false)
+            ->assertSee('RUT ya registrado. Se autocompletaron los datos del cliente.');
+    }
+
     /**
      * @param  array{codigo_barra: string, codigo_origen: string, nombre: string, stock: int, stock_critico: int}  $attributes
      */
