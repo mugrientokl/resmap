@@ -37,12 +37,6 @@
         </a>
     </form>
 
-    @if(session('success'))
-        <div class="mb-4 rounded border border-green-400 bg-green-100 px-4 py-3 text-green-700">
-            {{ session('success') }}
-        </div>
-    @endif
-
     <div class="mx-auto max-w-7xl overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 text-center">
             <thead class="bg-gray-50">

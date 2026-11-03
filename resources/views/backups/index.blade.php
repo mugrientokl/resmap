@@ -8,18 +8,6 @@
         <p class="mt-2 text-sm text-gray-500">Los ZIP incluyen la base de datos completa, archivos subidos y checksums de integridad. La ejecución automática requiere configurar el programador del servidor.</p>
     </div>
 
-    @if (session('success'))
-        <div class="border-l-4 border-green-600 bg-green-50 p-4 font-semibold text-green-800" role="status">
-            {{ session('success') }}
-        </div>
-    @endif
-
-    @if (session('error'))
-        <div class="border-l-4 border-red-600 bg-red-50 p-4 font-semibold text-red-800" role="alert">
-            {{ session('error') }}
-        </div>
-    @endif
-
     @if ($errors->has('confirmation'))
         <div class="border-l-4 border-red-600 bg-red-50 p-4 font-semibold text-red-800" role="alert">
             {{ $errors->first('confirmation') }}

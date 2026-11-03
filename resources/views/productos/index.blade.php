@@ -39,14 +39,6 @@
         </div>
     </div>
 
-    @if(session('success'))
-
-        <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-            {{ session('success') }}
-        </div>
-
-    @endif
-
     <form method="GET"
           action="{{ route('productos.index') }}"
           class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">

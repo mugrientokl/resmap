@@ -12,12 +12,7 @@
     </div>
 
     @if(session('success'))
-        <div id="success-toast"
-            class="fixed right-5 top-24 z-60 max-w-sm border-l-4 border-[#8f241d] bg-white p-5 text-[#8f241d] shadow-xl"
-            role="status">
-            <p class="font-black">Cotización enviada</p>
-            <p class="mt-1 text-sm text-gray-600">{{ session('success') }}</p>
-        </div>
+        <span id="success-toast" hidden></span>
     @endif
 
     @if($errors->any())
@@ -830,7 +825,6 @@ if (document.getElementById('success-toast')) {
     renderCarrito();
 }
 
-setTimeout(() => document.getElementById('success-toast')?.remove(), 5000);
 setTimeout(() => document.getElementById('error-toast')?.remove(), 7000);
 
 @if($errors->any())

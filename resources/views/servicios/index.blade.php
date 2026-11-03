@@ -7,7 +7,6 @@
         <h1 class="mt-2 text-4xl font-black text-[#241817]">Agenda un servicio</h1>
         <p class="mt-3 max-w-2xl text-gray-600">Cuéntanos qué necesitas y nuestro equipo te contactará para coordinar la atención.</p>
     </div>
-    @if(session('success'))<div class="mb-6 border-l-4 border-[#8f241d] bg-white p-5 text-[#8f241d] shadow-sm" role="status"><p class="font-black">Solicitud enviada</p><p class="mt-1 text-sm text-gray-600">{{ session('success') }}</p></div>@endif
     @if($errors->any())<div class="mb-6 border-l-4 border-red-700 bg-white p-5 text-red-800 shadow-sm" role="alert"><p class="font-black">Revisa los datos ingresados</p><ul class="mt-1 list-disc pl-5 text-sm">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul></div>@endif
     <form method="POST" action="{{ route('servicios.store') }}" class="grid gap-8 bg-white p-6 shadow-sm md:grid-cols-2 md:p-8">
         @csrf

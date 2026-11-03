@@ -59,6 +59,7 @@ class B2BQuotationFlowTest extends TestCase
             ->assertSee('Revisión de cotización')
             ->assertSee('Tu respuesta')
             ->assertSee('Adjuntar OC de mi empresa')
+            ->assertSee('data-confirm-title="Confirmar respuesta"', false)
             ->assertSee('RESMAP');
 
         auth()->logout();
@@ -71,6 +72,9 @@ class B2BQuotationFlowTest extends TestCase
             'metodo_entrega' => 'retiro',
             'autorizar_oc_automatica' => '1',
         ])->assertRedirect(route('home'));
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertSee('La respuesta a la cotización fue registrada.');
 
         $ventaId = (int) DB::table('ventas')->value('id_venta');
         $ordenCompraRow = DB::table('ordenes_compra')->where('version_id', $versionId)->first();
@@ -98,7 +102,9 @@ class B2BQuotationFlowTest extends TestCase
         $this->actingAs($admin)->get(route('solicitudes.show', $solicitudId))
             ->assertOk()
             ->assertSee('Orden de compra recibida; pendiente del equipo comercial')
-            ->assertSee('Confirmar pago');
+            ->assertSee('Confirmar pago')
+            ->assertSee('data-confirm-kind="sale-payment"', false)
+            ->assertSee('Autorizar crédito');
         $this->actingAs($admin)->get(route('solicitudes.show', $solicitudId))->assertSee('Ver OC');
         $this->get(route('cotizaciones.responder.form', [
             'version' => $versionId,

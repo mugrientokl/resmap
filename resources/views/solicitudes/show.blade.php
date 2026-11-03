@@ -14,9 +14,6 @@
             <span aria-hidden="true">↓</span> Descargar resumen interno
         </a>
     </div>
-    @if(session('success'))<div class="mt-5 border-l-4 border-green-600 bg-green-50 p-4 font-semibold text-green-800">{{ session('success') }}</div>@endif
-    @if(session('error'))<div class="mt-5 border-l-4 border-amber-500 bg-amber-50 p-4 font-semibold text-amber-900">{{ session('error') }}</div>@endif
-    @if(session('warning'))<div class="mt-5 border-l-4 border-amber-500 bg-amber-50 p-4 font-semibold text-amber-900">{{ session('warning') }}</div>@endif
     @if($errors->any())
         <div class="mt-5 border-l-4 border-red-600 bg-red-50 p-4 text-sm text-red-800" role="alert">
             <p class="font-bold">No se pudo completar la acción:</p>
@@ -56,7 +53,7 @@
                     ][$solicitud->estado] ?? [];
                 @endphp
                 @if($transicionesPermitidas)
-                    <form method="POST" action="{{ route('solicitudes.estado', $solicitud->id_solicitud) }}" class="mt-6 border-t pt-6" data-confirm-message="¿Confirmas guardar el nuevo estado de este servicio?">
+                    <form method="POST" action="{{ route('solicitudes.estado', $solicitud->id_solicitud) }}" class="mt-6 border-t pt-6" data-confirm-message="¿Confirmas guardar el nuevo estado de este servicio?" data-confirm-kind="service-state">
                         @csrf @method('PATCH')
                         <label class="block text-sm font-bold">Siguiente estado
                             <select name="estado" class="mt-2 w-full border border-gray-300 p-3">@foreach($transicionesPermitidas as $estadoPermitido)<option value="{{ $estadoPermitido }}">{{ $estadoPermitido }}</option>@endforeach</select>
@@ -95,7 +92,7 @@
                                 <div class="flex gap-3">
                                     <a class="font-bold text-[#9f2f25] underline" href="{{ route('cotizaciones.pdf', $version->id_version) }}">Descargar cotización PDF</a>
                                     @if($version->estado === 'borrador')
-                                        <form method="POST" action="{{ route('cotizaciones.enviar', $version->id_version) }}">@csrf<button class="font-bold text-[#9f2f25] underline">Enviar al cliente</button></form>
+                                        <form method="POST" action="{{ route('cotizaciones.enviar', $version->id_version) }}" data-confirm-message="Enviarás la versión {{ $version->numero_version }} de la cotización, por $ {{ number_format($version->total, 0, ',', '.') }}, a {{ $solicitud->cliente->nombre }} (correo: {{ $solicitud->cliente->correo ?: 'sin correo' }}, teléfono: {{ $solicitud->cliente->telefono ?: 'sin teléfono' }}). Se intentará enviar por los canales disponibles, pero la aceptación del proveedor no garantiza la entrega." data-confirm-title="Enviar cotización al cliente" data-confirm-text="Enviar cotización">@csrf<button class="font-bold text-[#9f2f25] underline">Enviar al cliente</button></form>
                                     @endif
                                 </div>
                             </div>
@@ -104,7 +101,7 @@
                         <p class="mt-3 text-sm text-gray-600">No se ha creado una versión de cotización.</p>
                     @endif
                     @if(! $solicitud->cotizacion || in_array($solicitud->cotizacion->estado, ['pendiente_revision', 'cambios_solicitados'], true))
-                        <form method="POST" action="{{ route('solicitudes.cotizacion.crear', $solicitud->id_solicitud) }}" class="mt-4 flex flex-wrap items-end gap-3">
+                        <form method="POST" action="{{ route('solicitudes.cotizacion.crear', $solicitud->id_solicitud) }}" class="mt-4 flex flex-wrap items-end gap-3" data-confirm-message="Crearás una nueva versión de cotización. El inventario disponible quedará reservado para esta solicitud y dejará de estar disponible para otras ventas. ¿Deseas continuar?" data-confirm-title="Crear y reservar cotización" data-confirm-text="Crear cotización">
                             @csrf
                             @if($solicitud->metodo_entrega === 'despacho')
                                 <label class="text-sm font-bold">Costo despacho
@@ -166,7 +163,7 @@
                             @endif
                             @if($venta->estado_venta === 'pendiente_confirmacion' && $ordenesCompra->isNotEmpty())
                                 <div class="mt-4 flex flex-wrap gap-4">
-                                    <form method="POST" action="{{ route('ventas.confirmar-comercial', $venta->id_venta) }}" class="flex flex-wrap items-end gap-2 rounded bg-gray-50 p-4">
+                                    <form method="POST" action="{{ route('ventas.confirmar-comercial', $venta->id_venta) }}" class="flex flex-wrap items-end gap-2 rounded bg-gray-50 p-4" data-confirm-message="Confirma registrar el pago de esta venta." data-confirm-kind="sale-payment" data-confirm-title="Confirmar pago recibido" data-confirm-text="Registrar pago">
                                         @csrf
                                         <input type="hidden" name="tipo_confirmacion" value="pago">
                                         <label class="text-sm font-bold">Pago recibido
@@ -178,7 +175,7 @@
                                         <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Confirmar pago</button>
                                     </form>
                                     @if(auth()->user()->rol === 'Administrador')
-                                        <form method="POST" action="{{ route('ventas.confirmar-comercial', $venta->id_venta) }}" class="self-end rounded bg-gray-50 p-4">
+                                        <form method="POST" action="{{ route('ventas.confirmar-comercial', $venta->id_venta) }}" class="self-end rounded bg-gray-50 p-4" data-confirm-message="Confirma autorizar un crédito para esta venta. El inventario se descontará al facturar." data-confirm-kind="credit-authorization" data-confirm-amount="{{ $venta->total }}" data-confirm-title="Autorizar crédito" data-confirm-text="Autorizar crédito">
                                             @csrf
                                             <input type="hidden" name="tipo_confirmacion" value="credito">
                                             <button class="border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25]">Autorizar crédito</button>
@@ -189,7 +186,7 @@
                                 <p class="mt-3 rounded bg-amber-50 p-3 text-sm text-amber-900">No se puede confirmar la venta hasta recibir o autorizar la orden de compra del cliente.</p>
                             @endif
                             @if(in_array($venta->estado_pago, ['credito_autorizado', 'credito_parcial'], true) && $saldoCredito > 0)
-                                <form method="POST" action="{{ route('ventas.registrar-pago-credito', $venta->id_venta) }}" class="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-[#ead8d5] bg-white p-4">
+                                <form method="POST" action="{{ route('ventas.registrar-pago-credito', $venta->id_venta) }}" class="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-[#ead8d5] bg-white p-4" data-confirm-message="Confirma registrar este abono al crédito." data-confirm-kind="credit-payment" data-confirm-title="Confirmar abono" data-confirm-text="Registrar abono">
                                     @csrf
                                     <div class="w-full">
                                         <p class="font-black">Registrar abono al crédito</p>
@@ -208,7 +205,7 @@
                                 <div class="mt-4 rounded border border-amber-300 bg-amber-50 p-4">
                                     <p class="font-bold text-amber-950">Facturación de prueba</p>
                                     <p class="mt-1 text-sm text-amber-900">Esta simulación no emite un DTE real. Si resulta exitosa, registra la factura simulada y descuenta el stock.</p>
-                                    <form method="POST" action="{{ route('ventas.simular-facturacion', $venta->id_venta) }}" class="mt-3 flex flex-wrap items-end gap-3">
+                                    <form method="POST" action="{{ route('ventas.simular-facturacion', $venta->id_venta) }}" class="mt-3 flex flex-wrap items-end gap-3" data-confirm-message="Confirma ejecutar la simulación de facturación." data-confirm-kind="invoice-simulation" data-confirm-title="Confirmar simulación" data-confirm-text="Ejecutar simulación">
                                         @csrf
                                         <label class="text-sm font-bold">Resultado
                                             <select name="resultado" required class="mt-1 block border p-2"><option value="exito">Simular éxito</option><option value="error">Simular error</option></select>
@@ -230,4 +227,32 @@
         </section>
     </div>
 </div>
+<script>
+    const formatConfirmationAmount = amount => new Intl.NumberFormat('es-CL', {
+        maximumFractionDigits: 2,
+    }).format(Number(amount) || 0);
+
+    document.querySelectorAll('[data-confirm-kind]').forEach(form => {
+        form.addEventListener('submit', () => {
+            const kind = form.dataset.confirmKind;
+            const amount = form.querySelector('[name="monto_pagado"]')?.value;
+            const paymentMethod = form.querySelector('[name="medio_pago"]')?.selectedOptions[0]?.textContent.trim();
+
+            if (kind === 'service-state') {
+                const nextState = form.querySelector('[name="estado"]')?.selectedOptions[0]?.textContent.trim();
+                form.dataset.confirmMessage = `Vas a cambiar el estado del servicio a «${nextState}». ¿Deseas continuar?`;
+            } else if (kind === 'sale-payment') {
+                form.dataset.confirmMessage = `Confirma que recibiste ${formatConfirmationAmount(amount)} por ${paymentMethod} para registrar el pago de la venta.`;
+            } else if (kind === 'credit-payment') {
+                form.dataset.confirmMessage = `Vas a registrar un abono de ${formatConfirmationAmount(amount)} por ${paymentMethod}. Verifica que el monto recibido sea correcto.`;
+            } else if (kind === 'credit-authorization') {
+                form.dataset.confirmMessage = `Confirma autorizar un crédito por ${formatConfirmationAmount(form.dataset.confirmAmount)} para esta venta. El inventario se descontará al facturar.`;
+            } else if (kind === 'invoice-simulation') {
+                const simulationSucceeds = form.querySelector('[name="resultado"]')?.value === 'exito';
+                const result = simulationSucceeds ? 'un resultado exitoso' : 'un resultado fallido';
+                form.dataset.confirmMessage = `Vas a ejecutar la facturación de prueba con ${result}. Si el resultado es exitoso, se registra la factura simulada y se descuenta el stock. No se emitirá un DTE real. ¿Deseas continuar?`;
+            }
+        });
+    });
+</script>
 @endsection

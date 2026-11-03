@@ -685,9 +685,11 @@ async function procesarVenta() {
         return;
     }
 
+    const tipoDocumento = document.getElementById('tipo_documento').value;
+    const medioPago = document.getElementById('medio_pago').value;
     const datos = {
-        tipo_documento: document.getElementById('tipo_documento').value,
-        medio_pago: document.getElementById('medio_pago').value,
+        tipo_documento: tipoDocumento,
+        medio_pago: medioPago,
         rut,
         nombre_cliente: nombre,
         razon_social_cliente: nombre,
@@ -709,8 +711,27 @@ async function procesarVenta() {
     const boton = document.getElementById('registrar-venta');
     ventaEnProceso = true;
     boton.disabled = true;
+    let solicitudIniciada = false;
 
     try {
+        const detalleProductos = carro.map(item => {
+            const subtotal = new Intl.NumberFormat('es-CL', {
+                maximumFractionDigits: 0,
+            }).format(item.precio * item.cantidad);
+
+            return `• ${item.nombre}: ${item.cantidad} × $ ${subtotal}`;
+        }).join('\n');
+        const totalVenta = document.getElementById('label-total').textContent.trim();
+        const confirmado = await window.resmapConfirm(
+            `Revisa la venta antes de registrarla:\n${detalleProductos}\n\nCliente: ${nombre}\nDocumento: ${tipoDocumento}\nMedio de pago: ${medioPago}\nTotal: ${totalVenta}\n\nAl continuar, se registrará la venta y se descontará el stock.`,
+            { title: 'Confirmar venta', confirmText: 'Registrar venta' }
+        );
+
+        if (!confirmado) {
+            return;
+        }
+
+        solicitudIniciada = true;
         const respuesta = await fetch('{{ url('/ventas') }}', {
             method: 'POST',
             headers: {
@@ -742,10 +763,15 @@ async function procesarVenta() {
             'error'
         );
     } catch (error) {
-        console.error('Error al registrar la venta:', error);
+        console.error(
+            solicitudIniciada ? 'No se pudo confirmar el resultado de la venta.' : 'No se pudo mostrar la confirmación de venta.',
+            error
+        );
 
         window.resmapAlert(
-            'No se pudo confirmar el resultado. Revisa si la venta quedó registrada antes de intentarlo nuevamente.',
+            solicitudIniciada
+                ? 'No se pudo confirmar el resultado. Revisa si la venta quedó registrada antes de intentarlo nuevamente.'
+                : 'No se pudo abrir la confirmación. La venta no fue enviada; vuelve a intentarlo.',
             'error'
         );
     } finally {

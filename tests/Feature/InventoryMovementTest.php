@@ -27,6 +27,8 @@ class InventoryMovementTest extends TestCase
             ->assertSee('Registrar Movimiento')
             ->assertSee('role="dialog"', false)
             ->assertSee('data-product-id="'.$productId.'"', false)
+            ->assertSee('data-current-stock="3"', false)
+            ->assertSee('data-confirm-title="Confirmar movimiento de inventario"', false)
             ->assertSee('data-category-id="'.$categoryId.'"', false)
             ->assertSee('Producto de prueba');
     }

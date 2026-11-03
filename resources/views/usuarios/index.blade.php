@@ -8,10 +8,6 @@
         <p class="mt-2 text-gray-500">Crea cuentas con permisos diferenciados para la operación diaria.</p>
     </div>
 
-    @if(session('success'))
-        <div class="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-green-700">{{ session('success') }}</div>
-    @endif
-
     @if($errors->any())
         <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-red-700">
             <ul class="list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>

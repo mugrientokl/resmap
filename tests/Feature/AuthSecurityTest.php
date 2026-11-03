@@ -45,6 +45,14 @@ class AuthSecurityTest extends TestCase
         $this->assertStringContainsString(':not([type="checkbox"])', $styles);
     }
 
+    public function test_password_reset_success_message_is_shown_on_the_login_page(): void
+    {
+        $this->withSession(['status' => 'La contraseña se restableció correctamente.'])
+            ->get(route('login'))
+            ->assertOk()
+            ->assertSee('La contraseña se restableció correctamente.');
+    }
+
     public function test_seller_login_regenerates_the_session_and_logout_invalidates_it(): void
     {
         $seller = User::factory()->create([

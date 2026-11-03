@@ -7,12 +7,6 @@
         <button onclick="openCreateModal()" class="bg-[#b52f25] text-white px-4 py-2 rounded-md hover:bg-[#8f241d] font-medium">+ Nueva Categoría</button>
     </div>
 
-    @if(session('success'))
-        <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative">
-            {{ session('success') }}
-        </div>
-    @endif
-
     @if(session('validation_error'))
         <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
             <p class="font-medium">No se pudo guardar la categoría:</p>

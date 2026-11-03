@@ -126,6 +126,23 @@
     </nav>
 
     <main class="mx-auto min-h-[calc(100vh-140px)] py-6">
+        @if (filled(session('success')) || filled(session('status')) || filled(session('warning')) || filled(session('error')))
+            <div class="mx-auto mb-6 max-w-7xl space-y-3" aria-live="polite">
+                @foreach ([
+                    'success' => ['Operación completada', 'border-green-600 bg-green-50 text-green-900', 'status'],
+                    'status' => ['Aviso', 'border-[#b52f25] bg-[#fff7f5] text-[#721d18]', 'status'],
+                    'warning' => ['Atención', 'border-amber-500 bg-amber-50 text-amber-950', 'alert'],
+                    'error' => ['No se pudo completar', 'border-red-600 bg-red-50 text-red-900', 'alert'],
+                ] as $flashKey => [$flashTitle, $flashClasses, $flashRole])
+                    @if (filled(session($flashKey)))
+                        <div class="border-l-4 p-4 shadow-sm {{ $flashClasses }}" role="{{ $flashRole }}">
+                            <p class="font-black">{{ $flashTitle }}</p>
+                            <p class="mt-1 text-sm">{{ session($flashKey) }}</p>
+                        </div>
+                    @endif
+                @endforeach
+            </div>
+        @endif
         @yield('content')
     </main>
     <footer class="mt-8 border-t border-[#e8c8c3] bg-white px-4 py-8 text-sm text-gray-600">
@@ -175,100 +192,8 @@
         @endif
         <p class="mt-8 border-t border-[#f0ddda] pt-5 text-center">© RESMAP 2026. Todos Los Derechos Reservados.</p>
     </footer>
-    <div id="resmap-dialog" class="fixed inset-0 z-[100] hidden items-center justify-center bg-[#241817]/60 p-4" role="dialog" aria-modal="true" aria-labelledby="resmap-dialog-title" aria-describedby="resmap-dialog-message">
-        <section class="w-full max-w-md overflow-hidden rounded-xl bg-white shadow-2xl">
-            <header class="flex items-center gap-3 bg-[#8f241d] px-6 py-5 text-white">
-                <span id="resmap-dialog-icon" class="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-lg font-black" aria-hidden="true">!</span>
-                <h2 id="resmap-dialog-title" class="text-lg font-black">RESMAP</h2>
-            </header>
-            <div class="p-6">
-                <p id="resmap-dialog-message" class="whitespace-pre-line leading-6 text-gray-700"></p>
-                <div class="mt-6 flex justify-end gap-3">
-                    <button id="resmap-dialog-cancel" type="button" class="hidden rounded-md border border-[#d9aaa3] px-5 py-2.5 font-bold text-[#8f241d] hover:bg-[#fffaf9]">Cancelar</button>
-                    <button id="resmap-dialog-confirm" type="button" class="rounded-md bg-[#b52f25] px-5 py-2.5 font-bold text-white hover:bg-[#8f241d]">Entendido</button>
-                </div>
-            </div>
-        </section>
-    </div>
+    @include('components.resmap-dialog')
     <script>
-        const resmapDialog = document.getElementById('resmap-dialog');
-        const resmapDialogTitle = document.getElementById('resmap-dialog-title');
-        const resmapDialogMessage = document.getElementById('resmap-dialog-message');
-        const resmapDialogConfirm = document.getElementById('resmap-dialog-confirm');
-        const resmapDialogCancel = document.getElementById('resmap-dialog-cancel');
-        function showResmapDialog(message, { title = 'Aviso', confirmText = 'Entendido', cancelText = null, type = 'info' } = {}) {
-            if (!resmapDialog) {
-                throw new Error('No se pudo cargar el diálogo de RESMAP.');
-            }
-
-            resmapDialogTitle.textContent = title;
-            resmapDialogMessage.textContent = message;
-            resmapDialogConfirm.textContent = confirmText;
-            resmapDialogCancel.textContent = cancelText ?? 'Cancelar';
-            resmapDialogCancel.classList.toggle('hidden', cancelText === null);
-            document.getElementById('resmap-dialog-icon').textContent = type === 'success' ? '✓' : type === 'error' ? '!' : type === 'warning' ? '!' : 'i';
-
-            resmapDialog.classList.remove('hidden');
-            resmapDialog.classList.add('flex');
-            resmapDialogConfirm.focus();
-
-            return new Promise(resolve => {
-                const finish = result => {
-                    resmapDialog.classList.add('hidden');
-                    resmapDialog.classList.remove('flex');
-                    resmapDialogConfirm.removeEventListener('click', accept);
-                    resmapDialogCancel.removeEventListener('click', cancel);
-                    resmapDialog.removeEventListener('click', clickOutside);
-                    document.removeEventListener('keydown', keydown);
-                    resolve(result);
-                };
-                const accept = () => finish(true);
-                const cancel = () => finish(false);
-                const clickOutside = event => {
-                    if (event.target === resmapDialog && cancelText !== null) {
-                        cancel();
-                    }
-                };
-                const keydown = event => {
-                    if (event.key === 'Escape' && cancelText !== null) {
-                        cancel();
-                    } else if (event.key === 'Enter' && cancelText === null) {
-                        accept();
-                    }
-                };
-
-                resmapDialogConfirm.addEventListener('click', accept);
-                resmapDialogCancel.addEventListener('click', cancel);
-                resmapDialog.addEventListener('click', clickOutside);
-                document.addEventListener('keydown', keydown);
-            });
-        }
-
-        window.resmapAlert = (message, type = 'info') => showResmapDialog(message, {
-            title: type === 'success' ? 'Operación completada' : type === 'error' ? 'No se pudo completar' : type === 'warning' ? 'Revisa esta información' : 'Aviso RESMAP',
-            type,
-        });
-        window.resmapConfirm = message => showResmapDialog(message, {
-            title: 'Confirma esta acción',
-            confirmText: 'Sí, continuar',
-            cancelText: 'Cancelar',
-            type: 'warning',
-        });
-
-        document.addEventListener('submit', event => {
-            const form = event.target;
-            if (!(form instanceof HTMLFormElement) || !form.dataset.confirmMessage) {
-                return;
-            }
-
-            event.preventDefault();
-            window.resmapConfirm(form.dataset.confirmMessage).then(confirmed => {
-                if (confirmed) {
-                    HTMLFormElement.prototype.submit.call(form);
-                }
-            });
-        });
-
         const mobileMenuButton = document.getElementById('mobile-menu-button');
         const mainMenu = document.getElementById('main-menu');
         const profileMenuButton = document.getElementById('profile-menu-button');

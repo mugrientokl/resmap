@@ -9,12 +9,6 @@
         </button>
     </div>
 
-    @if(session('success'))
-        <div class="mb-4 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
-            {{ session('success') }}
-        </div>
-    @endif
-
     @if($errors->any() && old('_form_context') !== 'movement')
         <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
             <ul class="list-disc pl-5">
@@ -133,7 +127,7 @@
                 </ul>
             </div>
         @endif
-        <form action="{{ route('inventario.movimientos.store') }}" method="POST" class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
+        <form id="movement-form" action="{{ route('inventario.movimientos.store') }}" method="POST" class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2" data-confirm-message="Confirma el movimiento de inventario y verifica el stock resultante." data-confirm-title="Confirmar movimiento de inventario" data-confirm-text="Registrar movimiento">
             @csrf
             <input type="hidden" name="_form_context" value="movement">
 
@@ -145,7 +139,7 @@
                     @foreach($productos as $prod)
                         @php($catNombre = $prod->categoria->nombre_categoria ?? 'Sin Categoría')
                         @php($productoLabel = $prod->nombre.' | Cat: '.$catNombre.' | Stock: '.$prod->stock)
-                        <button id="movement-product-option-{{ $prod->id_producto }}" type="button" role="option" aria-selected="false" data-product-id="{{ $prod->id_producto }}" data-category-id="{{ $prod->id_categoria }}" data-search="{{ $prod->nombre.' '.$catNombre.' '.$prod->codigo_barra.' '.($prod->codigo_origen ?? '') }}" data-label="{{ $productoLabel }}" class="hidden w-full px-3 py-2 text-left text-sm hover:bg-[#f7e8e6] focus:bg-[#f7e8e6] focus:outline-none">{{ $productoLabel }}</button>
+                        <button id="movement-product-option-{{ $prod->id_producto }}" type="button" role="option" aria-selected="false" data-product-id="{{ $prod->id_producto }}" data-category-id="{{ $prod->id_categoria }}" data-current-stock="{{ $prod->stock }}" data-search="{{ $prod->nombre.' '.$catNombre.' '.$prod->codigo_barra.' '.($prod->codigo_origen ?? '') }}" data-label="{{ $productoLabel }}" class="hidden w-full px-3 py-2 text-left text-sm hover:bg-[#f7e8e6] focus:bg-[#f7e8e6] focus:outline-none">{{ $productoLabel }}</button>
                     @endforeach
                     <p class="picker-no-results hidden px-3 py-2 text-sm text-gray-500">No hay repuestos que coincidan con la búsqueda.</p>
                 </div>
@@ -349,8 +343,10 @@
         });
 
         const movementModal = document.getElementById('movement-modal');
+        const movementForm = document.getElementById('movement-form');
         const movementType = document.getElementById('movement-type');
         const movementQuantity = document.getElementById('movement-quantity');
+        const selectedProductId = document.getElementById('movement-product-value');
         const movementQuantityLabel = document.querySelector('label[for="movement-quantity"]');
         const openModalButton = document.getElementById('open-movement-modal');
         const closeModalButtons = [
@@ -394,6 +390,18 @@
         openModalButton?.addEventListener('click', openMovementModal);
         closeModalButtons.forEach((button) => button?.addEventListener('click', closeMovementModal));
         movementType?.addEventListener('change', updateMovementQuantityField);
+        movementForm?.addEventListener('submit', () => {
+            const selectedProduct = document.getElementById(`movement-product-option-${selectedProductId.value}`);
+            const currentStock = Number(selectedProduct?.dataset.currentStock);
+            const enteredQuantity = Number(movementQuantity.value);
+            const movement = movementType.value;
+            const resultingStock = movement === 'ajuste'
+                ? enteredQuantity
+                : currentStock + (movement === 'egreso' ? -enteredQuantity : enteredQuantity);
+            const movementLabel = movementType.selectedOptions[0].textContent.trim();
+
+            movementForm.dataset.confirmMessage = `Producto: ${selectedProduct?.dataset.label || 'No seleccionado'}\nMovimiento: ${movementLabel}\nStock actual: ${currentStock}\nStock resultante: ${resultingStock}\nMotivo: ${document.getElementById('movement-reason').selectedOptions[0].textContent.trim()}\n\n¿Deseas registrar este cambio de inventario?`;
+        });
         movementModal?.addEventListener('click', (event) => {
             if (event.target === movementModal) {
                 closeMovementModal();

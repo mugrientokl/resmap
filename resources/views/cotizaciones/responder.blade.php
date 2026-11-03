@@ -60,7 +60,7 @@
                 </div>
             </section>
             <aside class="space-y-6">
-                <form method="POST" enctype="multipart/form-data" action="{{ route('cotizaciones.responder', [$version->id_version, $token]) }}" class="space-y-6">
+                <form id="quote-response-form" method="POST" enctype="multipart/form-data" action="{{ route('cotizaciones.responder', [$version->id_version, $token]) }}" class="space-y-6" data-confirm-message="Confirma enviar tu respuesta a RESMAP." data-confirm-title="Confirmar respuesta" data-confirm-text="Enviar respuesta">
                     @csrf
                 <section class="rounded-xl bg-white p-6 shadow-sm">
                     <h2 class="font-black">Datos del cliente</h2>
@@ -190,6 +190,48 @@
         orderModeFields.forEach(field => field.addEventListener('change', updateOrderFields));
         updateOrderFields();
         updateDeliveryFields();
+
+        const quoteResponseForm = document.getElementById('quote-response-form');
+        let responseFormDirty = false;
+        let responseFormSubmitted = false;
+
+        quoteResponseForm.addEventListener('input', () => {
+            responseFormDirty = true;
+        });
+        quoteResponseForm.addEventListener('change', () => {
+            responseFormDirty = true;
+        });
+        quoteResponseForm.addEventListener('submit', () => {
+            const decisionLabels = {
+                aceptar: 'aceptar la cotización',
+                cambios: 'solicitar cambios a la cotización',
+                rechazar: 'rechazar la cotización',
+            };
+            const decision = decisionField.value;
+            const total = quoteTotal.textContent.trim();
+            const delivery = deliveryField.selectedOptions[0].textContent.trim();
+            const orderMode = document.querySelector('input[name="modalidad_oc"]:checked');
+            const orderModeLabel = orderMode?.value === 'automatica'
+                ? 'Autorizar la orden de compra generada por RESMAP'
+                : orderMode?.value === 'propia'
+                    ? 'Adjuntar la orden de compra de tu empresa'
+                    : 'Sin modalidad de orden de compra seleccionada';
+
+            quoteResponseForm.dataset.confirmMessage = decision === 'aceptar'
+                ? `Vas a aceptar la cotización por ${total}, con modalidad ${delivery}. ${orderModeLabel}. Esta respuesta es comercial y no genera una factura. ¿Deseas continuar?`
+                : `Vas a ${decisionLabels[decision]} para esta cotización. ¿Deseas continuar?`;
+        });
+        quoteResponseForm.addEventListener('resmap:confirmed', () => {
+            responseFormSubmitted = true;
+        });
+
+        window.addEventListener('beforeunload', event => {
+            if (responseFormDirty && !responseFormSubmitted) {
+                event.preventDefault();
+                event.returnValue = '';
+            }
+        });
     </script>
+    @include('components.resmap-dialog')
 </body>
 </html>
