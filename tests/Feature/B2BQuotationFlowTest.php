@@ -44,6 +44,12 @@ class B2BQuotationFlowTest extends TestCase
         $this->post(route('cotizaciones.enviar', $versionId))
             ->assertRedirect(route('solicitudes.show', $solicitudId));
 
+        $this->assertDatabaseHas('cotizacion_versiones', [
+            'id_version' => $versionId,
+            'whatsapp_estado' => 'no_autorizado',
+        ]);
+        $this->assertDatabaseCount('mensajes_whatsapp', 0);
+
         $mensaje = Mail::sent(CotizacionCliente::class)->first();
         $this->assertNotNull($mensaje);
         preg_match(
@@ -434,7 +440,7 @@ class B2BQuotationFlowTest extends TestCase
             'services.whatsapp.phone_number_id' => 'test-phone-number-id',
             'services.whatsapp.access_token' => 'test-access-token',
             'services.whatsapp.test_mode' => true,
-            'services.whatsapp.test_recipients' => ['+56912345678'],
+            'services.whatsapp.test_recipients' => ['+56987654321'],
             'services.whatsapp.quote_template' => 'resmap_quote_es_cl',
         ]);
         $productId = $this->createProductWithStock(5);
@@ -442,6 +448,7 @@ class B2BQuotationFlowTest extends TestCase
         DB::table('clientes')->update([
             'consentimiento_whatsapp_at' => now(),
             'consentimiento_whatsapp_origen' => 'prueba',
+            'telefono_whatsapp' => '+56987654321',
         ]);
         $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
         $admin = User::factory()->create(['rol' => 'Administrador']);
@@ -456,6 +463,7 @@ class B2BQuotationFlowTest extends TestCase
 
         Http::assertSent(fn ($request): bool => str_contains($request->url(), '/test-phone-number-id/messages')
             && $request->data()['type'] === 'template'
+            && $request->data()['to'] === '56987654321'
             && $request->data()['template']['name'] === 'resmap_quote_es_cl');
         $this->assertDatabaseHas('mensajes_whatsapp', [
             'version_id' => $versionId,
@@ -485,6 +493,10 @@ class B2BQuotationFlowTest extends TestCase
             'services.whatsapp.quote_url_button' => true,
         ]);
         $this->createProductRequest($this->createProductWithStock(5), 1);
+        DB::table('clientes')->update([
+            'consentimiento_whatsapp_at' => now(),
+            'consentimiento_whatsapp_origen' => 'prueba',
+        ]);
         $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
         $admin = User::factory()->create(['rol' => 'Administrador']);
 
@@ -520,6 +532,7 @@ class B2BQuotationFlowTest extends TestCase
         DB::table('clientes')->update([
             'consentimiento_whatsapp_at' => now(),
             'consentimiento_whatsapp_origen' => 'catalogo',
+            'telefono_whatsapp' => '+56987654321',
         ]);
         config(['services.whatsapp.app_secret' => 'test-app-secret']);
         $payload = [
@@ -528,7 +541,7 @@ class B2BQuotationFlowTest extends TestCase
                 'changes' => [[
                     'value' => [
                         'messages' => [[
-                            'from' => '56912345678',
+                            'from' => '56987654321',
                             'id' => 'wamid.inbound-stop',
                             'timestamp' => (string) now()->timestamp,
                             'type' => 'text',
@@ -565,7 +578,7 @@ class B2BQuotationFlowTest extends TestCase
             'services.whatsapp.phone_number_id' => 'test-phone-number-id',
             'services.whatsapp.access_token' => 'test-access-token',
             'services.whatsapp.test_mode' => true,
-            'services.whatsapp.test_recipients' => ['+56912345678'],
+            'services.whatsapp.test_recipients' => ['+56987654321'],
             'services.whatsapp.quote_template' => 'resmap_quote_es_cl',
             'services.whatsapp.app_secret' => 'test-app-secret',
         ]);
@@ -574,6 +587,7 @@ class B2BQuotationFlowTest extends TestCase
         DB::table('clientes')->update([
             'consentimiento_whatsapp_at' => now(),
             'consentimiento_whatsapp_origen' => 'prueba',
+            'telefono_whatsapp' => '+56987654321',
         ]);
         $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
         $admin = User::factory()->create(['rol' => 'Administrador']);
@@ -588,7 +602,7 @@ class B2BQuotationFlowTest extends TestCase
         $peticion = Http::recorded()->first()[0];
         $payloadBoton = $peticion->data()['template']['components'][1]['parameters'][0]['payload'];
 
-        foreach (['56900000000', '56912345678'] as $indice => $remitente) {
+        foreach (['56900000000', '56987654321'] as $indice => $remitente) {
             $payload = [
                 'object' => 'whatsapp_business_account',
                 'entry' => [[
@@ -626,7 +640,7 @@ class B2BQuotationFlowTest extends TestCase
                 'changes' => [[
                     'value' => [
                         'messages' => [[
-                            'from' => '56912345678',
+                            'from' => '56987654321',
                             'id' => 'wamid.inbound-repeat',
                             'timestamp' => (string) now()->timestamp,
                             'type' => 'button',
@@ -651,18 +665,16 @@ class B2BQuotationFlowTest extends TestCase
         $datos = [
             'rut' => '12345678-5',
             'nombre' => 'Cliente de prueba',
+            'correo' => $correo ?? 'cliente@example.test',
             'prefijo_telefono' => '+569',
             'telefono' => '12345678',
+            'preferencia_cotizacion' => 'solo_correo',
             'region' => 'Metropolitana',
             'comuna' => 'Santiago',
             'detalles_productos' => [
                 ['id_producto' => $productId, 'cantidad' => $cantidad],
             ],
         ];
-        if ($correo !== null) {
-            $datos['correo'] = $correo;
-        }
-
         $this->post(route('catalogo.solicitudes.store'), $datos)
             ->assertRedirect(route('catalogo.index'));
     }

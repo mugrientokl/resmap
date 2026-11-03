@@ -221,8 +221,12 @@ class CotizacionController extends Controller
         }
 
         $rechazoWhatsApp = $cliente->consentimiento_whatsapp_origen === 'whatsapp_opt_out';
+        $tieneConsentimientoWhatsApp = $cliente->consentimiento_whatsapp_at !== null
+            && ! $rechazoWhatsApp;
+        $telefonoWhatsApp = $cliente->telefono_whatsapp
+            ?? ($tieneConsentimientoWhatsApp ? $cliente->telefono : null);
 
-        if ($cliente->telefono && ! $rechazoWhatsApp) {
+        if ($telefonoWhatsApp && $tieneConsentimientoWhatsApp) {
             $usarBotonUrl = (bool) config('services.whatsapp.quote_url_button');
             $parametrosPlantilla = [$cliente->nombre, (string) $cotizacion->id_cotizacion, (string) $version->numero_version];
             if (! $usarBotonUrl) {
@@ -230,7 +234,7 @@ class CotizacionController extends Controller
             }
             try {
                 $whatsapp->enviarPlantillaCotizacion(
-                    $cliente->telefono,
+                    $telefonoWhatsApp,
                     "Cotización #{$cotizacion->id_cotizacion}, versión {$version->numero_version}. Responde aceptar, rechazar o solicitar cambios.",
                     $parametrosPlantilla,
                     [
@@ -252,7 +256,11 @@ class CotizacionController extends Controller
                 $avisos[] = 'No fue posible enviar WhatsApp; revisa credenciales, consentimiento y destinatario de prueba.';
             }
         } else {
-            $version->update(['whatsapp_estado' => $rechazoWhatsApp ? 'no_autorizado' : 'sin_telefono']);
+            $version->update([
+                'whatsapp_estado' => $rechazoWhatsApp || ! $tieneConsentimientoWhatsApp
+                    ? 'no_autorizado'
+                    : 'sin_telefono',
+            ]);
         }
 
         $cotizacion->update(['estado' => 'enviada']);
@@ -850,7 +858,10 @@ class CotizacionController extends Controller
         }
 
         $telefonoRemitente = $this->soloDigitos($telefono);
-        $telefonoCliente = $this->soloDigitos((string) $version->cotizacion->solicitud->cliente->telefono);
+        $cliente = $version->cotizacion->solicitud->cliente;
+        $telefonoCliente = $this->soloDigitos((string) (
+            $cliente->telefono_whatsapp ?? $cliente->telefono
+        ));
         if (! $telefonoRemitente || ! hash_equals($telefonoCliente, $telefonoRemitente)) {
             return false;
         }

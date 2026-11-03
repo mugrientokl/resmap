@@ -21,6 +21,7 @@ class Cliente extends Model
         'giro',
         'correo',
         'telefono',
+        'telefono_whatsapp',
         'direccion',
         'region',
         'comuna',

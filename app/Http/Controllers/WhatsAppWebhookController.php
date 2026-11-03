@@ -133,9 +133,19 @@ class WhatsAppWebhookController extends Controller
             if (is_string($digitos) && strlen($digitos) >= 8) {
                 $sufijo = substr($digitos, -8);
                 $cliente = Cliente::query()
-                    ->where('telefono', 'like', '%'.$sufijo)
+                    ->where(function ($query) use ($sufijo): void {
+                        $query->where('telefono', 'like', '%'.$sufijo)
+                            ->orWhere('telefono_whatsapp', 'like', '%'.$sufijo);
+                    })
                     ->get()
-                    ->first(fn (Cliente $cliente): bool => preg_replace('/\D+/', '', (string) $cliente->telefono) === $digitos);
+                    ->first(fn (Cliente $cliente): bool => in_array(
+                        $digitos,
+                        [
+                            preg_replace('/\D+/', '', (string) $cliente->telefono),
+                            preg_replace('/\D+/', '', (string) $cliente->telefono_whatsapp),
+                        ],
+                        true,
+                    ));
                 $cliente?->update([
                     'consentimiento_whatsapp_at' => null,
                     'consentimiento_whatsapp_origen' => 'whatsapp_opt_out',
