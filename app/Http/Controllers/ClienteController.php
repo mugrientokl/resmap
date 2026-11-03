@@ -127,6 +127,19 @@ class ClienteController extends Controller
         );
     }
 
+    public function ventasPdf(int $id)
+    {
+        $cliente = Cliente::findOrFail($id);
+        $ventas = $cliente->ventas()
+            ->with('detalles.producto')
+            ->orderByDesc('fecha')
+            ->orderByDesc('id_venta')
+            ->get();
+
+        return Pdf::loadView('clientes.ventas-pdf', compact('cliente', 'ventas'))
+            ->download('ventas-cliente-'.$cliente->id_cliente.'.pdf');
+    }
+
     public function resumenVenta(int $id, int $ventaId)
     {
         $cliente = Cliente::findOrFail($id);

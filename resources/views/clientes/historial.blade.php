@@ -18,12 +18,21 @@
                 </p>
             </div>
 
-            <a
-                href="{{ route('clientes.index') }}"
-                class="rounded-md border border-[#d9aaa3] px-4 py-2 text-[#9f2f25] hover:bg-[#f7e8e6]"
-            >
-                Volver a clientes
-            </a>
+            <div class="flex flex-wrap gap-2">
+                <a
+                    href="{{ route('clientes.ventas.pdf', $cliente->id_cliente) }}"
+                    class="rounded-md bg-[#b52f25] px-4 py-2 font-medium text-white hover:bg-[#8f241d]"
+                >
+                    PDF de todas las ventas
+                </a>
+
+                <a
+                    href="{{ route('clientes.index') }}"
+                    class="rounded-md border border-[#d9aaa3] px-4 py-2 text-[#9f2f25] hover:bg-[#f7e8e6]"
+                >
+                    Volver a clientes
+                </a>
+            </div>
         </div>
 
         <div class="mt-5 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">

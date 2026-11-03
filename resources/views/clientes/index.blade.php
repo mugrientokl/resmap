@@ -87,12 +87,9 @@
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a
-                                href="{{ route('clientes.historial', $cliente->id_cliente) }}"
-                                class="font-bold text-[#9f2f25] hover:underline"
-                            >
+                            <span class="font-bold text-gray-800">
                                 {{ $cliente->nombre }}
-                            </a>
+                            </span>
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

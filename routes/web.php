@@ -194,6 +194,10 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('clientes.historial');
 
+    Route::get('/clientes/{id}/ventas/pdf', [ClienteController::class, 'ventasPdf'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('clientes.ventas.pdf');
+
     Route::get('/clientes/{id}/ventas/{ventaId}/resumen', [ClienteController::class, 'resumenVenta'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('clientes.ventas.resumen');
