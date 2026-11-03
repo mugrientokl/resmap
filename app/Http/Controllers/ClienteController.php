@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Rules\RutChileno;
+use App\Services\ResumenInternoVentaPdf;
 use App\Support\Rut;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
@@ -188,26 +189,11 @@ class ClienteController extends Controller
             ->download('ventas-cliente-'.$cliente->id_cliente.'.pdf');
     }
 
-    public function resumenVenta(int $id, int $ventaId)
+    public function resumenVenta(int $id, int $ventaId, ResumenInternoVentaPdf $resumen)
     {
         $cliente = Cliente::findOrFail($id);
 
-        $venta = $cliente->ventas()
-            ->with([
-                'cliente',
-                'user',
-                'detalles.producto',
-                'cotizacionVersion.cotizacion',
-                'ordenesCompra',
-                'eventosFacturacion',
-            ])
-            ->findOrFail($ventaId);
-
-        return Pdf::loadView('reportes.venta-pdf', compact('venta'))
-            ->download(
-                'resumen-cliente-'.$cliente->id_cliente
-                .'-venta-'.$venta->id_venta.'.pdf'
-            );
+        return $resumen->descargar($cliente->ventas()->findOrFail($ventaId));
     }
 
     public function edit(int $id)

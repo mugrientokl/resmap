@@ -6,6 +6,7 @@ use App\Models\OrdenCompra;
 use App\Models\User;
 use App\Models\Venta;
 use App\Services\RegistroActividad;
+use App\Services\ResumenInternoVentaPdf;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -92,19 +93,9 @@ class ReporteController extends Controller
         ]);
     }
 
-    public function facturaVenta(int $id)
+    public function facturaVenta(int $id, ResumenInternoVentaPdf $resumen)
     {
-        $venta = $this->ventasCompletadasQuery()->with([
-            'cliente',
-            'user',
-            'detalles.producto',
-            'cotizacionVersion.cotizacion',
-            'ordenesCompra',
-            'eventosFacturacion',
-        ])->findOrFail($id);
-
-        return Pdf::loadView('reportes.venta-pdf', compact('venta'))
-            ->download('resumen-interno-venta-'.$venta->id_venta.'.pdf');
+        return $resumen->descargar($this->ventasCompletadasQuery()->findOrFail($id));
     }
 
     public function descargarOrdenCompra(OrdenCompra $ordenCompra)

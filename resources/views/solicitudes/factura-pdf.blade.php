@@ -2,50 +2,68 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>{{ $solicitud->tipo_solicitud === 'servicio' ? 'Resumen de servicio' : 'Resumen de cotización' }} #{{ $solicitud->id_solicitud }}</title>
+    <title>Resumen interno de servicio #{{ $solicitud->id_solicitud }}</title>
     <style>
-        @page { margin: 28px 34px; }
-        body { color: #241817; font-family: DejaVu Sans, sans-serif; font-size: 10px; }
-        .top { border-bottom: 3px solid #241817; padding-bottom: 16px; }
-        .brand { color: #b52f25; font-size: 20px; font-weight: bold; }
-        .muted { color: #756967; }
-        .right { text-align: right; }
-        .label { color: #9f2f25; font-size: 8px; font-weight: bold; text-transform: uppercase; }
-        .box { background: #fff8f6; border: 1px solid #ead8d5; padding: 14px; }
-        table { border-collapse: collapse; width: 100%; }
-        th { background: #241817; color: white; font-size: 9px; padding: 9px 8px; text-align: left; text-transform: uppercase; }
-        td { border-bottom: 1px solid #ead8d5; padding: 10px 8px; }
-        .number { text-align: right; }
-        .totals { margin-left: auto; margin-top: 18px; width: 235px; }
-        .totals td { border: 0; padding: 5px 0; }
-        .grand td { border-top: 2px solid #241817; font-size: 13px; font-weight: bold; padding-top: 10px; }
-        .grand .number { color: #b52f25; }
+        @page { margin: 32px 38px 42px; }
+        body { color: #292524; font-family: DejaVu Sans, sans-serif; font-size: 10px; }
+        .header { border-bottom: 3px solid #9f2f25; padding-bottom: 18px; width: 100%; }
+        .header td { vertical-align: middle; }
+        .logo { height: 66px; width: auto; }
+        .company { color: #57534e; font-size: 9px; line-height: 1.6; text-align: right; }
+        .company strong { color: #292524; font-size: 12px; }
+        .document { margin-top: 24px; width: 100%; }
+        .document td { vertical-align: top; }
+        h1 { color: #9f2f25; font-size: 21px; margin: 0 0 8px; }
+        .muted { color: #78716c; }
+        .number { color: #9f2f25; font-size: 12px; font-weight: bold; text-align: right; }
+        .client { background: #faf7f6; border-left: 3px solid #9f2f25; line-height: 1.7; margin: 20px 0; padding: 12px 14px; }
+        .section-title { color: #292524; font-size: 11px; font-weight: bold; margin: 22px 0 8px; }
+        .box { border: 1px solid #e7e5e4; line-height: 1.6; padding: 10px 12px; white-space: pre-line; }
+        .note { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; line-height: 1.6; margin-top: 22px; padding: 10px 12px; text-align: center; }
+        .footer { border-top: 1px solid #d6d3d1; color: #57534e; font-size: 9px; line-height: 1.6; margin-top: 30px; padding-top: 12px; text-align: center; }
     </style>
 </head>
 <body>
-    <div class="top">
-        <table><tr>
-            <td style="border: 0; padding: 0;"><div class="brand">RESMAP</div><div class="muted">Venta de repuestos eléctricos para maquinaria pesada</div></td>
-            <td class="right" style="border: 0; padding: 0;"><div class="label">{{ $solicitud->tipo_solicitud === 'servicio' ? 'Resumen de servicio' : 'Resumen de cotización' }}</div><strong style="font-size: 16px;">{{ $solicitud->tipo_solicitud === 'servicio' ? 'Servicio' : 'Cotización' }} #{{ $solicitud->id_solicitud }}</strong><br><span class="muted">{{ $solicitud->fecha?->format('d/m/Y') }}</span></td>
-        </tr></table>
+    <table class="header">
+        <tr>
+            <td><img class="logo" src="{{ $logoDataUri }}" alt="RESMAP"></td>
+            <td class="company">
+                <strong>RESMAP</strong><br>
+                RUT 76.991.966-K<br>
+                Los Huillines 1041 – Los Ángeles<br>
+                resmap.la@gmail.com
+            </td>
+        </tr>
+    </table>
+    <table class="document">
+        <tr>
+            <td>
+                <h1>RESUMEN INTERNO DE SERVICIO</h1>
+                <div class="muted">Fecha de solicitud: {{ $solicitud->fecha?->format('d/m/Y H:i') }}</div>
+                <div class="muted">Estado: {{ $solicitud->estado }}</div>
+            </td>
+            <td class="number">Servicio N.º {{ $solicitud->id_solicitud }}</td>
+        </tr>
+    </table>
+    <div class="client">
+        <strong>CLIENTE</strong><br>
+        {{ $solicitud->cliente->nombre }}<br>
+        RUT: {{ $solicitud->cliente->rut_formateado }}<br>
+        Correo: {{ $solicitud->cliente->correo ?: 'No informado' }}<br>
+        Teléfono: {{ $solicitud->cliente->telefono ?: 'No informado' }}<br>
+        Dirección: {{ collect([$solicitud->cliente->direccion, $solicitud->cliente->comuna, $solicitud->cliente->region])->filter()->implode(', ') ?: 'No informada' }}
     </div>
-    <div class="box" style="margin: 18px 0;">
-        <table><tr>
-            <td style="border: 0; padding: 0;"><div class="label">Cliente</div><strong>{{ $solicitud->cliente->nombre }}</strong><br>RUT: {{ $solicitud->cliente->rut_formateado }}<br>{{ $solicitud->cliente->direccion ?: 'Dirección no informada' }}</td>
-            <td style="border: 0; padding: 0;"><div class="label">Contacto</div>{{ $solicitud->cliente->correo ?: 'Correo no informado' }}<br>{{ $solicitud->cliente->telefono ?: 'Teléfono no informado' }}</td>
-        </tr></table>
-    </div>
-    @if($solicitud->tipo_solicitud === 'servicio')
-        <div class="label">Servicio solicitado</div><h2>{{ $solicitud->tipo_servicio }}</h2><p>{{ $solicitud->descripcion_servicio }}</p>
-    @else
-        <table>
-            <thead><tr><th>Descripción</th><th style="text-align: center;">Cantidad</th><th class="number">Valor neto</th><th class="number">Valor c/IVA</th><th class="number">Total c/IVA</th></tr></thead>
-            <tbody>@foreach($productos as $item)<tr><td><strong>{{ $item['producto']->nombre ?? 'Producto no encontrado' }}</strong><br><span class="muted">Código: {{ $item['producto']->codigo_origen ?? 'Sin código' }}</span></td><td style="text-align: center;">{{ $item['cantidad'] }}</td><td class="number">$ {{ number_format($item['precio_neto'], 0, ',', '.') }}</td><td class="number">$ {{ number_format($item['precio_iva'], 0, ',', '.') }}</td><td class="number">$ {{ number_format($item['total_iva'], 0, ',', '.') }}</td></tr>@endforeach</tbody>
-        </table>
-        <table class="totals"><tr><td class="muted">Neto</td><td class="number">$ {{ number_format($totales['neto'], 0, ',', '.') }}</td></tr><tr><td class="muted">IVA 19%</td><td class="number">$ {{ number_format($totales['iva'], 0, ',', '.') }}</td></tr><tr class="grand"><td>Total</td><td class="number">$ {{ number_format($totales['total'], 0, ',', '.') }}</td></tr></table>
+    <p class="section-title">SERVICIO SOLICITADO: {{ strtoupper($solicitud->tipo_servicio) }}</p>
+    <div class="box">{{ $solicitud->descripcion_servicio }}</div>
+    @if($solicitud->observaciones)
+        <p class="section-title">OBSERVACIONES</p>
+        <div class="box">{{ $solicitud->observaciones }}</div>
     @endif
-    @if($solicitud->observaciones)<div style="margin-top: 24px;"><div class="label">Observaciones</div><p>{{ $solicitud->observaciones }}</p></div>@endif
-    <p class="muted" style="margin-top: 44px; text-align: center;">Este documento es un resumen informativo y no acredita una emisión tributaria.</p>
-    <p class="muted" style="margin-top: 12px; text-align: center;">Gracias por preferir RESMAP · Venta de repuestos eléctricos para maquinaria pesada</p>
+    <div class="note"><strong>Documento interno</strong><br>Este resumen no es una boleta, factura ni un documento tributario electrónico.</div>
+    <div class="footer">
+        <strong>Contacto RESMAP</strong><br>
+        John Sanzana Aravena · +56976477124 · +56951523990<br>
+        resmap.la@gmail.com · Los Huillines 1041 – Los Ángeles
+    </div>
 </body>
 </html>

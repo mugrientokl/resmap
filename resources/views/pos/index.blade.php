@@ -243,6 +243,7 @@
                         <option value="Boleta Electrónica">Boleta (39)</option>
                         <option value="Factura Electrónica">Factura (33)</option>
                     </select>
+                    <p class="mt-1 text-xs text-gray-500">Solo referencia; no se emite al SII.</p>
                 </div>
 
                 <div>
@@ -293,8 +294,15 @@
 
             <button type="button" id="registrar-venta" onclick="procesarVenta()"
                 class="w-full bg-[#8f241d] text-white py-2 rounded-md hover:bg-[#721d18] font-bold disabled:opacity-50">
-                Registrar venta e imprimir
+                Registrar venta
             </button>
+
+            @if (session('resumen_venta_id'))
+                <a href="{{ route('ventas.resumen-interno', session('resumen_venta_id')) }}"
+                    class="mt-3 block w-full rounded-md border border-[#8f241d] py-2 text-center text-sm font-bold text-[#8f241d] hover:bg-[#fff8f6]">
+                    ↓ Descargar resumen interno de la venta #{{ session('resumen_venta_id') }}
+                </a>
+            @endif
         </div>
     </div>
 </div>

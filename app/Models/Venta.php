@@ -42,6 +42,8 @@ class Venta extends Model
         'credito_autorizado_por',
         'credito_autorizado_at',
         'stock_descontado_at',
+        'confirmada_at',
+        'entregada_at',
     ];
 
     protected function casts(): array
@@ -50,6 +52,8 @@ class Venta extends Model
             'fecha' => 'datetime',
             'credito_autorizado_at' => 'datetime',
             'stock_descontado_at' => 'datetime',
+            'confirmada_at' => 'datetime',
+            'entregada_at' => 'datetime',
         ];
     }
 

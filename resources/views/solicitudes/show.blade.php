@@ -6,13 +6,31 @@
     $ultimaVersion = $solicitud->cotizacion?->versiones->sortByDesc('numero_version')->first();
     $venta = $ultimaVersion?->venta ?? $solicitud->venta;
     $ordenesCompra = $solicitud->cotizacion?->versiones->flatMap->ordenesCompra ?? collect();
+    $resumenDisponible = $esServicio
+        ? $solicitud->estado === 'Entregado y completado'
+        : $venta?->estado_venta === 'confirmada'
+            && $venta->estado_facturacion === 'simulada_exitosa'
+            && $venta->estado_entrega === 'entregada';
 @endphp
 <div class="mx-auto max-w-6xl">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <a href="{{ route('solicitudes.index') }}" class="text-sm font-bold text-[#9f2f25]">Volver a cotizaciones</a>
-        <a href="{{ route('solicitudes.pdf', $solicitud->id_solicitud) }}" class="inline-flex items-center gap-2 bg-[#b52f25] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#8f241d]">
-            <span aria-hidden="true">↓</span> Descargar resumen interno
-        </a>
+        <div class="flex flex-wrap gap-3">
+        @unless($esServicio)
+            <a href="{{ route('solicitudes.seguimiento', $solicitud->id_solicitud) }}" class="inline-flex items-center gap-2 border border-[#b52f25] bg-white px-5 py-3 text-sm font-bold text-[#b52f25] shadow-sm transition hover:bg-[#fff1ef]">
+                Ver seguimiento completo
+            </a>
+        @endunless
+        @if($resumenDisponible)
+            <a href="{{ route('solicitudes.pdf', $solicitud->id_solicitud) }}" class="inline-flex items-center gap-2 bg-[#b52f25] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#8f241d]">
+                <span aria-hidden="true">↓</span> Descargar resumen interno
+            </a>
+        @else
+            <span class="inline-flex cursor-not-allowed items-center gap-2 bg-gray-200 px-5 py-3 text-sm font-bold text-gray-500" aria-disabled="true" title="Disponible cuando {{ $esServicio ? 'el servicio' : 'la venta' }} esté completad{{ $esServicio ? 'o' : 'a' }}.">
+                <span aria-hidden="true">↓</span> Descargar resumen interno
+            </span>
+        @endif
+        </div>
     </div>
     @if($errors->any())
         <div class="mt-5 border-l-4 border-red-600 bg-red-50 p-4 text-sm text-red-800" role="alert">
@@ -100,7 +118,7 @@
                     @else
                         <p class="mt-3 text-sm text-gray-600">No se ha creado una versión de cotización.</p>
                     @endif
-                    @if(! $solicitud->cotizacion || in_array($solicitud->cotizacion->estado, ['pendiente_revision', 'cambios_solicitados'], true))
+                    @if(! $solicitud->cotizacion || in_array($solicitud->cotizacion->estado, ['pendiente_revision', 'cambios_solicitados', 'vencida'], true))
                         <form method="POST" action="{{ route('solicitudes.cotizacion.crear', $solicitud->id_solicitud) }}" class="mt-4 flex flex-wrap items-end gap-3" data-confirm-message="Crearás una nueva versión de cotización. El inventario disponible quedará reservado para esta solicitud y dejará de estar disponible para otras ventas. ¿Deseas continuar?" data-confirm-title="Crear y reservar cotización" data-confirm-text="Crear cotización">
                             @csrf
                             @if($solicitud->metodo_entrega === 'despacho')

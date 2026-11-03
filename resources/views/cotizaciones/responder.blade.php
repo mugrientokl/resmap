@@ -103,9 +103,11 @@
                 <section class="rounded-xl bg-white p-6 shadow-sm">
                     <h2 class="text-lg font-black">Tu respuesta</h2>
                     <p class="mt-1 text-sm leading-6 text-gray-600">Confirma el teléfono registrado para identificarte y elegir cómo continuar.</p>
-                    <label class="mt-5 block text-sm font-bold" for="telefono">Teléfono registrado
-                        <input id="telefono" name="telefono" type="tel" required autocomplete="tel" value="{{ old('telefono') }}" placeholder="+56 9 1234 5678" class="mt-2 w-full rounded-md border border-[#d9aaa3] p-3 focus:border-[#b52f25] focus:outline-none">
-                    </label>
+                    <label class="mt-5 block text-sm font-bold" for="telefono_local">Teléfono registrado</label>
+                    <div class="mt-2 flex">
+                        <select id="prefijo_telefono" aria-label="Código de país"></select>
+                        <input id="telefono_local" type="text" required pattern="[0-9]{8}" maxlength="8" inputmode="numeric" autocomplete="tel-national" placeholder="12345678" data-valor-anterior="{{ old('telefono') }}" class="min-w-0 flex-1 rounded-r-md border border-l-0 border-[#d9aaa3] p-3 focus:border-[#b52f25] focus:outline-none">
+                    </div>
                     <label class="mt-4 block text-sm font-bold" for="decision">Decisión
                         <select id="decision" name="decision" required class="mt-2 w-full rounded-md border border-[#d9aaa3] bg-white p-3 focus:border-[#b52f25] focus:outline-none">
                             <option value="aceptar" @selected(old('decision', 'aceptar') === 'aceptar')>Aceptar cotización</option>
@@ -144,8 +146,30 @@
         </div>
         <footer class="mt-8 text-center text-sm text-gray-500">¿Necesitas ayuda? <a href="mailto:resmap.la@gmail.com" class="font-bold text-[#9f2f25] underline">Contacta a RESMAP</a></footer>
     </main>
+    <script src="{{ asset('js/chile-location.js') }}"></script>
     <script>
-        const decisionField = document.getElementById('decision');
+        const phoneSelect = document.getElementById('prefijo_telefono');
+        const phoneLocal = document.getElementById('telefono_local');
+        const previousPhone = (phoneLocal.dataset.valorAnterior || '').replace(/\D/g, '');
+        const matchedCountry = [...window.paisesTelefono]
+            .sort((a, b) => b[1].length - a[1].length)
+            .find(country => previousPhone.startsWith(country[1].replace('+', '')));
+        if (matchedCountry) {
+            phoneSelect.value = matchedCountry[1];
+            phoneLocal.value = previousPhone.slice(matchedCountry[1].length - 1).slice(-8);
+        } else if (previousPhone) {
+            phoneLocal.value = previousPhone.slice(-8);
+        }
+        phoneSelect.innerHTML = `<option value="${matchedCountry ? matchedCountry[1] : '+569'}"></option>`;
+        inicializarSelectorTelefono('prefijo_telefono', 'telefono_local');
+        phoneLocal.addEventListener('input', () => {
+            phoneLocal.value = phoneLocal.value.replace(/\D/g, '').slice(0, 8);
+        });
+        document.getElementById('quote-response-form').addEventListener('formdata', event => {
+            event.formData.set('telefono', phoneSelect.value + phoneLocal.value);
+        });
+    </script>
+    <script> = document.getElementById('decision');
         const deliveryField = document.getElementById('metodo_entrega');
         const deliveryDetails = document.getElementById('datos-despacho');
         const deliveryCharge = document.getElementById('valor-despacho');

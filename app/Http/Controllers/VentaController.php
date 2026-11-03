@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\ProductoStockCritico;
 use App\Rules\RutChileno;
+use App\Services\ResumenInternoVentaPdf;
 use App\Support\Rut;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -167,6 +168,7 @@ class VentaController extends Controller
             }
 
             $request->session()->flash('success', '¡Venta completada correctamente! El stock fue actualizado.');
+            $request->session()->flash('resumen_venta_id', $resultado['venta']->id_venta);
 
             return response()->json([
                 'message' => 'Venta registrada con éxito, stock actualizado y cliente sincronizado.',
@@ -180,5 +182,10 @@ class VentaController extends Controller
                 'error' => 'No se pudo registrar la venta. Verifica los datos e inténtalo nuevamente.',
             ], 400);
         }
+    }
+
+    public function resumenInterno(int $venta, ResumenInternoVentaPdf $resumen)
+    {
+        return $resumen->descargar(Venta::completadas()->findOrFail($venta));
     }
 }

@@ -39,6 +39,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('actividad:verificar')
             ->dailyAt('03:30')
             ->withoutOverlapping();
+        $schedule->command('app:marcar-cotizaciones-vencidas')
+            ->everyFiveMinutes()
+            ->withoutOverlapping();
         $schedule->command('app:liberar-reservas-vencidas')
             ->everyFiveMinutes()
             ->withoutOverlapping();

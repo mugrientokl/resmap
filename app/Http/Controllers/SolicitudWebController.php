@@ -8,6 +8,8 @@ use App\Models\Producto;
 use App\Models\ReservaInventario;
 use App\Models\SolicitudWeb;
 use App\Models\Venta;
+use App\Services\ResumenInternoVentaPdf;
+use App\Services\SeguimientoCotizacion;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -27,7 +29,7 @@ class SolicitudWebController extends Controller
                         $query->where('tipo_solicitud', '!=', 'servicio')
                             ->where(function ($query): void {
                                 $query->whereDoesntHave('cotizacion')
-                                    ->orWhereHas('cotizacion', fn ($query) => $query->whereIn('estado', ['pendiente_revision', 'borrador']));
+                                    ->orWhereHas('cotizacion', fn ($query) => $query->whereIn('estado', ['pendiente_revision', 'borrador', 'vencida']));
                             });
                     }),
                     'esperando_cliente' => $query->where('tipo_solicitud', '!=', 'servicio')
@@ -89,15 +91,55 @@ class SolicitudWebController extends Controller
         return view('solicitudes.show', compact('solicitud', 'productos', 'totales'));
     }
 
-    public function descargarSolicitudPdf($id)
+    public function seguimiento($id, SeguimientoCotizacion $seguimiento)
     {
-        $solicitud = SolicitudWeb::with('cliente')->findOrFail($id);
-        $productos = $this->productosDeSolicitud($solicitud);
-        $totales = $this->totalesDeSolicitud($productos);
+        $solicitud = SolicitudWeb::with([
+            'cliente',
+            'cotizacion.versiones.ordenesCompra',
+            'cotizacion.versiones.venta.creditoAutorizadoPor',
+            'cotizacion.versiones.venta.eventosFacturacion',
+            'cotizacion.reservas',
+            'venta.creditoAutorizadoPor',
+            'venta.eventosFacturacion',
+        ])->findOrFail($id);
+        abort_if($solicitud->tipo_solicitud === 'servicio', 404);
 
-        return Pdf::loadView('solicitudes.factura-pdf', compact('solicitud', 'productos', 'totales'))
-            ->setPaper('a4')
-            ->download('resumen-solicitud-'.$solicitud->id_solicitud.'.pdf');
+        $estadoComercial = $this->estadoComercial($solicitud);
+        $solicitud->setAttribute('estado_comercial', $estadoComercial);
+        $datos = $seguimiento->construir($solicitud, $estadoComercial);
+
+        return view('solicitudes.seguimiento', compact('solicitud', 'datos'));
+    }
+
+    public function descargarSolicitudPdf($id, ResumenInternoVentaPdf $resumen)
+    {
+        $solicitud = SolicitudWeb::with(['cliente', 'venta', 'cotizacion.versiones.venta'])->findOrFail($id);
+
+        if ($solicitud->tipo_solicitud === 'servicio') {
+            abort_unless(
+                $solicitud->estado === 'Entregado y completado',
+                403,
+                'El resumen interno estará disponible cuando el servicio esté completado.'
+            );
+
+            $logo = file_get_contents(public_path('images/resmap sin fondo.png'));
+
+            return Pdf::loadView('solicitudes.factura-pdf', [
+                'solicitud' => $solicitud,
+                'logoDataUri' => 'data:image/png;base64,'.base64_encode((string) $logo),
+            ])->setPaper('a4')->download('resumen-servicio-'.$solicitud->id_solicitud.'.pdf');
+        }
+
+        $venta = $solicitud->cotizacion?->versiones->sortByDesc('numero_version')->first()?->venta
+            ?? $solicitud->venta;
+
+        abort_unless(
+            $venta !== null && Venta::completadas()->whereKey($venta->id_venta)->exists(),
+            403,
+            'El resumen interno estará disponible cuando la venta esté completada.'
+        );
+
+        return $resumen->descargar($venta);
     }
 
     private function productosDeSolicitud(SolicitudWeb $solicitud)
@@ -185,6 +227,14 @@ class SolicitudWebController extends Controller
                 'titulo' => 'Esperando respuesta del cliente',
                 'detalle' => 'Pendiente de aceptación o solicitud de cambios y de la orden de compra del cliente.',
                 'estado' => 'esperando_cliente',
+            ];
+        }
+
+        if ($cotizacion->estado === 'vencida') {
+            return [
+                'titulo' => 'Cotización vencida',
+                'detalle' => 'La vigencia terminó sin respuesta del cliente y se liberó el stock reservado. Crea una nueva versión para reactivarla.',
+                'estado' => 'pendiente_comercial',
             ];
         }
 

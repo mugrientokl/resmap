@@ -660,6 +660,7 @@ class CotizacionController extends Controller
                 'monto_pagado' => $esCredito ? 0 : $datos['monto_pagado'],
                 'credito_autorizado_por' => $esCredito ? $request->user()->id : null,
                 'credito_autorizado_at' => $esCredito ? now() : null,
+                'confirmada_at' => now(),
             ]);
         });
 
@@ -725,7 +726,7 @@ class CotizacionController extends Controller
             }
 
             if ($ventaBloqueada->estado_entrega !== 'entregada') {
-                $ventaBloqueada->update(['estado_entrega' => 'entregada']);
+                $ventaBloqueada->update(['estado_entrega' => 'entregada', 'entregada_at' => now()]);
             }
         });
 

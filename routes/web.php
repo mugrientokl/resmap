@@ -251,6 +251,11 @@ Route::middleware([
     Route::post('/ventas', [VentaController::class, 'store'])
         ->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:30,1']);
 
+    Route::get('/ventas/{venta}/resumen-interno', [VentaController::class, 'resumenInterno'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->whereNumber('venta')
+        ->name('ventas.resumen-interno');
+
     Route::post('/ventas/{venta}/confirmar-comercial', [CotizacionController::class, 'confirmarVenta'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('ventas.confirmar-comercial');
@@ -358,6 +363,11 @@ Route::middleware([
     Route::get('/solicitudes-web/{id}', [SolicitudWebController::class, 'show'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('solicitudes.show');
+
+    Route::get('/solicitudes-web/{id}/seguimiento', [SolicitudWebController::class, 'seguimiento'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->whereNumber('id')
+        ->name('solicitudes.seguimiento');
 
     Route::get('/solicitudes-web/{id}/pdf', [SolicitudWebController::class, 'descargarSolicitudPdf'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])

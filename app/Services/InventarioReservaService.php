@@ -7,6 +7,7 @@ use App\Models\EventoReserva;
 use App\Models\Producto;
 use App\Models\ReservaInventario;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
@@ -20,7 +21,7 @@ class InventarioReservaService
     {
         return DB::transaction(function () use ($cotizacion, $cantidades, $versionId): Collection {
             $reservas = new Collection;
-            $expiraAt = now()->addHours(48);
+            $expiraAt = $this->nuevaExpiracion();
             $cantidadesAgrupadas = collect($cantidades)
                 ->mapWithKeys(fn (int $cantidad, int|string $productoId): array => [(int) $productoId => $cantidad])
                 ->sortKeys();
@@ -60,6 +61,14 @@ class InventarioReservaService
         });
     }
 
+    /**
+     * Las reservas duran lo mismo que la vigencia de la cotización.
+     */
+    private function nuevaExpiracion(): Carbon
+    {
+        return now()->addDays((int) config('services.cotizaciones.vigencia_dias', 7));
+    }
+
     public function disponible(Producto $producto): int
     {
         $reservado = ReservaInventario::query()
@@ -81,7 +90,7 @@ class InventarioReservaService
             }
 
             $expiracionAnterior = $reserva->expira_at;
-            $expiracionNueva = now()->addHours(48);
+            $expiracionNueva = $this->nuevaExpiracion();
             $reserva->update(['expira_at' => $expiracionNueva]);
             EventoReserva::create([
                 'reserva_id' => $reserva->id_reserva,
