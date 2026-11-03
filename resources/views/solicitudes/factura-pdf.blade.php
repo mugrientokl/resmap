@@ -31,7 +31,7 @@
     </div>
     <div class="box" style="margin: 18px 0;">
         <table><tr>
-            <td style="border: 0; padding: 0;"><div class="label">Cliente</div><strong>{{ $solicitud->cliente->nombre }}</strong><br>RUT: {{ $solicitud->cliente->rut }}<br>{{ $solicitud->cliente->direccion ?: 'Dirección no informada' }}</td>
+            <td style="border: 0; padding: 0;"><div class="label">Cliente</div><strong>{{ $solicitud->cliente->nombre }}</strong><br>RUT: {{ $solicitud->cliente->rut_formateado }}<br>{{ $solicitud->cliente->direccion ?: 'Dirección no informada' }}</td>
             <td style="border: 0; padding: 0;"><div class="label">Contacto</div>{{ $solicitud->cliente->correo ?: 'Correo no informado' }}<br>{{ $solicitud->cliente->telefono ?: 'Teléfono no informado' }}</td>
         </tr></table>
     </div>

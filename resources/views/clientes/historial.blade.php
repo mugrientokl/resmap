@@ -14,7 +14,7 @@
                 </p>
 
                 <p class="text-sm text-gray-500">
-                    RUT: {{ $cliente->rut }}
+                    RUT: {{ $cliente->rut_formateado }}
                 </p>
             </div>
 
@@ -166,7 +166,7 @@
 
                 <p>
                     <strong>RUT:</strong>
-                    {{ $cliente->rut }}
+                    {{ $cliente->rut_formateado }}
                 </p>
 
                 <p>

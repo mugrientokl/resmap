@@ -37,7 +37,7 @@
     <p class="muted">N.º {{ $ordenCompra->numero }} · Fecha {{ $ordenCompra->created_at->format('d/m/Y') }}</p>
     <table class="data">
         <tr><td class="label">CLIENTE</td><td>{{ $cliente->nombre }}</td></tr>
-        <tr><td class="label">RUT</td><td>{{ $cliente->rut }}</td></tr>
+        <tr><td class="label">RUT</td><td>{{ $cliente->rut_formateado }}</td></tr>
         <tr><td class="label">COTIZACIÓN</td><td>#{{ $version->cotizacion_id }} · Versión {{ $version->numero_version }}</td></tr>
         <tr><td class="label">VENTA</td><td>#{{ $venta->id_venta }}</td></tr>
         <tr><td class="label">ENTREGA</td><td>{{ $version->metodo_entrega === 'despacho' ? 'Despacho a domicilio' : 'Retiro en tienda' }}@if($version->metodo_entrega === 'despacho')<br>{{ $version->calle }} {{ $version->numero }}, {{ $version->comuna }}, {{ $version->ciudad }}, {{ $version->region }}@endif</td></tr>

@@ -7,6 +7,7 @@ use App\Models\SolicitudWeb;
 use App\Models\User;
 use App\Notifications\SolicitudWebRecibida;
 use App\Rules\RutChileno;
+use App\Support\Rut;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -24,8 +25,10 @@ class ServicioController extends Controller
 
     public function store(Request $request)
     {
+        $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
+
         $data = $request->validate([
-            'rut' => ['required', 'string', 'max:20', 'regex:/^[0-9]{7,8}-[0-9Kk]$/', new RutChileno],
+            'rut' => ['required', 'string', 'max:20', new RutChileno],
             'nombre' => ['required', 'string', 'max:255'],
             'correo' => ['nullable', 'email', 'max:255'],
             'prefijo_telefono' => ['required', 'regex:/^\+[1-9][0-9]{0,4}$/'],
@@ -36,8 +39,7 @@ class ServicioController extends Controller
             'tipo_servicio' => ['required', 'in:Mantención,Reparación,Soldadura'],
             'descripcion_servicio' => ['required', 'string', 'min:10', 'max:3000'],
         ], [
-            'rut.required' => 'Escribe tu RUT sin puntos y con guion, por ejemplo: 12345678-5.',
-            'rut.regex' => 'El RUT debe escribirse sin puntos y con guion, por ejemplo: 12345678-5.',
+            'rut.required' => 'Escribe tu RUT, por ejemplo: 12.345.678-5.',
             'nombre.required' => 'Escribe tu nombre o razón social.',
             'correo.email' => 'Escribe un correo electrónico válido.',
             'telefono.required' => 'Escribe los 8 dígitos de tu teléfono.',

@@ -65,7 +65,7 @@ class ReporteController extends Controller
             'estado_entrega' => $venta->estado_entrega ?? 'sin registro histórico',
             'medio_pago' => $venta->medio_pago,
             'cliente' => $venta->cliente?->nombre ?? 'Sin cliente',
-            'rut_cliente' => $venta->cliente?->rut,
+            'rut_cliente' => $venta->cliente?->rut_formateado,
             'usuario' => $venta->user?->name ?? 'Sin usuario',
             'neto' => (float) $venta->neto,
             'iva' => (float) $venta->iva,
@@ -227,9 +227,15 @@ class ReporteController extends Controller
             ->when($request->filled('cliente'), function (Builder $query) use ($request): void {
                 $cliente = $request->string('cliente')->toString();
 
-                $query->whereHas('cliente', function (Builder $clienteQuery) use ($cliente): void {
+                $rutBuscado = preg_replace('/[^0-9kK]/', '', $cliente) ?? '';
+
+                $query->whereHas('cliente', function (Builder $clienteQuery) use ($cliente, $rutBuscado): void {
                     $clienteQuery->where('nombre', 'like', '%'.$cliente.'%')
                         ->orWhere('rut', 'like', '%'.$cliente.'%');
+
+                    if (preg_match('/[0-9]/', $cliente) === 1 && $rutBuscado !== '') {
+                        $clienteQuery->orWhereRaw("REPLACE(rut, '-', '') LIKE ?", ['%'.strtoupper($rutBuscado).'%']);
+                    }
                 });
             })
             ->when($request->filled('usuario'), fn (Builder $query) => $query->where(

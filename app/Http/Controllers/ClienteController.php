@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Cliente;
 use App\Rules\RutChileno;
+use App\Support\Rut;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -36,7 +37,13 @@ class ClienteController extends Controller
         )
             ->orderBy('nombre')
             ->limit(8)
-            ->get();
+            ->get()
+            ->map(fn (Cliente $cliente): array => [
+                'id_cliente' => $cliente->id_cliente,
+                'nombre' => $cliente->nombre,
+                'rut' => $cliente->rut_formateado,
+                'correo' => $cliente->correo,
+            ]);
 
         return response()->json($clientes);
     }
@@ -59,7 +66,7 @@ class ClienteController extends Controller
 
                 if ($buscarRutNormalizado) {
                     $coincidencias->orWhereRaw(
-                        "UPPER(REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '')) LIKE ?",
+                        "REPLACE(rut, '-', '') LIKE ?",
                         ['%'.$rutNormalizado.'%']
                     );
                 }
@@ -71,6 +78,8 @@ class ClienteController extends Controller
 
     public function buscarPorRut(Request $request): JsonResponse
     {
+        $this->normalizarRutDeSolicitud($request);
+
         $datos = $request->validate([
             'rut' => [
                 'required',
@@ -104,6 +113,8 @@ class ClienteController extends Controller
 
     public function buscarParaCatalogo(Request $request): JsonResponse
     {
+        $this->normalizarRutDeSolicitud($request);
+
         $datos = $request->validate([
             'rut' => [
                 'required',
@@ -134,17 +145,17 @@ class ClienteController extends Controller
         ]);
     }
 
+    private function normalizarRutDeSolicitud(Request $request): void
+    {
+        if ($request->has('rut')) {
+            $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
+        }
+    }
+
     private function buscarClientePorRut(string $rut): ?Cliente
     {
-        $rutBuscado = strtoupper(
-            preg_replace('/[^0-9kK]/', '', $rut) ?? ''
-        );
-
         return Cliente::query()
-            ->whereRaw(
-                "UPPER(REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '')) = ?",
-                [$rutBuscado]
-            )
+            ->where('rut', Rut::normalizar($rut))
             ->first();
     }
 
@@ -209,6 +220,7 @@ class ClienteController extends Controller
     public function update(Request $request, int $id)
     {
         $cliente = Cliente::findOrFail($id);
+        $this->normalizarRutDeSolicitud($request);
 
         $datos = $request->validate([
             'rut' => [

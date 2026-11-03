@@ -83,7 +83,7 @@
                 @forelse($clientes as $cliente)
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-mono font-bold text-gray-700">
-                            {{ $cliente->rut }}
+                            {{ $cliente->rut_formateado }}
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">

@@ -152,7 +152,7 @@
                     <label for="rut" class="block text-xs font-medium text-gray-700">
                         RUT Empresa / Cliente
                     </label>
-                    <input type="text" id="rut" placeholder="12.345.678-9"
+                    <input type="text" id="rut" placeholder="12.345.678-9" data-rut maxlength="12"
                         autocomplete="off"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                     <p id="mensaje-cliente" class="mt-1 text-xs text-gray-600" role="status">
@@ -299,6 +299,7 @@
     </div>
 </div>
 
+<script src="{{ asset('js/rut.js') }}"></script>
 <script src="{{ asset('js/chile-location.js') }}"></script>
 
 <script>

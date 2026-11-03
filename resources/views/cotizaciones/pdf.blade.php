@@ -55,7 +55,7 @@
     <div class="client">
         <strong>CLIENTE</strong><br>
         {{ $cliente->nombre }}<br>
-        RUT: {{ $cliente->rut }}<br>
+        RUT: {{ $cliente->rut_formateado }}<br>
         @if($cliente->correo)Correo: {{ $cliente->correo }}<br>@endif
         Entrega: {{ $version->metodo_entrega === 'despacho' ? 'Despacho a domicilio' : 'Retiro en tienda' }}
         @if($version->metodo_entrega === 'despacho')

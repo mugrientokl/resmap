@@ -33,7 +33,7 @@
             </header>
             <dl class="space-y-5 p-6 text-sm md:p-8">
                 <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">Cliente</dt><dd class="mt-1 text-lg font-black">{{ $solicitud->cliente->nombre }}</dd></div>
-                <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">RUT</dt><dd class="mt-1">{{ $solicitud->cliente->rut }}</dd></div>
+                <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">RUT</dt><dd class="mt-1">{{ $solicitud->cliente->rut_formateado }}</dd></div>
                 <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">Correo</dt><dd class="mt-1 wrap-break-word">{{ $solicitud->cliente->correo ?: 'No informado' }}</dd></div>
                 <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">Teléfono</dt><dd class="mt-1">{{ $solicitud->cliente->telefono ?: 'No informado' }}</dd></div>
                 <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">Dirección</dt><dd class="mt-1">{{ $solicitud->cliente->direccion ?: 'No informada' }}</dd></div>

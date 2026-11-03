@@ -45,7 +45,7 @@
                                 {{ $solicitud->estado_comercial['titulo'] }}
                             </span>
                         </div>
-                        <p class="mt-2 text-sm text-gray-600">{{ $solicitud->cliente->nombre }} · {{ $solicitud->cliente->rut }} · {{ $solicitud->cliente->correo ?: 'Sin correo' }}</p>
+                        <p class="mt-2 text-sm text-gray-600">{{ $solicitud->cliente->nombre }} · {{ $solicitud->cliente->rut_formateado }} · {{ $solicitud->cliente->correo ?: 'Sin correo' }}</p>
                         <p class="mt-1 text-xs text-gray-500">{{ $solicitud->fecha->format('d/m/Y H:i') }}</p>
                     </div>
                     <a href="{{ route('solicitudes.show', $solicitud->id_solicitud) }}" class="rounded-md bg-[#b52f25] px-4 py-2 text-center text-sm font-bold text-white">Abrir detalle</a>

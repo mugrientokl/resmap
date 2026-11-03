@@ -64,7 +64,7 @@ class ProductAndCustomerSearchTest extends TestCase
     public function test_customer_search_matches_normalized_rut_and_suggests_rut_and_email(): void
     {
         $clienteId = DB::table('clientes')->insertGetId([
-            'rut' => '76.123.456-K',
+            'rut' => '76123456-K',
             'nombre' => 'Repuestos del Sur',
             'correo' => 'compras@example.com',
             'created_at' => now(),
@@ -93,7 +93,7 @@ class ProductAndCustomerSearchTest extends TestCase
     public function test_public_catalog_rut_lookup_returns_only_fields_needed_to_prefill_the_quote_form(): void
     {
         DB::table('clientes')->insert([
-            'rut' => '76.123.456-0',
+            'rut' => '76123456-0',
             'nombre' => 'Repuestos del Sur',
             'giro' => 'Venta de repuestos',
             'correo' => 'compras@example.com',

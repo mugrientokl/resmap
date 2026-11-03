@@ -66,7 +66,7 @@
                     <h2 class="font-black">Datos del cliente</h2>
                     <dl class="mt-4 space-y-3 text-sm">
                         <div><dt class="text-xs font-bold uppercase tracking-wide text-gray-500">Razón social / nombre</dt><dd class="mt-1 font-semibold">{{ $cliente->nombre }}</dd></div>
-                        <div><dt class="text-xs font-bold uppercase tracking-wide text-gray-500">RUT</dt><dd class="mt-1">{{ $cliente->rut }}</dd></div>
+                        <div><dt class="text-xs font-bold uppercase tracking-wide text-gray-500">RUT</dt><dd class="mt-1">{{ $cliente->rut_formateado }}</dd></div>
                         <div>
                             <dt class="text-xs font-bold uppercase tracking-wide text-gray-500">Entrega</dt>
                             <dd class="mt-1">

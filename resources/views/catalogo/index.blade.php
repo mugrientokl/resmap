@@ -222,11 +222,11 @@
 
             <div>
                 <input id="rut_solicitud" name="rut" value="{{ old('rut') }}" required
-                    placeholder="12345678-5" pattern="[0-9]{7,8}-[0-9Kk]"
+                    placeholder="12.345.678-5" data-rut maxlength="12"
                     autocomplete="off"
                     class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
                 <p class="mt-1 text-xs text-gray-500">
-                    Escribe tu RUT sin puntos y con guion.
+                    Puedes escribirlo con o sin puntos y guion.
                 </p>
                 <p id="mensaje-cliente-solicitud" class="mt-1 text-xs text-gray-600"
                     role="status" aria-live="polite">
@@ -268,6 +268,7 @@
     </div>
 </div>
 
+<script src="{{ asset('js/rut.js') }}"></script>
 <script src="{{ asset('js/chile-location.js') }}"></script>
 
 <script>

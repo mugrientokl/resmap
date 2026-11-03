@@ -47,7 +47,7 @@
                 <td style="border: 0; padding: 0;">
                     <div class="label">Cliente</div>
                     <strong>{{ $cliente->nombre }}</strong><br>
-                    RUT: {{ $cliente->rut }}
+                    RUT: {{ $cliente->rut_formateado }}
                 </td>
                 <td class="right" style="border: 0; padding: 0;">
                     <div class="label">Resumen</div>

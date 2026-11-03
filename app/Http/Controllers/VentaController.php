@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\ProductoStockCritico;
 use App\Rules\RutChileno;
+use App\Support\Rut;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -20,6 +21,8 @@ class VentaController extends Controller
 {
     public function store(Request $request): JsonResponse
     {
+        $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
+
         $request->validate([
             'tipo_documento' => 'required|string|in:Boleta Electrónica,Factura Electrónica',
             'medio_pago' => 'required|string|in:Efectivo,Transferencia,Tarjeta',

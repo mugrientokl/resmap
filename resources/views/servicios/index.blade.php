@@ -14,7 +14,7 @@
         <label class="block text-sm font-bold">Tipo de servicio <span class="text-[#b52f25]" aria-hidden="true">*</span><select name="tipo_servicio" required class="mt-2 w-full border border-[#d9aaa3] p-3"><option value="">Selecciona una opción</option>@foreach(['Mantención', 'Reparación', 'Soldadura'] as $tipo)<option value="{{ $tipo }}" @selected(old('tipo_servicio', $tipoServicioSeleccionado) === $tipo)>{{ $tipo }}</option>@endforeach</select></label>
         <label class="block text-sm font-bold md:col-span-2">Describe tu necesidad <span class="text-[#b52f25]" aria-hidden="true">*</span><textarea name="descripcion_servicio" required minlength="10" maxlength="3000" rows="5" placeholder="Ej.: mantención de maquinaria, soldadura de joystick..." class="mt-2 w-full border border-[#d9aaa3] p-3">{{ old('descripcion_servicio') }}</textarea></label>
         <div class="border-t border-[#e8c8c3] pt-6 md:col-span-2"><h2 class="text-xl font-black text-[#8f241d]">Tus datos</h2></div>
-        <label class="block text-sm font-bold">RUT <span class="text-[#b52f25]" aria-hidden="true">*</span><input name="rut" value="{{ old('rut') }}" required placeholder="12345678-5" pattern="[0-9]{7,8}-[0-9Kk]" class="mt-2 w-full border border-[#d9aaa3] p-3"><span class="mt-1 block text-xs font-normal text-gray-500">Sin puntos y con guion.</span></label>
+        <label class="block text-sm font-bold">RUT <span class="text-[#b52f25]" aria-hidden="true">*</span><input name="rut" value="{{ old('rut') }}" required placeholder="12.345.678-5" data-rut maxlength="12" class="mt-2 w-full border border-[#d9aaa3] p-3"><span class="mt-1 block text-xs font-normal text-gray-500">Puedes escribirlo con o sin puntos y guion.</span></label>
         <label class="block text-sm font-bold">Nombre o razón social <span class="text-[#b52f25]" aria-hidden="true">*</span><input name="nombre" value="{{ old('nombre') }}" required class="mt-2 w-full border border-[#d9aaa3] p-3"></label>
         <label class="block text-sm font-bold">Correo<input name="correo" type="email" value="{{ old('correo') }}" placeholder="correo@ejemplo.cl" class="mt-2 w-full border border-[#d9aaa3] p-3"></label>
         <div class="block text-sm font-bold"><label for="telefono">Teléfono <span class="text-[#b52f25]" aria-hidden="true">*</span></label><div class="mt-2 flex"><select id="prefijo_telefono" name="prefijo_telefono" required aria-label="Código de país"></select><input id="telefono" name="telefono" value="{{ old('telefono') }}" required pattern="[0-9]{8}" maxlength="8" inputmode="numeric" placeholder="12345678" class="min-w-0 flex-1 border border-[#d9aaa3] p-3"></div></div>
@@ -24,6 +24,7 @@
         <div class="flex justify-end md:col-span-2"><button class="bg-[#b52f25] px-6 py-3 font-bold text-white hover:bg-[#8f241d]">Enviar solicitud de servicio</button></div>
     </form>
 </div>
+<script src="{{ asset('js/rut.js') }}"></script>
 <script src="{{ asset('js/chile-location.js') }}"></script>
 <script>
     inicializarSelectorTelefono('prefijo_telefono', 'telefono');

@@ -10,7 +10,7 @@
 
         <div>
             <label class="block text-sm font-medium text-gray-700">RUT</label>
-            <input type="text" name="rut" value="{{ old('rut', $cliente->rut) }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+            <input type="text" name="rut" data-rut maxlength="12" placeholder="12.345.678-9" value="{{ old('rut', $cliente->rut_formateado) }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
         </div>
 
         <div>
@@ -40,4 +40,5 @@
         </div>
     </form>
 </div>
+<script src="{{ asset('js/rut.js') }}"></script>
 @endsection

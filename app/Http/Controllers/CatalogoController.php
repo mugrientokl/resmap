@@ -12,6 +12,7 @@ use App\Notifications\NuevaCotizacionPendiente;
 use App\Notifications\SolicitudWebRecibida;
 use App\Rules\RutChileno;
 use App\Services\InventarioReservaService;
+use App\Support\Rut;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -91,12 +92,13 @@ class CatalogoController extends Controller
         Request $request,
         InventarioReservaService $reservas
     ) {
+        $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
+
         $data = $request->validate([
             'rut' => [
                 'required',
                 'string',
                 'max:20',
-                'regex:/^[0-9]{7,8}-[0-9Kk]$/',
                 new RutChileno,
             ],
             'nombre' => ['required', 'string', 'max:255'],
@@ -169,8 +171,7 @@ class CatalogoController extends Controller
                 'regex:/^\\+[1-9][0-9]{0,3}$/',
             ],
         ], [
-            'rut.required' => 'Escribe tu RUT sin puntos y con guion, por ejemplo: 12345678-5.',
-            'rut.regex' => 'El RUT debe escribirse sin puntos y con guion, por ejemplo: 12345678-5.',
+            'rut.required' => 'Escribe tu RUT, por ejemplo: 12.345.678-5.',
             'nombre.required' => 'Escribe tu nombre o razón social.',
             'correo.email' => 'Escribe un correo electrónico válido.',
             'telefono.required' => 'Escribe los 8 dígitos de tu teléfono.',
