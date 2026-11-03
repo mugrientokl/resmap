@@ -262,7 +262,7 @@ class DashboardTest extends TestCase
             ]);
     }
 
-    public function test_dashboard_counts_all_products_with_critical_stock_instead_of_limiting_the_count(): void
+    public function test_dashboard_counts_all_products_with_critical_stock_including_zero_stock(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
         $categoria = Categoria::create([
@@ -293,8 +293,8 @@ class DashboardTest extends TestCase
         $this->actingAs($admin)
             ->get('/dashboard')
             ->assertOk()
-            ->assertSee('6 productos con stock bajo')
+            ->assertSee('7 productos con stock bajo')
             ->assertSee('stock=critico')
-            ->assertViewHas('cantidadStockCritico', 6);
+            ->assertViewHas('cantidadStockCritico', 7);
     }
 }

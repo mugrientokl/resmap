@@ -179,6 +179,32 @@ class CatalogoStockTest extends TestCase
         );
     }
 
+    public function test_zero_stock_products_are_critical_but_stay_hidden_from_the_catalog(): void
+    {
+        $unavailableProductId = $this->createProductWithStock(0);
+        $availableProductId = $this->createProductWithStock(1);
+        DB::table('productos')->where('id_producto', $unavailableProductId)->update([
+            'nombre' => 'Producto agotado',
+        ]);
+        DB::table('productos')->where('id_producto', $availableProductId)->update([
+            'nombre' => 'Producto con stock bajo',
+        ]);
+
+        $inventario = $this->actingAs(User::factory()->create(['rol' => 'Administrador']))
+            ->get(route('productos.index', ['stock' => 'critico']));
+        $inventario->assertOk();
+        $productosCriticos = $inventario->viewData('productos')->pluck('id_producto')->all();
+        sort($productosCriticos);
+        $idsEsperados = [$unavailableProductId, $availableProductId];
+        sort($idsEsperados);
+        $this->assertSame($idsEsperados, $productosCriticos);
+
+        $catalogo = $this->get(route('catalogo.index'));
+        $catalogo->assertOk()
+            ->assertSee('Producto con stock bajo')
+            ->assertDontSee('Producto agotado');
+    }
+
     public function test_new_products_default_to_unit_and_active(): void
     {
         $productId = $this->createProductWithStock(3);

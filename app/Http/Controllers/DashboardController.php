@@ -200,7 +200,6 @@ class DashboardController extends Controller
     private function obtenerCantidadProductosStockCritico(): int
     {
         return Producto::query()
-            ->where('stock', '>', 0)
             ->whereColumn('stock', '<=', 'stock_critico')
             ->count();
     }

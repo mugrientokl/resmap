@@ -116,8 +116,7 @@ class ProductoController extends Controller
                 if ($tipoStock === 'agotado') {
                     $query->where('stock', '<=', 0);
                 } elseif ($tipoStock === 'critico') {
-                    $query->where('stock', '>', 0)
-                        ->whereColumn('stock', '<=', 'stock_critico');
+                    $query->whereColumn('stock', '<=', 'stock_critico');
                 } elseif ($tipoStock === 'disponible') {
                     $query->whereColumn('stock', '>', 'stock_critico');
                 }
