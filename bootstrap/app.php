@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureActiveUser;
 use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\NoStoreMiddleware;
 use App\Http\Middleware\RoleMiddleware;
@@ -44,7 +45,12 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: env('TRUSTED_PROXIES'));
-        $middleware->appendToGroup('web', [ForceHttps::class, InjectBoost::class, NoStoreMiddleware::class]);
+        $middleware->appendToGroup('web', [
+            ForceHttps::class,
+            InjectBoost::class,
+            NoStoreMiddleware::class,
+            EnsureActiveUser::class,
+        ]);
         $middleware->alias(['role' => RoleMiddleware::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

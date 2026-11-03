@@ -38,13 +38,24 @@ class AuthController extends Controller
         $limiterKey = 'login-failures:'.hash('sha256', $identity.'|'.$request->ip());
         $lockKey = 'login-lock:'.hash('sha256', $identity.'|'.$request->ip());
 
-        if (Cache::has($lockKey)) {
+        $validPassword = Auth::validate([
+            $field => $credentials['login'],
+            'password' => $credentials['password'],
+        ]);
+        $user = User::query()->where($field, $credentials['login'])->first();
+
+        if (Cache::has($lockKey)
+            && (! $validPassword || $user === null || ! $user->activo)
+        ) {
             return back()->withErrors(['login' => 'Por seguridad, espera antes de volver a intentarlo.'])->withInput()
                 ->setStatusCode(429);
         }
 
-        if (! Auth::validate([$field => $credentials['login'], 'password' => $credentials['password']])) {
-            $failures = RateLimiter::hit($limiterKey, 86400);
+        if (! $validPassword
+            || $user === null
+            || ! $user->activo
+        ) {
+            $failures = RateLimiter::hit($limiterKey, 900);
             if ($failures >= 5) {
                 $delay = min(900, 60 * (2 ** min($failures - 5, 4)));
                 Cache::put($lockKey, true, $delay);
@@ -70,7 +81,6 @@ class AuthController extends Controller
         RateLimiter::clear($limiterKey);
         Cache::forget($lockKey);
 
-        $user = User::query()->where($field, $credentials['login'])->firstOrFail();
         Log::info('auth.login.password_accepted', ['user_id' => $user->id, 'ip' => $request->ip()]);
 
         Auth::login($user);
@@ -101,7 +111,14 @@ class AuthController extends Controller
     public function sendResetLink(Request $request): RedirectResponse
     {
         $data = $request->validate(['email' => ['required', 'email']]);
-        Password::sendResetLink($data);
+        $usuarioActivo = User::query()
+            ->where('email', $data['email'])
+            ->where('activo', true)
+            ->exists();
+
+        if ($usuarioActivo) {
+            Password::sendResetLink($data);
+        }
 
         return back()->with('status', 'Si el correo está registrado, recibirás un enlace para restablecer la contraseña.');
     }

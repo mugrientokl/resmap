@@ -77,7 +77,7 @@ Route::middleware([
         ->name('login');
 
     Route::post('/login', [AuthController::class, 'store'])
-        ->middleware('throttle:5,1')
+        ->middleware('throttle:10,1')
         ->name('login.store');
 
     Route::get('/password/forgot', [AuthController::class, 'showForgotPasswordForm'])
@@ -366,4 +366,20 @@ Route::middleware([
     Route::post('/usuarios', [UserController::class, 'store'])
         ->middleware(['auth', 'role:Administrador'])
         ->name('usuarios.store');
+
+    Route::patch('/usuarios/{user}/estado', [UserController::class, 'actualizarEstado'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('usuarios.estado');
+
+    Route::post('/usuarios/{user}/enlace-contrasena', [UserController::class, 'enviarEnlaceContrasena'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('usuarios.enlace-contrasena');
+
+    Route::delete('/usuarios/{user}', [UserController::class, 'destroy'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('usuarios.destroy');
+
+    Route::post('/usuarios/{user}/restaurar', [UserController::class, 'restaurar'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('usuarios.restaurar');
 });

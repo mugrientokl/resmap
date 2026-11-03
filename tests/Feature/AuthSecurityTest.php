@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
 use Tests\TestCase;
 
@@ -91,6 +92,24 @@ class AuthSecurityTest extends TestCase
         $this->assertAuthenticatedAs($admin);
     }
 
+    public function test_inactive_seller_cannot_sign_in_with_valid_credentials(): void
+    {
+        $seller = User::factory()->create([
+            'rol' => 'Vendedor',
+            'activo' => false,
+            'password' => 'Vendedor-Seguro-2026-Frase',
+        ]);
+
+        $this->post(route('login.store'), [
+            'login' => $seller->username,
+            'password' => 'Vendedor-Seguro-2026-Frase',
+        ])
+            ->assertRedirect()
+            ->assertSessionHasErrors('login');
+
+        $this->assertGuest();
+    }
+
     public function test_failed_login_attempts_are_rate_limited(): void
     {
         for ($attempt = 0; $attempt < 5; $attempt++) {
@@ -104,6 +123,50 @@ class AuthSecurityTest extends TestCase
             'login' => 'admin',
             'password' => 'incorrect-password',
         ])->assertTooManyRequests();
+    }
+
+    public function test_valid_credentials_can_sign_in_during_the_failed_attempt_lockout(): void
+    {
+        $admin = User::factory()->create([
+            'rol' => 'Administrador',
+            'password' => 'Admin-Secure-Phrase-2026',
+        ]);
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->post(route('login.store'), [
+                'login' => $admin->username,
+                'password' => 'incorrect-password',
+            ])->assertRedirect();
+        }
+
+        $this->post(route('login.store'), [
+            'login' => $admin->username,
+            'password' => 'Admin-Secure-Phrase-2026',
+        ])->assertRedirect(route('dashboard'));
+
+        $this->assertAuthenticatedAs($admin);
+    }
+
+    public function test_failed_login_lockout_resets_after_fifteen_minutes(): void
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->post(route('login.store'), [
+                'login' => 'admin',
+                'password' => 'incorrect-password',
+            ])->assertRedirect();
+        }
+
+        $this->travel(16)->minutes();
+
+        $this->post(route('login.store'), [
+            'login' => 'admin',
+            'password' => 'incorrect-password',
+        ])->assertRedirect()->assertSessionHasErrors('login');
+
+        $this->post(route('login.store'), [
+            'login' => 'admin',
+            'password' => 'incorrect-password',
+        ])->assertRedirect()->assertSessionHasErrors('login');
     }
 
     public function test_password_reset_requires_twelve_characters_and_its_token_is_single_use(): void
@@ -145,5 +208,22 @@ class AuthSecurityTest extends TestCase
             'password' => $password,
             'password_confirmation' => $password,
         ])->assertSessionHasErrors('email');
+    }
+
+    public function test_inactive_user_cannot_request_a_password_reset_email(): void
+    {
+        Notification::fake();
+        $user = User::factory()->create([
+            'rol' => 'Vendedor',
+            'activo' => false,
+        ]);
+
+        $this->from(route('password.request'))
+            ->post(route('password.email'), ['email' => $user->email])
+            ->assertRedirect(route('password.request'))
+            ->assertSessionHas('status');
+
+        Notification::assertNothingSent();
+        $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
     }
 }
