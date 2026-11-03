@@ -7,13 +7,16 @@ use App\Services\RegistroActividad;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\MessageBag;
 use Illuminate\Support\Str;
+use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 
 class AuthController extends Controller
@@ -23,7 +26,7 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|Response
     {
         if (Auth::check()) {
             return redirect()->route('dashboard');
@@ -32,6 +35,13 @@ class AuthController extends Controller
         $credentials = $request->validate([
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string', 'max:255'],
+        ], [
+            'login.required' => 'Ingresa tu usuario o correo.',
+            'login.string' => 'El usuario o correo debe ser texto válido.',
+            'login.max' => 'El usuario o correo no puede superar los 255 caracteres.',
+            'password.required' => 'Ingresa tu contraseña.',
+            'password.string' => 'La contraseña debe ser texto válido.',
+            'password.max' => 'La contraseña no puede superar los 255 caracteres.',
         ]);
         $field = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
         $identity = Str::lower($credentials['login']);
@@ -47,8 +57,15 @@ class AuthController extends Controller
         if (Cache::has($lockKey)
             && (! $validPassword || $user === null || ! $user->activo)
         ) {
-            return back()->withErrors(['login' => 'Por seguridad, espera antes de volver a intentarlo.'])->withInput()
-                ->setStatusCode(429);
+            $request->session()->flashInput($request->except('password'));
+            $errors = (new ViewErrorBag)->put(
+                'default',
+                new MessageBag([
+                    'login' => 'Hubo varios intentos fallidos. Espera unos minutos antes de volver a intentarlo.',
+                ])
+            );
+
+            return response()->view('auth.login', compact('errors'), 429);
         }
 
         if (! $validPassword
@@ -75,7 +92,9 @@ class AuthController extends Controller
                 nuevos: ['identidad_hash' => substr(hash('sha256', $identity), 0, 16), 'intentos' => $failures],
             );
 
-            return back()->withErrors(['login' => 'Las credenciales no son válidas.'])->withInput();
+            return back()->withErrors([
+                'login' => 'El usuario o correo y la contraseña no coinciden, o la cuenta no está disponible.',
+            ])->withInput();
         }
 
         RateLimiter::clear($limiterKey);
@@ -110,7 +129,12 @@ class AuthController extends Controller
 
     public function sendResetLink(Request $request): RedirectResponse
     {
-        $data = $request->validate(['email' => ['required', 'email']]);
+        $data = $request->validate([
+            'email' => ['required', 'email'],
+        ], [
+            'email.required' => 'Ingresa el correo asociado a tu cuenta.',
+            'email.email' => 'Ingresa un correo electrónico válido.',
+        ]);
         $usuarioActivo = User::query()
             ->where('email', $data['email'])
             ->where('activo', true)
@@ -120,7 +144,10 @@ class AuthController extends Controller
             Password::sendResetLink($data);
         }
 
-        return back()->with('status', 'Si el correo está registrado, recibirás un enlace para restablecer la contraseña.');
+        return back()->with(
+            'status',
+            'Si el correo está asociado a una cuenta activa, recibirás instrucciones. Si pediste un enlace recientemente, revisa tu correo antes de solicitar otro.'
+        );
     }
 
     public function showResetPasswordForm(Request $request, string $token): View
@@ -134,6 +161,14 @@ class AuthController extends Controller
             'token' => ['required'],
             'email' => ['required', 'email'],
             'password' => ['required', 'confirmed', 'max:255', PasswordRule::min(12)],
+        ], [
+            'token.required' => 'El enlace de restablecimiento no es válido. Solicita uno nuevo.',
+            'email.required' => 'Ingresa el correo asociado al enlace.',
+            'email.email' => 'Ingresa un correo electrónico válido.',
+            'password.required' => 'Ingresa una nueva contraseña.',
+            'password.confirmed' => 'Las contraseñas no coinciden.',
+            'password.max' => 'La contraseña no puede superar los 255 caracteres.',
+            'password.min' => 'La contraseña debe tener al menos 12 caracteres.',
         ]);
 
         $status = Password::reset($data, function ($user, $password): void {
@@ -142,8 +177,18 @@ class AuthController extends Controller
             Log::notice('auth.password.reset', ['user_id' => $user->id, 'ip' => request()->ip()]);
         });
 
-        return $status === Password::PASSWORD_RESET
-            ? redirect()->route('login')->with('status', __($status))
-            : back()->withErrors(['email' => __($status)]);
+        if ($status === Password::PASSWORD_RESET) {
+            return redirect()->route('login')
+                ->with('status', 'Tu contraseña fue restablecida. Ya puedes iniciar sesión.');
+        }
+
+        $mensaje = match ($status) {
+            Password::INVALID_TOKEN => 'El enlace venció o ya fue utilizado. Solicita uno nuevo para continuar.',
+            Password::INVALID_USER => 'No encontramos una cuenta activa asociada a ese correo.',
+            Password::RESET_THROTTLED => 'Espera un momento antes de solicitar otro restablecimiento.',
+            default => 'No pudimos restablecer la contraseña. Solicita un nuevo enlace e inténtalo otra vez.',
+        };
+
+        return back()->withErrors(['email' => $mensaje]);
     }
 }

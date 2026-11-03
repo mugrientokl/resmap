@@ -15,14 +15,13 @@ class ResetPasswordNotification extends BaseResetPasswordNotification
         ], false));
 
         return (new MailMessage)
-            ->subject('Restablecer Contraseña - RESMAP')
-            ->greeting('Hola,')
-            ->line('Recibimos una solicitud para restablecer tu contraseña.')
-            ->line('Este enlace expirará en 60 minutos.')
-            ->action('Restablecer Contraseña', $url)
-            ->line('Si no solicitaste un restablecimiento de contraseña, ignora este correo.')
-            ->line('')
-            ->line('Saludos,')
-            ->line('RESMAP');
+            ->subject('Restablece tu contraseña · RESMAP')
+            ->view('emails.auth.password-reset', [
+                'name' => $notifiable->name,
+                'url' => $url,
+                'expirationMinutes' => config(
+                    'auth.passwords.'.config('auth.defaults.passwords').'.expire'
+                ),
+            ]);
     }
 }

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\User;
+use App\Notifications\ResetPasswordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -52,6 +53,62 @@ class AuthSecurityTest extends TestCase
             ->get(route('login'))
             ->assertOk()
             ->assertSee('La contraseña se restableció correctamente.');
+    }
+
+    public function test_login_form_displays_all_validation_errors_in_spanish_and_has_password_toggle(): void
+    {
+        $this->followingRedirects()
+            ->from(route('login'))
+            ->post(route('login.store'), [
+                'login' => '',
+                'password' => '',
+            ])
+            ->assertOk()
+            ->assertSee('Ingresa tu usuario o correo.')
+            ->assertSee('Ingresa tu contraseña.')
+            ->assertSee('aria-label="Mostrar contraseña"', false)
+            ->assertSee('type="button"', false)
+            ->assertSee('aria-pressed="false"', false);
+    }
+
+    public function test_login_shows_a_generic_message_for_invalid_or_inactive_credentials(): void
+    {
+        $this->followingRedirects()
+            ->from(route('login'))
+            ->post(route('login.store'), [
+                'login' => 'usuario-inexistente',
+                'password' => 'incorrect-password',
+            ])
+            ->assertOk()
+            ->assertSee('No pudimos iniciar sesión.')
+            ->assertSee('El usuario o correo y la contraseña no coinciden, o la cuenta no está disponible.');
+    }
+
+    public function test_failed_login_lockout_displays_a_clear_temporary_wait_message(): void
+    {
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->post(route('login.store'), [
+                'login' => 'admin',
+                'password' => 'incorrect-password',
+            ]);
+        }
+
+        $this->from(route('login'))
+            ->post(route('login.store'), [
+                'login' => 'admin',
+                'password' => 'incorrect-password',
+            ])
+            ->assertStatus(429)
+            ->assertSee('Hubo varios intentos fallidos. Espera unos minutos antes de volver a intentarlo.');
+    }
+
+    public function test_password_reset_request_validation_errors_are_in_spanish(): void
+    {
+        $this->followingRedirects()
+            ->from(route('password.request'))
+            ->post(route('password.email'), ['email' => ''])
+            ->assertOk()
+            ->assertSee('Ingresa el correo asociado a tu cuenta.');
     }
 
     public function test_seller_login_regenerates_the_session_and_logout_invalidates_it(): void
@@ -105,7 +162,9 @@ class AuthSecurityTest extends TestCase
             'password' => 'Vendedor-Seguro-2026-Frase',
         ])
             ->assertRedirect()
-            ->assertSessionHasErrors('login');
+            ->assertSessionHasErrors([
+                'login' => 'El usuario o correo y la contraseña no coinciden, o la cuenta no está disponible.',
+            ]);
 
         $this->assertGuest();
     }
@@ -189,7 +248,9 @@ class AuthSecurityTest extends TestCase
                 'password' => 'short',
                 'password_confirmation' => 'short',
             ])
-            ->assertSessionHasErrors('password');
+            ->assertSessionHasErrors([
+                'password' => 'La contraseña debe tener al menos 12 caracteres.',
+            ]);
 
         $password = 'New-Secure-Phrase-For-Testing-2026';
         $this->post(route('password.update'), [
@@ -197,7 +258,11 @@ class AuthSecurityTest extends TestCase
             'email' => $user->email,
             'password' => $password,
             'password_confirmation' => $password,
-        ])->assertRedirect(route('login'));
+        ])->assertRedirect(route('login'))
+            ->assertSessionHas(
+                'status',
+                'Tu contraseña fue restablecida. Ya puedes iniciar sesión.'
+            );
 
         $this->assertTrue(Hash::check($password, $user->fresh()->password));
         $this->assertDatabaseMissing('sessions', ['id' => 'password-reset-session']);
@@ -208,6 +273,69 @@ class AuthSecurityTest extends TestCase
             'password' => $password,
             'password_confirmation' => $password,
         ])->assertSessionHasErrors('email');
+    }
+
+    public function test_expired_or_invalid_password_reset_token_has_a_clear_spanish_message(): void
+    {
+        $user = User::factory()->create(['rol' => 'Vendedor']);
+        $password = 'New-Secure-Phrase-For-Testing-2026';
+
+        $this->from(route('password.reset', [
+            'token' => 'invalid-token',
+            'email' => $user->email,
+        ]))
+            ->post(route('password.update'), [
+                'token' => 'invalid-token',
+                'email' => $user->email,
+                'password' => $password,
+                'password_confirmation' => $password,
+            ])
+            ->assertRedirect()
+            ->assertSessionHasErrors([
+                'email' => 'El enlace venció o ya fue utilizado. Solicita uno nuevo para continuar.',
+            ]);
+    }
+
+    public function test_password_reset_form_explains_when_password_confirmation_does_not_match(): void
+    {
+        $user = User::factory()->create(['rol' => 'Vendedor']);
+        $token = Password::createToken($user);
+
+        $this->followingRedirects()
+            ->from(route('password.reset', [
+                'token' => $token,
+                'email' => $user->email,
+            ]))
+            ->post(route('password.update'), [
+                'token' => $token,
+                'email' => $user->email,
+                'password' => 'New-Secure-Phrase-For-Testing-2026',
+                'password_confirmation' => 'Different-Secure-Phrase-For-Testing-2026',
+            ])
+            ->assertOk()
+            ->assertSee('Las contraseñas no coinciden.');
+    }
+
+    public function test_password_reset_email_uses_branded_view_and_configured_expiration(): void
+    {
+        $user = User::factory()->create([
+            'rol' => 'Vendedor',
+            'name' => 'Vendedor de prueba',
+        ]);
+        $notification = new ResetPasswordNotification('test-reset-token');
+        $message = $notification->toMail($user);
+        $html = (string) $message->render();
+
+        $this->assertSame('emails.auth.password-reset', $message->view);
+        $this->assertSame(
+            config('auth.passwords.'.config('auth.defaults.passwords').'.expire'),
+            $message->viewData['expirationMinutes']
+        );
+        $this->assertStringContainsString('Vendedor de prueba', $html);
+        $this->assertStringContainsString('RESMAP', $html);
+        $this->assertStringContainsString('Crear nueva contraseña', $html);
+        $this->assertStringContainsString('30 minutos', $html);
+        $this->assertStringContainsString('test-reset-token', $html);
     }
 
     public function test_inactive_user_cannot_request_a_password_reset_email(): void
@@ -221,9 +349,23 @@ class AuthSecurityTest extends TestCase
         $this->from(route('password.request'))
             ->post(route('password.email'), ['email' => $user->email])
             ->assertRedirect(route('password.request'))
-            ->assertSessionHas('status');
+            ->assertSessionHas(
+                'status',
+                'Si el correo está asociado a una cuenta activa, recibirás instrucciones. Si pediste un enlace recientemente, revisa tu correo antes de solicitar otro.'
+            );
 
         Notification::assertNothingSent();
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => $user->email]);
+    }
+
+    public function test_unknown_email_receives_the_same_password_reset_confirmation_as_inactive_email(): void
+    {
+        $this->from(route('password.request'))
+            ->post(route('password.email'), ['email' => 'not-registered@example.com'])
+            ->assertRedirect(route('password.request'))
+            ->assertSessionHas(
+                'status',
+                'Si el correo está asociado a una cuenta activa, recibirás instrucciones. Si pediste un enlace recientemente, revisa tu correo antes de solicitar otro.'
+            );
     }
 }

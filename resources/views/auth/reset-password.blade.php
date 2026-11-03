@@ -5,7 +5,13 @@
 <main class="w-full max-w-md bg-white p-8 shadow-2xl sm:p-12">
     <a href="{{ route('login') }}" class="text-sm font-bold text-[#9f2f25]">← Volver al acceso</a>
     <h1 class="mt-10 text-3xl font-black">Nueva contraseña</h1>
-    @if ($errors->any())<div class="mt-6 bg-red-50 p-4 text-sm text-red-700">{{ $errors->first() }}</div>@endif
+    @if ($errors->any())
+        <div class="mt-6 border-l-4 border-red-500 bg-red-50 p-4 text-sm text-red-800" role="alert" aria-live="assertive">
+            @foreach($errors->all() as $error)
+                <p>{{ $error }}</p>
+            @endforeach
+        </div>
+    @endif
     <form method="POST" action="{{ route('password.update') }}" class="mt-8 space-y-5">@csrf
         <input type="hidden" name="token" value="{{ $token }}">
         <div><label for="email" class="block text-sm font-bold">Correo</label><input id="email" name="email" type="email" value="{{ old('email', $email) }}" required class="mt-2 w-full border border-gray-300 p-3"></div>

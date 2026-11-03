@@ -7,7 +7,13 @@
     <h1 class="mt-10 text-3xl font-black">Recuperar contraseña</h1>
     <p class="mt-2 text-gray-500">Enviaremos un enlace al correo registrado.</p>
     @if (session('status'))<div class="mt-6 border-l-4 border-[#b52f25] bg-[#fff7f5] p-4 text-sm text-[#721d18]" role="status">{{ session('status') }}</div>@endif
-    @if ($errors->any())<div class="mt-6 bg-red-50 p-4 text-sm text-red-700">{{ $errors->first() }}</div>@endif
+    @if ($errors->any())
+        <div class="mt-6 border-l-4 border-red-500 bg-red-50 p-4 text-sm text-red-800" role="alert" aria-live="assertive">
+            @foreach($errors->all() as $error)
+                <p>{{ $error }}</p>
+            @endforeach
+        </div>
+    @endif
     <form method="POST" action="{{ route('password.email') }}" class="mt-8 space-y-5">@csrf
         <div><label for="email" class="block text-sm font-bold">Correo</label><input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus class="mt-2 w-full border border-gray-300 p-3"></div>
         <button class="w-full bg-[#b52f25] p-3 font-bold text-white">Enviar enlace</button>
