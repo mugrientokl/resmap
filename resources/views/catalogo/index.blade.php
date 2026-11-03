@@ -37,12 +37,13 @@
                 class="w-full border border-[#d9aaa3] bg-white p-3 text-[#241817] focus:border-[#b52f25] focus:outline-none">
 
             <div id="catalogo-sugerencias" style="display: none;"
-                class="absolute left-0 top-full z-50 mt-1 max-h-64 w-full overflow-y-auto rounded-md border border-[#d9aaa3] bg-white shadow-lg">
+                class="absolute left-0 top-full z-50 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-[#d9aaa3] bg-white shadow-lg">
             </div>
 
             <select id="catalogo-datos" hidden aria-hidden="true" tabindex="-1">
                 @foreach($productosBuscador as $productoBuscador)
                     <option value="{{ $productoBuscador->nombre }}"
+                        data-codigo="{{ $productoBuscador->codigo_origen ?: $productoBuscador->codigo_barra }}"
                         data-categoria="{{ $productoBuscador->id_categoria }}">
                         {{ $productoBuscador->nombre }}
                     </option>
@@ -285,8 +286,9 @@
         document.getElementById('catalogo-datos').options
     ).map(opcion => ({
         nombre: opcion.value,
+        codigo: opcion.dataset.codigo || '',
         categoria: opcion.dataset.categoria,
-        palabras: separarPalabras(opcion.value)
+        texto: separarPalabras(`${opcion.value} ${opcion.dataset.codigo || ''}`)
     }));
 
     function cerrar() {
@@ -307,9 +309,7 @@
                 !categoria.value || producto.categoria === categoria.value;
 
             const coincideNombre = palabrasBuscadas.every(textoBuscado =>
-                producto.palabras.some(palabra =>
-                    palabra.startsWith(textoBuscado)
-                )
+                producto.texto.some(palabra => palabra.includes(textoBuscado))
             );
 
             return coincideCategoria && coincideNombre;
@@ -327,12 +327,23 @@
             boton.type = 'button';
             boton.className =
                 'block w-full border-b border-gray-100 px-4 py-3 text-left text-sm font-semibold text-[#241817] hover:bg-red-50 focus:bg-red-50';
-            boton.textContent = producto.nombre;
+
+            const nombre = document.createElement('span');
+            nombre.className = 'block';
+            nombre.textContent = producto.nombre;
+            boton.append(nombre);
+
+            if (producto.codigo) {
+                const codigo = document.createElement('span');
+                codigo.className = 'block text-xs font-normal text-gray-500';
+                codigo.textContent = producto.codigo;
+                boton.append(codigo);
+            }
 
             boton.addEventListener('click', () => {
                 buscador.value = producto.nombre;
-                buscador.focus();
                 cerrar();
+                buscador.form.requestSubmit();
             });
 
             lista.append(boton);

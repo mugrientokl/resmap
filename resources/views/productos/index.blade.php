@@ -47,7 +47,7 @@
             type="search"
             name="nombre"
             value="{{ request('nombre') }}"
-            placeholder="Buscar por nombre o código"
+            placeholder="Buscar por nombre, código de barras u origen"
             class="border-gray-300 rounded-md shadow-sm border p-2"
         >
 

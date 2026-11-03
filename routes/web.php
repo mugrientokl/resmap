@@ -185,6 +185,10 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('clientes.index');
 
+    Route::get('/clientes/sugerencias', [ClienteController::class, 'sugerencias'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('clientes.sugerencias');
+
     Route::get('/clientes/{id}/historial', [ClienteController::class, 'historial'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('clientes.historial');
@@ -216,13 +220,7 @@ Route::middleware([
         $productos = Producto::with('categoria')
             ->withSum('reservasActivas as stock_reservado', 'cantidad')
             ->when($request->filled('nombre'), function ($query) use ($request): void {
-                $nombre = $request->string('nombre')->trim()->toString();
-
-                $query->where(function ($productQuery) use ($nombre): void {
-                    $productQuery->where('nombre', 'like', "%{$nombre}%")
-                        ->orWhere('codigo_barra', 'like', "%{$nombre}%")
-                        ->orWhere('codigo_origen', 'like', "%{$nombre}%");
-                });
+                $query->buscarCoincidencias($request->string('nombre')->trim()->toString());
             })
             ->when($request->filled('categoria'), function ($query) use ($request): void {
                 $query->where('id_categoria', $request->integer('categoria'));

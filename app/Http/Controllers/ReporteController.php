@@ -244,13 +244,6 @@ class ReporteController extends Controller
 
     private function ventasCompletadasQuery(): Builder
     {
-        return Venta::query()->where(function (Builder $query): void {
-            $query->whereNull('cotizacion_version_id')
-                ->orWhere(function (Builder $query): void {
-                    $query->where('estado_venta', 'confirmada')
-                        ->where('estado_facturacion', 'simulada_exitosa')
-                        ->where('estado_entrega', 'entregada');
-                });
-        });
+        return Venta::completadas();
     }
 }

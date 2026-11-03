@@ -127,17 +127,21 @@
 
     <main class="mx-auto min-h-[calc(100vh-140px)] py-6">
         @if (filled(session('success')) || filled(session('status')) || filled(session('warning')) || filled(session('error')))
-            <div class="mx-auto mb-6 max-w-7xl space-y-3" aria-live="polite">
+            <div id="flash-notifications" class="pointer-events-none fixed right-4 top-20 z-[60] flex w-[min(32rem,calc(100vw-2rem))] flex-col gap-3 sm:right-6" aria-live="polite" aria-relevant="additions">
                 @foreach ([
-                    'success' => ['Operación completada', 'border-green-600 bg-green-50 text-green-900', 'status'],
-                    'status' => ['Aviso', 'border-[#b52f25] bg-[#fff7f5] text-[#721d18]', 'status'],
-                    'warning' => ['Atención', 'border-amber-500 bg-amber-50 text-amber-950', 'alert'],
-                    'error' => ['No se pudo completar', 'border-red-600 bg-red-50 text-red-900', 'alert'],
-                ] as $flashKey => [$flashTitle, $flashClasses, $flashRole])
+                    'success' => ['Operación completada', 'border-green-600 bg-green-50 text-green-950 ring-green-200', 'status', '✓'],
+                    'status' => ['Aviso', 'border-[#b52f25] bg-[#fff7f5] text-[#721d18] ring-[#e8c8c3]', 'status', 'i'],
+                    'warning' => ['Atención', 'border-amber-500 bg-amber-50 text-amber-950 ring-amber-200', 'alert', '!'],
+                    'error' => ['No se pudo completar', 'border-red-600 bg-red-50 text-red-950 ring-red-200', 'alert', '!'],
+                ] as $flashKey => [$flashTitle, $flashClasses, $flashRole, $flashIcon])
                     @if (filled(session($flashKey)))
-                        <div class="border-l-4 p-4 shadow-sm {{ $flashClasses }}" role="{{ $flashRole }}">
-                            <p class="font-black">{{ $flashTitle }}</p>
-                            <p class="mt-1 text-sm">{{ session($flashKey) }}</p>
+                        <div class="pointer-events-auto flex items-start gap-4 rounded-r-xl border-l-[6px] p-5 shadow-xl ring-1 {{ $flashClasses }}" role="{{ $flashRole }}">
+                            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-2xl font-black shadow-sm" aria-hidden="true">{{ $flashIcon }}</span>
+                            <div class="min-w-0 flex-1">
+                                <p class="text-base font-black">{{ $flashTitle }}</p>
+                                <p class="mt-1 break-words text-sm leading-6">{{ session($flashKey) }}</p>
+                            </div>
+                            <button type="button" class="-mr-2 -mt-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl font-bold opacity-70 transition hover:bg-black/5 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-current" aria-label="Cerrar notificación" data-dismiss-notification>×</button>
                         </div>
                     @endif
                 @endforeach
@@ -228,6 +232,16 @@
                 profileMenu.classList.add('hidden');
                 profileMenuButton.setAttribute('aria-expanded', 'false');
             }
+        });
+
+        document.querySelectorAll('[data-dismiss-notification]').forEach((button) => {
+            button.addEventListener('click', () => {
+                button.closest('[role="status"], [role="alert"]')?.remove();
+
+                if (!document.querySelector('#flash-notifications [role="status"], #flash-notifications [role="alert"]')) {
+                    document.getElementById('flash-notifications')?.remove();
+                }
+            });
         });
     </script>
 </body>

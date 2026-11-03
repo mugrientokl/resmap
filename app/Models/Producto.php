@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -45,6 +46,21 @@ class Producto extends Model
         return Attribute::get(
             fn (): int => max(0, (int) $this->stock - (int) ($this->attributes['stock_reservado'] ?? 0)),
         );
+    }
+
+    public function scopeBuscarCoincidencias(Builder $query, string $buscar): Builder
+    {
+        $palabras = preg_split('/\s+/u', trim($buscar), -1, PREG_SPLIT_NO_EMPTY);
+
+        foreach ($palabras as $palabra) {
+            $query->where(function (Builder $coincidencias) use ($palabra): void {
+                $coincidencias->where('nombre', 'like', '%'.$palabra.'%')
+                    ->orWhere('codigo_barra', 'like', '%'.$palabra.'%')
+                    ->orWhere('codigo_origen', 'like', '%'.$palabra.'%');
+            });
+        }
+
+        return $query;
     }
 
     public function categoria(): BelongsTo

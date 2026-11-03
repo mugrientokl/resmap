@@ -59,7 +59,7 @@ class CatalogoController extends Controller
 
         $productosBuscador = Producto::query()
             ->where('activo', true)
-            ->select('id_producto', 'nombre', 'id_categoria')
+            ->select('id_producto', 'nombre', 'codigo_barra', 'codigo_origen', 'id_categoria')
             ->orderBy('nombre')
             ->get();
 
@@ -67,16 +67,7 @@ class CatalogoController extends Controller
             ->withSum('reservasActivas as stock_reservado', 'cantidad')
             ->where('activo', true)
             ->when($request->filled('nombre'), function ($query) use ($request): void {
-                $palabras = preg_split(
-                    '/\s+/u',
-                    trim($request->string('nombre')->toString()),
-                    -1,
-                    PREG_SPLIT_NO_EMPTY
-                );
-
-                foreach ($palabras as $palabra) {
-                    $query->where('nombre', 'like', '%'.$palabra.'%');
-                }
+                $query->buscarCoincidencias($request->string('nombre')->trim()->toString());
             })
             ->when($request->filled('categoria'), function ($query) use ($request): void {
                 $query->where(

@@ -163,6 +163,8 @@ class VentaController extends Controller
                 }
             }
 
+            $request->session()->flash('success', '¡Venta completada correctamente! El stock fue actualizado.');
+
             return response()->json([
                 'message' => 'Venta registrada con éxito, stock actualizado y cliente sincronizado.',
                 'resultado' => $resultado,

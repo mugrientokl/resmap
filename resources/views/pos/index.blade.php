@@ -41,7 +41,7 @@
                     class="w-full rounded-md border-gray-300 shadow-sm border p-2 text-gray-900 bg-white">
 
                 <div id="lista-sugerencias" style="display: none;"
-                    class="absolute left-0 top-full z-50 mt-1 w-full max-h-64 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                    class="absolute left-0 top-full z-40 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
                 </div>
 
                 <select id="datos-productos" hidden aria-hidden="true" tabindex="-1">
@@ -440,7 +440,10 @@ const productosSugeridos = Array.from(
     document.getElementById('datos-productos').options
 ).map(opcion => ({
     nombre: opcion.value,
-    codigo: opcion.dataset.codigo || ''
+    codigo: opcion.dataset.codigo || '',
+    palabras: normalizarBusqueda(`${opcion.value} ${opcion.dataset.codigo || ''}`)
+        .split(/\s+/)
+        .filter(Boolean)
 }));
 
 function cerrarSugerencias() {
@@ -456,12 +459,13 @@ function mostrarSugerencias() {
         return;
     }
 
-    const palabras = texto.split(/\s+/);
+    const palabras = texto.split(/\s+/).filter(Boolean);
 
     const coincidencias = productosSugeridos.filter(producto => {
-        const nombre = normalizarBusqueda(producto.nombre);
-        return palabras.every(palabra => nombre.includes(palabra));
-    }).slice(0, 30);
+        return palabras.every(palabra =>
+            producto.palabras.some(campo => campo.includes(palabra))
+        );
+    }).slice(0, 8);
 
     if (!coincidencias.length) {
         const mensaje = document.createElement('p');
@@ -488,8 +492,8 @@ function mostrarSugerencias() {
 
         boton.addEventListener('click', () => {
             buscadorProducto.value = producto.nombre;
-            buscadorProducto.focus();
             cerrarSugerencias();
+            document.getElementById('form-filtros').requestSubmit();
         });
 
         listaSugerencias.append(boton);
@@ -505,6 +509,7 @@ selectorProductos.addEventListener('keydown', event => {
     if (event.key === 'Escape') {
         buscadorProducto.focus();
         cerrarSugerencias();
+        return;
     }
 
     if (event.key === 'ArrowDown' && event.target === buscadorProducto) {
@@ -514,6 +519,24 @@ selectorProductos.addEventListener('keydown', event => {
         if (primera) {
             event.preventDefault();
             primera.focus();
+        }
+
+        return;
+    }
+
+    const opciones = Array.from(listaSugerencias.querySelectorAll('button'));
+    const indice = opciones.indexOf(document.activeElement);
+
+    if (indice !== -1 && event.key === 'ArrowDown') {
+        event.preventDefault();
+        opciones[(indice + 1) % opciones.length].focus();
+    } else if (indice !== -1 && event.key === 'ArrowUp') {
+        event.preventDefault();
+
+        if (indice === 0) {
+            buscadorProducto.focus();
+        } else {
+            opciones[indice - 1].focus();
         }
     }
 });
@@ -744,12 +767,6 @@ async function procesarVenta() {
 
         if (respuesta.status === 201) {
             limpiarBorrador();
-
-            await window.resmapAlert(
-                '¡Venta registrada y stock actualizado!',
-                'success'
-            );
-
             window.location.reload();
             return;
         }

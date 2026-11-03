@@ -13,14 +13,26 @@
         action="{{ route('clientes.index') }}"
         class="mb-6 flex flex-wrap gap-2"
     >
-        <input
-            type="search"
-            name="buscar"
-            value="{{ request('buscar') }}"
-            placeholder="Buscar por RUT, nombre o correo"
-            aria-label="Buscar clientes"
-            class="min-w-64 flex-1 rounded-md border border-gray-300 p-2 shadow-sm"
-        >
+        <div id="clientes-buscador" class="relative min-w-64 flex-1">
+            <input
+                type="search"
+                id="clientes-buscar"
+                name="buscar"
+                value="{{ request('buscar') }}"
+                placeholder="Buscar por RUT, nombre o correo"
+                aria-label="Buscar clientes"
+                autocomplete="off"
+                aria-controls="clientes-sugerencias"
+                aria-expanded="false"
+                class="w-full rounded-md border border-gray-300 p-2 shadow-sm"
+            >
+            <div
+                id="clientes-sugerencias"
+                class="absolute left-0 top-full z-40 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-md border border-gray-200 bg-white shadow-lg"
+                role="listbox"
+            ></div>
+            <p id="clientes-sugerencias-error" class="sr-only" role="status" aria-live="polite"></p>
+        </div>
 
         <button
             type="submit"
@@ -177,4 +189,143 @@
         {{ $clientes->links() }}
     </div>
 </div>
+
+<script>
+(() => {
+    const buscador = document.getElementById('clientes-buscar');
+    const contenedor = document.getElementById('clientes-buscador');
+    const lista = document.getElementById('clientes-sugerencias');
+    const estado = document.getElementById('clientes-sugerencias-error');
+    let temporizador;
+    let controlador;
+
+    function cerrarSugerencias() {
+        lista.replaceChildren();
+        lista.classList.add('hidden');
+        buscador.setAttribute('aria-expanded', 'false');
+    }
+
+    async function buscarSugerencias() {
+        const termino = buscador.value.trim();
+
+        if (termino.length < 2) {
+            cerrarSugerencias();
+            estado.textContent = '';
+            return;
+        }
+
+        controlador?.abort();
+        controlador = new AbortController();
+        estado.textContent = '';
+
+        try {
+            const url = new URL(@json(route('clientes.sugerencias')), window.location.origin);
+            url.searchParams.set('buscar', termino);
+
+            const respuesta = await fetch(url, {
+                headers: { Accept: 'application/json' },
+                signal: controlador.signal
+            });
+
+            if (!respuesta.ok) {
+                throw new Error('No fue posible obtener las sugerencias.');
+            }
+
+            const clientes = await respuesta.json();
+            lista.replaceChildren();
+
+            clientes.forEach(cliente => {
+                const opcion = document.createElement('button');
+                opcion.type = 'button';
+                opcion.setAttribute('role', 'option');
+                opcion.className =
+                    'block w-full border-b border-gray-100 px-4 py-3 text-left hover:bg-red-50 focus:bg-red-50';
+
+                const nombre = document.createElement('span');
+                nombre.className = 'block text-sm font-semibold text-gray-900';
+                nombre.textContent = cliente.nombre;
+
+                const identificadores = document.createElement('span');
+                identificadores.className = 'block text-xs text-gray-600';
+                identificadores.textContent =
+                    `${cliente.rut}${cliente.correo ? ` · ${cliente.correo}` : ''}`;
+
+                opcion.append(nombre, identificadores);
+                opcion.addEventListener('click', () => {
+                    buscador.value = cliente.rut;
+                    cerrarSugerencias();
+                    buscador.form.requestSubmit();
+                });
+                lista.append(opcion);
+            });
+
+            if (clientes.length === 0) {
+                const mensaje = document.createElement('p');
+                mensaje.className = 'px-4 py-3 text-sm text-gray-500';
+                mensaje.textContent = 'No se encontraron clientes.';
+                lista.append(mensaje);
+            }
+
+            lista.classList.remove('hidden');
+            buscador.setAttribute('aria-expanded', 'true');
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                cerrarSugerencias();
+                estado.textContent = 'No se pudieron cargar las sugerencias. Puedes usar Filtrar.';
+            }
+        }
+    }
+
+    buscador.addEventListener('input', () => {
+        window.clearTimeout(temporizador);
+        temporizador = window.setTimeout(buscarSugerencias, 200);
+    });
+
+    buscador.addEventListener('focus', buscarSugerencias);
+
+    buscador.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            cerrarSugerencias();
+        } else if (event.key === 'ArrowDown') {
+            const primeraOpcion = lista.querySelector('button');
+
+            if (primeraOpcion) {
+                event.preventDefault();
+                primeraOpcion.focus();
+            }
+        }
+    });
+
+    lista.addEventListener('keydown', event => {
+        const opciones = Array.from(lista.querySelectorAll('button'));
+        const indice = opciones.indexOf(document.activeElement);
+
+        if (indice === -1) {
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            opciones[(indice + 1) % opciones.length].focus();
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+
+            if (indice === 0) {
+                buscador.focus();
+            } else {
+                opciones[indice - 1].focus();
+            }
+        } else if (event.key === 'Escape') {
+            cerrarSugerencias();
+            buscador.focus();
+        }
+    });
+
+    document.addEventListener('click', event => {
+        if (!contenedor.contains(event.target)) {
+            cerrarSugerencias();
+        }
+    });
+})();
+</script>
 @endsection

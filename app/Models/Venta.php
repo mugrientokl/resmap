@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -50,6 +51,18 @@ class Venta extends Model
             'credito_autorizado_at' => 'datetime',
             'stock_descontado_at' => 'datetime',
         ];
+    }
+
+    public function scopeCompletadas(Builder $query): void
+    {
+        $query->where(function (Builder $query): void {
+            $query->whereNull('cotizacion_version_id')
+                ->orWhere(function (Builder $query): void {
+                    $query->where('estado_venta', 'confirmada')
+                        ->where('estado_facturacion', 'simulada_exitosa')
+                        ->where('estado_entrega', 'entregada');
+                });
+        });
     }
 
     public function user(): BelongsTo

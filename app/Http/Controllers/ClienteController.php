@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Cliente;
 use App\Rules\RutChileno;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -12,21 +14,59 @@ class ClienteController extends Controller
 {
     public function index(Request $request)
     {
+        $buscar = $request->string('buscar')->trim()->toString();
         $clientes = Cliente::query()
-            ->when($request->filled('buscar'), function ($query) use ($request): void {
-                $buscar = $request->string('buscar')->trim()->toString();
-
-                $query->where(function ($clienteQuery) use ($buscar): void {
-                    $clienteQuery->where('rut', 'like', "%{$buscar}%")
-                        ->orWhere('nombre', 'like', "%{$buscar}%")
-                        ->orWhere('correo', 'like', "%{$buscar}%");
-                });
-            })
+            ->when($buscar !== '', fn (Builder $query) => $this->filtrarClientes($query, $buscar))
             ->orderBy('nombre')
             ->paginate(20)
             ->withQueryString();
 
         return view('clientes.index', compact('clientes'));
+    }
+
+    public function sugerencias(Request $request): JsonResponse
+    {
+        $datos = $request->validate([
+            'buscar' => ['required', 'string', 'min:2', 'max:255'],
+        ]);
+
+        $clientes = $this->filtrarClientes(
+            Cliente::query()->select('id_cliente', 'nombre', 'rut', 'correo'),
+            trim($datos['buscar'])
+        )
+            ->orderBy('nombre')
+            ->limit(8)
+            ->get();
+
+        return response()->json($clientes);
+    }
+
+    private function filtrarClientes(Builder $query, string $buscar): Builder
+    {
+        $palabras = preg_split('/\s+/u', $buscar, -1, PREG_SPLIT_NO_EMPTY);
+
+        foreach ($palabras as $palabra) {
+            $rutNormalizado = strtoupper(
+                preg_replace('/[^0-9kK]/', '', $palabra) ?? ''
+            );
+            $buscarRutNormalizado = preg_match('/[0-9]/', $palabra) === 1
+                && $rutNormalizado !== '';
+
+            $query->where(function (Builder $coincidencias) use ($palabra, $rutNormalizado, $buscarRutNormalizado): void {
+                $coincidencias->where('nombre', 'like', '%'.$palabra.'%')
+                    ->orWhere('correo', 'like', '%'.$palabra.'%')
+                    ->orWhere('rut', 'like', '%'.$palabra.'%');
+
+                if ($buscarRutNormalizado) {
+                    $coincidencias->orWhereRaw(
+                        "UPPER(REPLACE(REPLACE(REPLACE(rut, '.', ''), '-', ''), ' ', '')) LIKE ?",
+                        ['%'.$rutNormalizado.'%']
+                    );
+                }
+            });
+        }
+
+        return $query;
     }
 
     public function buscarPorRut(Request $request)

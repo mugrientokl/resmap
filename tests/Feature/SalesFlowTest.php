@@ -46,6 +46,9 @@ class SalesFlowTest extends TestCase
             ->assertJsonPath('message', 'Venta registrada con éxito, stock actualizado y cliente sincronizado.')
             ->assertJsonMissingPath('resultado.integracion');
 
+        $this->get('/pos')
+            ->assertOk()
+            ->assertSee('¡Venta completada correctamente! El stock fue actualizado.');
         $this->assertDatabaseHas('ventas', ['total' => 1190]);
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 4]);
         Http::assertNothingSent();
