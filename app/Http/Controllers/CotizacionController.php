@@ -325,8 +325,12 @@ class CotizacionController extends Controller
         ]);
     }
 
-    public function mostrarRespuesta(int $version, string $token)
+    /**
+     * La plantilla aprobada de WhatsApp antepone el texto literal «{{1}}» al identificador.
+     */
+    public function mostrarRespuesta(string $version, string $token)
     {
+        $version = (int) preg_replace('/\D+/', '', str_replace('{{1}}', '', $version));
         $cotizacionVersion = CotizacionVersion::with([
             'cotizacion.solicitud.cliente',
             'detalles',

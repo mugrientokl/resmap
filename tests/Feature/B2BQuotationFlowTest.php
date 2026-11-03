@@ -514,6 +514,24 @@ class B2BQuotationFlowTest extends TestCase
         });
     }
 
+    public function test_whatsapp_url_button_with_literal_placeholder_prefix_opens_the_response_form(): void
+    {
+        Mail::fake();
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $this->actingAs($admin)->post(route('solicitudes.cotizacion.crear', $solicitudId));
+        $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
+        $this->post(route('cotizaciones.enviar', $versionId));
+        $mensaje = Mail::sent(CotizacionCliente::class)->first();
+        $token = basename((string) parse_url($mensaje->urlRespuesta, PHP_URL_PATH));
+        auth()->logout();
+
+        $this->get("/cotizaciones/%7B%7B1%7D%7D{$versionId}/responder/{$token}")
+            ->assertOk()
+            ->assertSee('Revisión de cotización');
+    }
+
     public function test_whatsapp_webhook_verification_accepts_meta_query_parameters(): void
     {
         config(['services.whatsapp.verify_token' => 'token-secreto']);

@@ -52,6 +52,7 @@ Route::middleware([
         ->name('cotizaciones.pdf.publico');
 
     Route::get('/cotizaciones/{version}/responder/{token}', [CotizacionController::class, 'mostrarRespuesta'])
+        ->where('version', '(?:\{\{1\}\})?\d+')
         ->name('cotizaciones.responder.form');
 
     Route::post('/cotizaciones/{version}/responder/{token}', [CotizacionController::class, 'responder'])
