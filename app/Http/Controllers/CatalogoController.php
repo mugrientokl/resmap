@@ -59,6 +59,7 @@ class CatalogoController extends Controller
 
         $productosBuscador = Producto::query()
             ->where('activo', true)
+            ->conStockDisponible()
             ->select('id_producto', 'nombre', 'codigo_barra', 'codigo_origen', 'id_categoria')
             ->orderBy('nombre')
             ->get();
@@ -66,6 +67,7 @@ class CatalogoController extends Controller
         $productos = Producto::with('categoria')
             ->withSum('reservasActivas as stock_reservado', 'cantidad')
             ->where('activo', true)
+            ->conStockDisponible()
             ->when($request->filled('nombre'), function ($query) use ($request): void {
                 $query->buscarCoincidencias($request->string('nombre')->trim()->toString());
             })

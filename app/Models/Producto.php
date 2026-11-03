@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Query\Builder as QueryBuilder;
 
 class Producto extends Model
 {
@@ -61,6 +62,17 @@ class Producto extends Model
         }
 
         return $query;
+    }
+
+    public function scopeConStockDisponible(Builder $query): Builder
+    {
+        return $query->where('stock', '>', function (QueryBuilder $reservas): void {
+            $reservas->from('reservas_inventario')
+                ->selectRaw('COALESCE(SUM(cantidad), 0)')
+                ->whereColumn('producto_id', 'productos.id_producto')
+                ->where('estado', 'activa')
+                ->where('expira_at', '>', now());
+        });
     }
 
     public function categoria(): BelongsTo

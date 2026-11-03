@@ -157,6 +157,28 @@ class CatalogoStockTest extends TestCase
         $this->assertDatabaseCount('solicitud_webs', 0);
     }
 
+    public function test_products_without_available_stock_are_hidden_from_catalog_and_search_suggestions(): void
+    {
+        $availableProductId = $this->createProductWithStock(3);
+        $unavailableProductId = $this->createProductWithStock(0);
+        DB::table('productos')->where('id_producto', $availableProductId)->update([
+            'nombre' => 'Producto disponible',
+        ]);
+        DB::table('productos')->where('id_producto', $unavailableProductId)->update([
+            'nombre' => 'Producto agotado',
+        ]);
+
+        $response = $this->get(route('catalogo.index'));
+
+        $response->assertOk()
+            ->assertSee('Producto disponible')
+            ->assertDontSee('Producto agotado');
+        $this->assertSame(
+            [$availableProductId],
+            $response->viewData('productosBuscador')->pluck('id_producto')->all()
+        );
+    }
+
     public function test_new_products_default_to_unit_and_active(): void
     {
         $productId = $this->createProductWithStock(3);
