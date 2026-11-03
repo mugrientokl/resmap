@@ -7,8 +7,11 @@ use App\Models\DetalleVenta;
 use App\Models\Producto;
 use App\Models\SolicitudWeb;
 use App\Models\Venta;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
@@ -16,6 +19,38 @@ class DashboardController extends Controller
     public function index(): View
     {
         $ahora = now();
+
+        return view('dashboard.index', $this->obtenerDatosDashboard($ahora));
+    }
+
+    public function exportarPdf(Request $request)
+    {
+        $ahora = now();
+        $datos = $this->obtenerDatosDashboard($ahora);
+        $periodosDisponibles = array_column($datos['ventasMensuales'], 'periodo');
+        $filtros = $request->validate([
+            'agrupacion' => ['nullable', Rule::in(['month', 'week'])],
+            'mes' => ['nullable', Rule::in($periodosDisponibles)],
+        ]);
+        $agrupacion = $filtros['agrupacion'] ?? 'month';
+        $mesSeleccionado = $filtros['mes'] ?? $ahora->format('Y-m');
+        $ventasPorPeriodo = $agrupacion === 'week'
+            ? $datos['ventasSemanalesPorMes'][$mesSeleccionado]
+            : $datos['ventasMensuales'];
+        $etiquetaMesSeleccionado = collect($datos['ventasMensuales'])
+            ->firstWhere('periodo', $mesSeleccionado)['etiqueta'];
+
+        return Pdf::loadView('dashboard.pdf', [
+            ...$datos,
+            'fechaGeneracion' => $ahora,
+            'agrupacion' => $agrupacion,
+            'mesSeleccionado' => $etiquetaMesSeleccionado,
+            'ventasPorPeriodo' => $ventasPorPeriodo,
+        ])->download('dashboard-resmap-'.$ahora->format('Y-m-d').'.pdf');
+    }
+
+    private function obtenerDatosDashboard(Carbon $ahora): array
+    {
         $inicioSemana = $ahora->copy()->startOfWeek();
         $inicioMes = $ahora->copy()->startOfMonth();
         $resumenSemana = $this->obtenerResumenVentas($inicioSemana, $ahora);
@@ -26,7 +61,7 @@ class DashboardController extends Controller
         $estadisticasGenerales = $this->obtenerEstadisticasGenerales($ahora);
         $ventasPorMes = $this->obtenerVentasMensuales($inicioUltimosSeisMeses, $ahora);
 
-        return view('dashboard.index', [
+        return [
             'ventasDiarias' => $this->obtenerVentasDiarias($inicioUltimosSieteDias, $ahora),
             'ventasMensuales' => $ventasPorMes,
             'ventasSemanalesPorMes' => $this->obtenerVentasSemanalesPorMes($inicioUltimosSeisMeses, $ahora),
@@ -39,7 +74,7 @@ class DashboardController extends Controller
             'ventasCotizacionesCompletadas' => Venta::completadas()->whereNotNull('cotizacion_version_id')->count(),
             'ventasPos' => $this->obtenerResumenVentasPos(),
             'cantidadStockCritico' => $cantidadStockCritico,
-        ]);
+        ];
     }
 
     /**

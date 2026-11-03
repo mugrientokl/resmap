@@ -10,9 +10,19 @@
             <h1>Resumen general</h1>
             <p class="subtitle">Bienvenido, {{ auth()->user()->name }}. Aquí tienes el estado de tu negocio.</p>
         </div>
-        <div class="header-date">
-            <i class="fas fa-calendar-alt" aria-hidden="true"></i>
-            <span id="current-date"></span>
+        <div class="flex flex-wrap items-center gap-3">
+            <a
+                id="dashboard-export-pdf"
+                href="{{ route('dashboard.exportar.pdf', ['agrupacion' => 'month']) }}"
+                class="relative z-10 inline-flex items-center gap-2 rounded-lg bg-[#b52f25] px-4 py-3 font-bold text-white shadow-sm transition hover:bg-[#8f241d]"
+            >
+                <i class="fas fa-file-pdf" aria-hidden="true"></i>
+                Descargar PDF
+            </a>
+            <div class="header-date">
+                <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                <span id="current-date"></span>
+            </div>
         </div>
     </div>
 
@@ -909,6 +919,20 @@
     const ventasMesSelect = document.getElementById('ventasMesSelect');
     const ventasMesFiltroContainer = document.getElementById('ventasMesFiltroContainer');
     const ventasPeriodoSubtitulo = document.getElementById('ventasPeriodoSubtitulo');
+    const exportarPdf = document.getElementById('dashboard-export-pdf');
+    const urlExportarPdf = @json(route('dashboard.exportar.pdf'));
+
+    function actualizarUrlExportarPdf() {
+        const parametros = new URLSearchParams({
+            agrupacion: ventasPeriodoSelect.value
+        });
+
+        if (ventasPeriodoSelect.value === 'week') {
+            parametros.set('mes', ventasMesSelect.value);
+        }
+
+        exportarPdf.href = `${urlExportarPdf}?${parametros.toString()}`;
+    }
 
     function actualizarGraficoVentasPorPeriodo() {
         const esVistaSemanal = ventasPeriodoSelect.value === 'week';
@@ -927,6 +951,7 @@
             : 'Monto total vendido por mes durante los últimos 6 meses.';
         ventasMesFiltroContainer.hidden = !esVistaSemanal;
         ventasPorPeriodoChart.update();
+        actualizarUrlExportarPdf();
     }
 
     ventasPeriodoSelect.addEventListener('change', actualizarGraficoVentasPorPeriodo);

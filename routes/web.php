@@ -102,6 +102,10 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('dashboard');
 
+    Route::get('/dashboard/exportar/pdf', [DashboardController::class, 'exportarPdf'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('dashboard.exportar.pdf');
+
     Route::get('/notificaciones', [NotificacionController::class, 'index'])
         ->middleware('auth')
         ->name('notificaciones.index');
