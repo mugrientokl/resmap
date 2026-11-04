@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cotizacion;
 use App\Models\DetalleVenta;
 use App\Models\Producto;
 use App\Models\SolicitudWeb;
@@ -11,111 +10,123 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function index(): View
-    {
-        $ahora = now();
+    private const MESES_HISTORIAL = 12;
 
-        return view('dashboard.index', $this->obtenerDatosDashboard($ahora));
+    public function index(Request $request): View
+    {
+        return view('dashboard.index', $this->obtenerDatosDashboard($request, now()));
     }
 
     public function exportarPdf(Request $request)
     {
         $ahora = now();
-        $datos = $this->obtenerDatosDashboard($ahora);
-        $periodosDisponibles = array_column($datos['ventasMensuales'], 'periodo');
-        $filtros = $request->validate([
-            'agrupacion' => ['nullable', Rule::in(['month', 'week'])],
-            'mes' => ['nullable', Rule::in($periodosDisponibles)],
-        ]);
-        $agrupacion = $filtros['agrupacion'] ?? 'month';
-        $mesSeleccionado = $filtros['mes'] ?? $ahora->format('Y-m');
-        $ventasPorPeriodo = $agrupacion === 'week'
-            ? $datos['ventasSemanalesPorMes'][$mesSeleccionado]
-            : $datos['ventasMensuales'];
-        $etiquetaMesSeleccionado = collect($datos['ventasMensuales'])
-            ->firstWhere('periodo', $mesSeleccionado)['etiqueta'];
+        $logo = file_get_contents(public_path('images/resmap sin fondo.png'));
 
         return Pdf::loadView('dashboard.pdf', [
-            ...$datos,
+            ...$this->obtenerDatosDashboard($request, $ahora),
             'fechaGeneracion' => $ahora,
-            'agrupacion' => $agrupacion,
-            'mesSeleccionado' => $etiquetaMesSeleccionado,
-            'ventasPorPeriodo' => $ventasPorPeriodo,
-        ])->download('dashboard-resmap-'.$ahora->format('Y-m-d').'.pdf');
+            'logoDataUri' => 'data:image/png;base64,'.base64_encode($logo === false ? '' : $logo),
+        ])->setPaper('a4')->download('dashboard-resmap-'.$ahora->format('Y-m-d').'.pdf');
     }
 
-    private function obtenerDatosDashboard(Carbon $ahora): array
+    private function obtenerDatosDashboard(Request $request, Carbon $ahora): array
     {
-        $inicioSemana = $ahora->copy()->startOfWeek();
-        $inicioMes = $ahora->copy()->startOfMonth();
-        $resumenSemana = $this->obtenerResumenVentas($inicioSemana, $ahora);
-        $resumenMes = $this->obtenerResumenVentas($inicioMes, $ahora);
-        $inicioUltimosSieteDias = $ahora->copy()->startOfDay()->subDays(6);
-        $inicioUltimosSeisMeses = $inicioMes->copy()->subMonths(5);
-        $cantidadStockCritico = $this->obtenerCantidadProductosStockCritico();
-        $estadisticasGenerales = $this->obtenerEstadisticasGenerales($ahora);
-        $ventasPorMes = $this->obtenerVentasMensuales($inicioUltimosSeisMeses, $ahora);
+        $inicioMesActual = $ahora->copy()->startOfMonth();
+        $inicioHistorial = $inicioMesActual->copy()->subMonths(self::MESES_HISTORIAL - 1);
+        $ventasMensuales = $this->obtenerVentasMensuales($inicioHistorial, $ahora);
+        $seleccion = $this->resolverSeleccion($request, $ahora, array_column($ventasMensuales, 'periodo'));
 
         return [
-            'ventasDiarias' => $this->obtenerVentasDiarias($inicioUltimosSieteDias, $ahora),
-            'ventasMensuales' => $ventasPorMes,
-            'ventasSemanalesPorMes' => $this->obtenerVentasSemanalesPorMes($inicioUltimosSeisMeses, $ahora),
-            'productosMasVendidosSemana' => $this->obtenerProductosMasVendidos($inicioSemana, $ahora),
-            'productosMasVendidosMes' => $this->obtenerProductosMasVendidos($inicioMes, $ahora),
-            'resumenSemana' => $resumenSemana,
-            'resumenMes' => $resumenMes,
-            'estadisticasGenerales' => $estadisticasGenerales,
-            'totalCotizaciones' => Cotizacion::query()->count(),
-            'ventasCotizacionesCompletadas' => Venta::completadas()->whereNotNull('cotizacion_version_id')->count(),
-            'ventasPos' => $this->obtenerResumenVentasPos(),
-            'cantidadStockCritico' => $cantidadStockCritico,
+            'seleccion' => $seleccion,
+            'ventasMensuales' => $ventasMensuales,
+            'ventasDiarias' => $this->obtenerVentasDiarias($seleccion['inicioMes'], $seleccion['finMes']->copy()->min($ahora)),
+            'productosMasVendidos' => $this->obtenerProductosMasVendidos($seleccion['desde'], $seleccion['hasta']),
+            'resumen' => $this->obtenerResumen($seleccion['desde'], $seleccion['hasta']),
+            'cantidadStockCritico' => Producto::query()->whereColumn('stock', '<=', 'stock_critico')->count(),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $periodosDisponibles
+     * @return array{mes: string, dia: ?int, etiqueta: string, descripcion: string, inicioMes: Carbon, finMes: Carbon, desde: Carbon, hasta: Carbon}
+     */
+    private function resolverSeleccion(Request $request, Carbon $ahora, array $periodosDisponibles): array
+    {
+        $mes = (string) $request->query('mes');
+        $mes = in_array($mes, $periodosDisponibles, true) ? $mes : $ahora->format('Y-m');
+        $inicioMes = Carbon::createFromFormat('Y-m-d', $mes.'-01')->startOfDay();
+        $finMes = $inicioMes->copy()->endOfMonth();
+        $dia = filter_var($request->query('dia'), FILTER_VALIDATE_INT);
+        $dia = $dia !== false && $dia >= 1 && $dia <= $inicioMes->daysInMonth && $inicioMes->copy()->day($dia)->lte($ahora)
+            ? $dia
+            : null;
+        $etiquetaMes = $inicioMes->copy()->locale('es')->isoFormat('MMMM YYYY');
+
+        if ($dia === null) {
+            return [
+                'mes' => $mes,
+                'dia' => null,
+                'etiqueta' => $etiquetaMes,
+                'descripcion' => 'Ventas completadas de '.$etiquetaMes,
+                'inicioMes' => $inicioMes,
+                'finMes' => $finMes,
+                'desde' => $inicioMes,
+                'hasta' => $finMes,
+            ];
+        }
+
+        $fecha = $inicioMes->copy()->day($dia);
+
+        return [
+            'mes' => $mes,
+            'dia' => $dia,
+            'etiqueta' => $fecha->copy()->locale('es')->isoFormat('D [de] MMMM YYYY'),
+            'descripcion' => 'Ventas completadas del '.$fecha->copy()->locale('es')->isoFormat('D [de] MMMM YYYY'),
+            'inicioMes' => $inicioMes,
+            'finMes' => $finMes,
+            'desde' => $fecha->copy()->startOfDay(),
+            'hasta' => $fecha->copy()->endOfDay(),
+        ];
+    }
+
+    /**
+     * @return array{
+     *     total: array{cantidad: int, monto: float},
+     *     pos: array{cantidad: int, monto: float},
+     *     cotizaciones: array{cantidad: int, monto: float}
+     * }
+     */
+    private function obtenerResumen(Carbon $desde, Carbon $hasta): array
+    {
+        $ventas = fn (): Builder => $this->ventasCompletadasEntre($desde, $hasta);
+
+        return [
+            'total' => $this->resumirVentas($ventas()),
+            'pos' => $this->resumirVentas(
+                $ventas()
+                    ->whereNull('cotizacion_version_id')
+                    ->whereNotIn('id_venta', SolicitudWeb::query()->select('venta_id')->whereNotNull('venta_id'))
+            ),
+            'cotizaciones' => $this->resumirVentas($ventas()->whereNotNull('cotizacion_version_id')),
         ];
     }
 
     /**
      * @return array{cantidad: int, monto: float}
      */
-    private function obtenerResumenVentas(Carbon $desde, Carbon $hasta): array
+    private function resumirVentas(Builder $consulta): array
     {
-        $resumen = $this->ventasCompletadasEntre($desde, $hasta)
-            ->selectRaw('COUNT(*) as cantidad, COALESCE(SUM(total), 0) as monto')
-            ->firstOrFail();
+        $resumen = $consulta->selectRaw('COUNT(*) as cantidad, COALESCE(SUM(total), 0) as monto')->firstOrFail();
 
-        return [
-            'cantidad' => (int) $resumen->cantidad,
-            'monto' => (float) $resumen->monto,
-        ];
+        return ['cantidad' => (int) $resumen->cantidad, 'monto' => (float) $resumen->monto];
     }
 
     /**
-     * @return array<int, array{etiqueta: string, total: float}>
-     */
-    private function obtenerVentasDiarias(Carbon $desde, Carbon $hasta): array
-    {
-        $ventasPorFecha = $this->ventasCompletadasEntre($desde, $hasta)
-            ->get(['fecha', 'total'])
-            ->groupBy(fn (Venta $venta): string => $venta->fecha->toDateString());
-        $ventasDiarias = [];
-
-        for ($fecha = $desde->copy(); $fecha->lte($hasta); $fecha->addDay()) {
-            $fechaClave = $fecha->toDateString();
-
-            $ventasDiarias[] = [
-                'etiqueta' => $fecha->locale('es')->isoFormat('D [de] MMMM YYYY'),
-                'total' => (float) $ventasPorFecha->get($fechaClave, collect())->sum('total'),
-            ];
-        }
-
-        return $ventasDiarias;
-    }
-
-    /**
-     * @return array<int, array{etiqueta: string, periodo: string, total: float}>
+     * @return array<int, array{etiqueta: string, periodo: string, total: float, cantidad: int}>
      */
     private function obtenerVentasMensuales(Carbon $desde, Carbon $hasta): array
     {
@@ -125,12 +136,15 @@ class DashboardController extends Controller
         $ventasMensuales = [];
 
         for ($mes = $desde->copy()->startOfMonth(); $mes->lte($hasta); $mes->addMonth()) {
-            $mesClave = $mes->format('Y-m');
+            $clave = $mes->format('Y-m');
+            $ventas = $ventasPorMes->get($clave, collect());
 
             $ventasMensuales[] = [
-                'etiqueta' => $mes->locale('es')->isoFormat('MMMM YYYY'),
-                'periodo' => $mesClave,
-                'total' => (float) $ventasPorMes->get($mesClave, collect())->sum('total'),
+                'etiqueta' => $mes->copy()->locale('es')->isoFormat('MMMM YYYY'),
+                'etiquetaCorta' => ucfirst($mes->copy()->locale('es')->isoFormat('MMM YY')),
+                'periodo' => $clave,
+                'total' => (float) $ventas->sum('total'),
+                'cantidad' => $ventas->count(),
             ];
         }
 
@@ -138,37 +152,27 @@ class DashboardController extends Controller
     }
 
     /**
-     * @return array<string, array<int, array{etiqueta: string, total: float}>>
+     * @return array<int, array{etiqueta: string, dia: int, total: float, cantidad: int}>
      */
-    private function obtenerVentasSemanalesPorMes(Carbon $desde, Carbon $hasta): array
+    private function obtenerVentasDiarias(Carbon $inicioMes, Carbon $hasta): array
     {
-        $ventasEnPeriodo = $this->ventasCompletadasEntre($desde, $hasta)->get(['fecha', 'total']);
-        $ventasSemanalesPorMes = [];
+        $ventasPorDia = $this->ventasCompletadasEntre($inicioMes, $hasta->copy()->endOfDay())
+            ->get(['fecha', 'total'])
+            ->groupBy(fn (Venta $venta): int => $venta->fecha->day);
+        $ventasDiarias = [];
 
-        for ($mes = $desde->copy()->startOfMonth(); $mes->lte($hasta); $mes->addMonth()) {
-            $inicioMes = $mes->copy()->startOfMonth();
-            $finMes = $mes->copy()->endOfMonth()->min($hasta);
-            $ventasPorSemana = $ventasEnPeriodo
-                ->filter(fn (Venta $venta): bool => $venta->fecha->gte($inicioMes) && $venta->fecha->lte($finMes))
-                ->groupBy(fn (Venta $venta): string => $venta->fecha->copy()->startOfWeek()->toDateString());
-            $semanasDelMes = [];
+        for ($dia = 1; $dia <= $hasta->day; $dia++) {
+            $ventas = $ventasPorDia->get($dia, collect());
 
-            for ($semana = $inicioMes->copy()->startOfWeek(); $semana->lte($finMes); $semana->addWeek()) {
-                $semanaClave = $semana->toDateString();
-                $inicioPeriodo = $semana->copy()->max($inicioMes);
-                $finPeriodo = $semana->copy()->endOfWeek()->min($finMes);
-
-                $semanasDelMes[] = [
-                    'etiqueta' => $inicioPeriodo->locale('es')->isoFormat('D MMM')
-                        .' - '.$finPeriodo->locale('es')->isoFormat('D MMM'),
-                    'total' => (float) $ventasPorSemana->get($semanaClave, collect())->sum('total'),
-                ];
-            }
-
-            $ventasSemanalesPorMes[$mes->format('Y-m')] = $semanasDelMes;
+            $ventasDiarias[] = [
+                'etiqueta' => (string) $dia,
+                'dia' => $dia,
+                'total' => (float) $ventas->sum('total'),
+                'cantidad' => $ventas->count(),
+            ];
         }
 
-        return $ventasSemanalesPorMes;
+        return $ventasDiarias;
     }
 
     /**
@@ -185,7 +189,7 @@ class DashboardController extends Controller
             ->groupBy('detalle_ventas.id_producto', 'productos.nombre')
             ->orderByDesc('total_vendido')
             ->orderBy('productos.nombre')
-            ->limit(5)
+            ->limit(10)
             ->get()
             ->map(fn (object $producto): array => [
                 'etiqueta' => (string) $producto->nombre,
@@ -194,48 +198,8 @@ class DashboardController extends Controller
             ->all();
     }
 
-    /**
-     * @return array{cantidad: int, monto: float}
-     */
-    private function obtenerResumenVentasPos(): array
-    {
-        $ventasPos = Venta::completadas()
-            ->whereNull('cotizacion_version_id')
-            ->whereNotIn('id_venta', SolicitudWeb::query()->select('venta_id')->whereNotNull('venta_id'));
-
-        return [
-            'cantidad' => (clone $ventasPos)->count(),
-            'monto' => (float) $ventasPos->sum('total'),
-        ];
-    }
-
-    /**
-     * @return array{
-     *     monto_total_ventas: float,
-     *     ventas_hoy: float,
-     *     cantidad_ventas_hoy: int
-     * }
-     */
-    private function obtenerEstadisticasGenerales(Carbon $ahora): array
-    {
-        $ventasHoy = $this->obtenerResumenVentas($ahora->copy()->startOfDay(), $ahora);
-
-        return [
-            'monto_total_ventas' => (float) Venta::completadas()->sum('total'),
-            'ventas_hoy' => $ventasHoy['monto'],
-            'cantidad_ventas_hoy' => $ventasHoy['cantidad'],
-        ];
-    }
-
     private function ventasCompletadasEntre(Carbon $desde, Carbon $hasta): Builder
     {
         return Venta::completadas()->whereBetween('fecha', [$desde, $hasta]);
-    }
-
-    private function obtenerCantidadProductosStockCritico(): int
-    {
-        return Producto::query()
-            ->whereColumn('stock', '<=', 'stock_critico')
-            ->count();
     }
 }

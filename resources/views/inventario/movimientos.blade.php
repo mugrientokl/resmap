@@ -26,11 +26,6 @@
                 <input id="movement-filter-product-search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="movement-filter-product-options" autocomplete="off" placeholder="Todos los productos" value="{{ $productoFiltrado ? $productoFiltrado->nombre.' | Cat: '.($productoFiltrado->categoria->nombre_categoria ?? 'Sin Categoría').' | Stock: '.$productoFiltrado->stock : '' }}" class="w-full rounded-md border border-gray-300 p-2 text-sm focus:border-[#b52f25] focus:outline-none">
                 <input type="hidden" id="movement-filter-product-value" name="producto" value="{{ request('producto') }}">
                 <div id="movement-filter-product-options" role="listbox" class="absolute left-0 top-full z-30 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                    @foreach($productos as $prod)
-                        @php($catNombre = $prod->categoria->nombre_categoria ?? 'Sin Categoría')
-                        @php($productoLabel = $prod->nombre.' | Cat: '.$catNombre.' | Stock: '.$prod->stock)
-                        <button id="movement-filter-product-option-{{ $prod->id_producto }}" type="button" role="option" aria-selected="false" data-product-id="{{ $prod->id_producto }}" data-search="{{ $prod->nombre.' '.$catNombre.' '.$prod->codigo_barra.' '.($prod->codigo_origen ?? '') }}" data-label="{{ $productoLabel }}" class="hidden w-full px-3 py-2 text-left text-sm hover:bg-[#f7e8e6] focus:bg-[#f7e8e6] focus:outline-none">{{ $productoLabel }}</button>
-                    @endforeach
                     <p class="picker-no-results hidden px-3 py-2 text-sm text-gray-500">No hay repuestos que coincidan con la búsqueda.</p>
                 </div>
             </div>
@@ -136,11 +131,6 @@
                 <input id="movement-product-search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="movement-product-options" autocomplete="off" required placeholder="Escribe el nombre o código del repuesto..." class="w-full rounded-md border border-gray-300 p-2 text-sm focus:border-[#b52f25] focus:outline-none">
                 <input type="hidden" id="movement-product-value" name="id_producto" value="{{ old('id_producto') }}" required>
                 <div id="movement-product-options" role="listbox" class="absolute left-0 top-full z-30 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                    @foreach($productos as $prod)
-                        @php($catNombre = $prod->categoria->nombre_categoria ?? 'Sin Categoría')
-                        @php($productoLabel = $prod->nombre.' | Cat: '.$catNombre.' | Stock: '.$prod->stock)
-                        <button id="movement-product-option-{{ $prod->id_producto }}" type="button" role="option" aria-selected="false" data-product-id="{{ $prod->id_producto }}" data-category-id="{{ $prod->id_categoria }}" data-current-stock="{{ $prod->stock }}" data-search="{{ $prod->nombre.' '.$catNombre.' '.$prod->codigo_barra.' '.($prod->codigo_origen ?? '') }}" data-label="{{ $productoLabel }}" class="hidden w-full px-3 py-2 text-left text-sm hover:bg-[#f7e8e6] focus:bg-[#f7e8e6] focus:outline-none">{{ $productoLabel }}</button>
-                    @endforeach
                     <p class="picker-no-results hidden px-3 py-2 text-sm text-gray-500">No hay repuestos que coincidan con la búsqueda.</p>
                 </div>
                 <label for="movement-product-category" class="mb-1 mt-3 block text-sm font-medium text-gray-700">Filtrar por categoría</label>
@@ -185,6 +175,7 @@
         </form>
     </div>
 </div>
+<script type="application/json" id="movement-products-data">@json($catalogoProductos)</script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
         const normalize = (value) => value
@@ -192,6 +183,32 @@
             .replace(/[\u0300-\u036f]/g, '')
             .toLocaleLowerCase('es')
             .trim();
+
+        const productCatalog = JSON.parse(document.getElementById('movement-products-data').textContent);
+
+        // Las opciones se generan una sola vez desde el JSON para no duplicar ~1.000 botones por selector en el HTML.
+        const buildProductOptions = (suggestions) => {
+            const prefix = suggestions.id.replace(/-options$/, '-option-');
+            const fragment = document.createDocumentFragment();
+
+            productCatalog.forEach((product) => {
+                const option = document.createElement('button');
+                option.id = prefix + product.id;
+                option.type = 'button';
+                option.setAttribute('role', 'option');
+                option.setAttribute('aria-selected', 'false');
+                option.dataset.productId = product.id;
+                option.dataset.categoryId = product.categoria ?? '';
+                option.dataset.currentStock = product.stock;
+                option.dataset.search = product.busqueda;
+                option.dataset.label = product.etiqueta;
+                option.className = 'hidden w-full px-3 py-2 text-left text-sm hover:bg-[#f7e8e6] focus:bg-[#f7e8e6] focus:outline-none';
+                option.textContent = product.etiqueta;
+                fragment.appendChild(option);
+            });
+
+            suggestions.prepend(fragment);
+        };
 
         document.querySelectorAll('.product-picker').forEach((picker) => {
             const searchInput = picker.querySelector('[role="combobox"]');
@@ -204,6 +221,7 @@
                 return;
             }
 
+            buildProductOptions(suggestions);
             const productOptions = Array.from(suggestions.querySelectorAll('[data-product-id]'));
             let visibleOptions = [];
             let highlightedIndex = -1;

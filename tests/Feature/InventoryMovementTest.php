@@ -15,7 +15,6 @@ class InventoryMovementTest extends TestCase
     public function test_admin_can_search_products_and_filter_them_by_category(): void
     {
         [$admin, $productId] = $this->createInventoryFixture(3);
-        $categoryId = DB::table('categorias')->where('nombre_categoria', 'Pruebas')->value('id_categoria');
 
         $response = $this->actingAs($admin)->get(route('inventario.movimientos'));
 
@@ -26,10 +25,10 @@ class InventoryMovementTest extends TestCase
             ->assertSee('Todas las categorías')
             ->assertSee('Registrar Movimiento')
             ->assertSee('role="dialog"', false)
-            ->assertSee('data-product-id="'.$productId.'"', false)
-            ->assertSee('data-current-stock="3"', false)
+            ->assertSee('id="movement-products-data"', false)
+            ->assertSee('"id":'.$productId, false)
+            ->assertSee('"stock":3', false)
             ->assertSee('data-confirm-title="Confirmar movimiento de inventario"', false)
-            ->assertSee('data-category-id="'.$categoryId.'"', false)
             ->assertSee('Producto de prueba');
     }
 

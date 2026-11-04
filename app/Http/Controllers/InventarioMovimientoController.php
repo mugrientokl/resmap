@@ -39,12 +39,38 @@ class InventarioMovimientoController extends Controller
 
         return view('inventario.movimientos', [
             'movimientos' => $movimientos,
-            'productos' => Producto::with('categoria')->orderBy('nombre')->get(),
+            'catalogoProductos' => $this->catalogoProductos(),
             'categorias' => Categoria::orderBy('nombre_categoria')->get(),
             'productoFiltrado' => isset($filters['producto'])
                 ? Producto::with('categoria')->find($filters['producto'])
                 : null,
         ]);
+    }
+
+    /**
+     * @return array<int, array{id: int, categoria: ?int, stock: int, busqueda: string, etiqueta: string}>
+     */
+    private function catalogoProductos(): array
+    {
+        return Producto::query()
+            ->leftJoin('categorias', 'categorias.id_categoria', '=', 'productos.id_categoria')
+            ->orderBy('productos.nombre')
+            ->get([
+                'productos.id_producto', 'productos.nombre', 'productos.codigo_barra', 'productos.codigo_origen',
+                'productos.stock', 'productos.id_categoria', 'categorias.nombre_categoria',
+            ])
+            ->map(function (Producto $producto): array {
+                $categoria = $producto->nombre_categoria ?? 'Sin Categoría';
+
+                return [
+                    'id' => $producto->id_producto,
+                    'categoria' => $producto->id_categoria,
+                    'stock' => (int) $producto->stock,
+                    'busqueda' => trim($producto->nombre.' '.$categoria.' '.$producto->codigo_barra.' '.($producto->codigo_origen ?? '')),
+                    'etiqueta' => $producto->nombre.' | Cat: '.$categoria.' | Stock: '.$producto->stock,
+                ];
+            })
+            ->all();
     }
 
     public function show(InventarioMovimiento $movimiento)

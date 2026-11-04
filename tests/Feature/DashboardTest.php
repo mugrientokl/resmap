@@ -18,173 +18,149 @@ class DashboardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_dashboard_displays_sales_count_as_a_quantity(): void
+    private function venta(User $usuario, float $total, $fecha = null, array $extra = []): Venta
+    {
+        return Venta::create([
+            'fecha' => $fecha ?? now(),
+            'tipo_documento' => 'Boleta Electrónica',
+            'neto' => round($total / 1.19, 2),
+            'iva' => $total - round($total / 1.19, 2),
+            'total' => $total,
+            'medio_pago' => 'Efectivo',
+            'user_id' => $usuario->id,
+            ...$extra,
+        ]);
+    }
+
+    private function producto(string $codigo, string $nombre): Producto
+    {
+        $categoria = Categoria::firstOrCreate(['nombre_categoria' => 'Accesorios'], ['descripcion' => 'Pruebas']);
+
+        return Producto::create([
+            'codigo_barra' => $codigo,
+            'nombre' => $nombre,
+            'precio' => 1000,
+            'stock' => 100,
+            'stock_critico' => 2,
+            'id_categoria' => $categoria->id_categoria,
+        ]);
+    }
+
+    private function detalle(Venta $venta, Producto $producto, int $cantidad): void
+    {
+        DetalleVenta::create([
+            'id_venta' => $venta->id_venta,
+            'id_producto' => $producto->id_producto,
+            'cantidad' => $cantidad,
+            'precio_unitario' => 1000,
+            'subtotal' => 1000 * $cantidad,
+        ]);
+    }
+
+    public function test_dashboard_shows_only_the_essential_cards_and_no_quick_actions(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $this->venta($admin, 2380);
+
+        $this->actingAs($admin)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Monto vendido')
+            ->assertSee('Cantidad de ventas')
+            ->assertSee('Ventas en POS')
+            ->assertSee('Ventas por cotización')
+            ->assertSee('$2.380')
+            ->assertSee('Período de los indicadores')
+            ->assertSee(ucfirst(now()->locale('es')->isoFormat('MMMM YYYY')))
+            ->assertDontSee('Accesos rápidos')
+            ->assertDontSee('Monto vendido hoy')
+            ->assertDontSee('Total de cotizaciones')
+            ->assertDontSee('Productos más vendidos esta semana')
+            ->assertSee('Top 10 productos más vendidos del mes')
+            ->assertSee('ventasMensualesChart', false)
+            ->assertSee('ventasDiariasChart', false);
+    }
+
+    public function test_selecting_a_month_filters_cards_charts_and_top_products(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $actual = $this->producto('DASH-001', 'Producto del mes actual');
+        $anterior = $this->producto('DASH-002', 'Producto del mes anterior');
+        $fechaAnterior = now()->subMonthNoOverflow()->startOfMonth()->addDays(2)->setTime(11, 0);
+
+        $ventaActual = $this->venta($admin, 2380, now()->startOfMonth()->setTime(10, 0));
+        $ventaAnterior = $this->venta($admin, 5950, $fechaAnterior);
+        $this->detalle($ventaActual, $actual, 3);
+        $this->detalle($ventaAnterior, $anterior, 5);
+
+        $this->actingAs($admin)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertViewHas('resumen', fn (array $r): bool => $r['total'] === ['cantidad' => 1, 'monto' => 2380.0])
+            ->assertSee('Producto del mes actual')
+            ->assertDontSee('Producto del mes anterior');
+
+        $this->actingAs($admin)
+            ->get(route('dashboard', ['mes' => $fechaAnterior->format('Y-m')]))
+            ->assertOk()
+            ->assertViewHas('resumen', fn (array $r): bool => $r['total'] === ['cantidad' => 1, 'monto' => 5950.0])
+            ->assertViewHas('ventasDiarias', fn (array $d): bool => count($d) === $fechaAnterior->daysInMonth
+                && $d[2]['total'] === 5950.0)
+            ->assertViewHas('productosMasVendidos', fn (array $p): bool => $p === [['etiqueta' => 'Producto del mes anterior', 'total_vendido' => 5]])
+            ->assertSee('$5.950')
+            ->assertSee(ucfirst($fechaAnterior->locale('es')->isoFormat('MMMM YYYY')));
+    }
+
+    public function test_selecting_a_day_filters_cards_and_top_products_to_that_day(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $producto = $this->producto('DASH-003', 'Producto de un día');
+        $otro = $this->producto('DASH-004', 'Producto de otro día');
+        $fecha = now()->subMonthNoOverflow()->startOfMonth()->addDays(9)->setTime(12, 0);
+        $ventaDia = $this->venta($admin, 1190, $fecha);
+        $ventaOtroDia = $this->venta($admin, 3570, $fecha->copy()->addDay());
+        $this->detalle($ventaDia, $producto, 2);
+        $this->detalle($ventaOtroDia, $otro, 4);
+
+        $this->actingAs($admin)
+            ->get(route('dashboard', ['mes' => $fecha->format('Y-m'), 'dia' => $fecha->day]))
+            ->assertOk()
+            ->assertViewHas('resumen', fn (array $r): bool => $r['total'] === ['cantidad' => 1, 'monto' => 1190.0])
+            ->assertViewHas('productosMasVendidos', fn (array $p): bool => count($p) === 1 && $p[0]['etiqueta'] === 'Producto de un día')
+            ->assertSee('Top 10 productos del día')
+            ->assertSee('Ver todo el mes');
+    }
+
+    public function test_invalid_filters_fall_back_to_the_current_month(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
 
-        foreach (range(1, 2) as $saleNumber) {
-            Venta::create([
-                'fecha' => now(),
-                'tipo_documento' => 'Boleta Electrónica',
-                'neto' => 1000,
-                'iva' => 190,
-                'total' => 1190,
-                'medio_pago' => 'Efectivo',
-                'user_id' => $admin->id,
-            ]);
+        $this->actingAs($admin)
+            ->get(route('dashboard', ['mes' => '1999-01', 'dia' => '99']))
+            ->assertOk()
+            ->assertViewHas('seleccion', fn (array $s): bool => $s['mes'] === now()->format('Y-m') && $s['dia'] === null);
+    }
+
+    public function test_top_products_are_limited_to_ten(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $venta = $this->venta($admin, 5000, now()->startOfMonth()->setTime(9, 0));
+
+        foreach (range(1, 12) as $numero) {
+            $this->detalle($venta, $this->producto('TOP-'.$numero, 'Producto top '.$numero), 20 - $numero);
         }
 
         $this->actingAs($admin)
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertSee('Cantidad de ventas esta semana')
-            ->assertSee('Ventas completadas')
-            ->assertSee('Monto vendido hoy')
-            ->assertSee('$2.380,00')
-            ->assertSee('Monto de ventas completadas hoy')
-            ->assertSee('Cantidad de ventas hoy')
-            ->assertSee('Monto vendido esta semana')
-            ->assertSee('Monto vendido este mes')
-            ->assertSee('Monto total vendido')
-            ->assertSee('Total de cotizaciones')
-            ->assertSee('Ventas completadas en POS')
-            ->assertSee('$2.380,00')
-            ->assertDontSee('<h3>Productos</h3>', false)
-            ->assertDontSee('<h3>Clientes</h3>', false)
-            ->assertDontSee('Ticket promedio del mes')
-            ->assertDontSee('Unidades vendidas este mes');
+            ->get(route('dashboard'))
+            ->assertViewHas('productosMasVendidos', fn (array $p): bool => count($p) === 10 && $p[0]['etiqueta'] === 'Producto top 1');
     }
 
-    public function test_dashboard_summarizes_weekly_and_monthly_sales_and_top_products(): void
+    public function test_dashboard_separates_completed_quotation_sales_and_pos_sales(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
-        $categoria = Categoria::create([
-            'nombre_categoria' => 'Accesorios',
-            'descripcion' => 'Accesorios para pruebas',
-        ]);
-        $producto = Producto::create([
-            'codigo_barra' => 'DASH-001',
-            'nombre' => 'Producto destacado',
-            'precio' => 1000,
-            'stock' => 10,
-            'stock_critico' => 2,
-            'id_categoria' => $categoria->id_categoria,
-        ]);
-        $productoMesAnterior = Producto::create([
-            'codigo_barra' => 'DASH-002',
-            'nombre' => 'Producto solo del mes anterior',
-            'precio' => 1000,
-            'stock' => 30,
-            'stock_critico' => 2,
-            'id_categoria' => $categoria->id_categoria,
-        ]);
-        $ventaEstaSemana = Venta::create([
-            'fecha' => now()->startOfWeek(),
-            'tipo_documento' => 'Boleta Electrónica',
-            'neto' => 2000,
-            'iva' => 380,
-            'total' => 2380,
-            'medio_pago' => 'Efectivo',
-            'user_id' => $admin->id,
-        ]);
-        $ventaMesAnterior = Venta::create([
-            'fecha' => now()->subMonth()->startOfMonth(),
-            'tipo_documento' => 'Boleta Electrónica',
-            'neto' => 1000,
-            'iva' => 190,
-            'total' => 1190,
-            'medio_pago' => 'Efectivo',
-            'user_id' => $admin->id,
-        ]);
-
-        DetalleVenta::create([
-            'id_venta' => $ventaEstaSemana->id_venta,
-            'id_producto' => $producto->id_producto,
-            'cantidad' => 3,
-            'precio_unitario' => 1000,
-            'subtotal' => 3000,
-        ]);
-        DetalleVenta::create([
-            'id_venta' => $ventaMesAnterior->id_venta,
-            'id_producto' => $producto->id_producto,
-            'cantidad' => 8,
-            'precio_unitario' => 1000,
-            'subtotal' => 8000,
-        ]);
-        DetalleVenta::create([
-            'id_venta' => $ventaMesAnterior->id_venta,
-            'id_producto' => $productoMesAnterior->id_producto,
-            'cantidad' => 20,
-            'precio_unitario' => 1000,
-            'subtotal' => 20000,
-        ]);
-
-        $this->actingAs($admin)
-            ->get('/dashboard')
-            ->assertOk()
-            ->assertSee('Cantidad de ventas esta semana')
-            ->assertSee('$2.380,00')
-            ->assertSee('Monto vendido este mes')
-            ->assertSee('Monto vendido esta semana')
-            ->assertSee('Cantidad de ventas esta semana')
-            ->assertSee('Producto destacado')
-            ->assertDontSee('Producto solo del mes anterior')
-            ->assertSee('Ventas por día')
-            ->assertSee('Monto total vendido en cada día. Las fechas incluyen mes y año.')
-            ->assertSee('Ventas por período')
-            ->assertSee('Monto total vendido por mes durante los últimos 6 meses.')
-            ->assertSee('Productos más vendidos esta semana')
-            ->assertSee('Los 5 productos con más unidades vendidas esta semana.')
-            ->assertSee('Productos más vendidos este mes')
-            ->assertSee('Los 5 productos con más unidades vendidas este mes.')
-            ->assertSee(now()->locale('es')->isoFormat('MMMM YYYY'))
-            ->assertSee('value="week"', false)
-            ->assertViewHas('ventasMensuales', function (array $ventasMensuales): bool {
-                return count($ventasMensuales) === 6
-                    && $ventasMensuales[5]['etiqueta'] === now()->locale('es')->isoFormat('MMMM YYYY')
-                    && $ventasMensuales[5]['periodo'] === now()->format('Y-m')
-                    && array_sum(array_column($ventasMensuales, 'total')) === 3570.0;
-            })
-            ->assertViewHas('ventasSemanalesPorMes', function (array $ventasSemanalesPorMes): bool {
-                $semanasMesActual = $ventasSemanalesPorMes[now()->format('Y-m')];
-
-                return count($semanasMesActual) >= 1
-                    && count($semanasMesActual) <= 6
-                    && array_sum(array_column($semanasMesActual, 'total')) === 2380.0;
-            })
-            ->assertViewHas('ventasDiarias', function (array $ventasDiarias): bool {
-                return count($ventasDiarias) === 7
-                    && $ventasDiarias[6]['etiqueta'] === now()->locale('es')->isoFormat('D [de] MMMM YYYY');
-            });
-    }
-
-    public function test_dashboard_separates_completed_quotation_sales_and_pos_sales_from_all_quotations(): void
-    {
-        $admin = User::factory()->create(['rol' => 'Administrador']);
-        $cliente = Cliente::create([
-            'rut' => '11.111.111-1',
-            'nombre' => 'Cliente de prueba',
-        ]);
-        $solicitud = SolicitudWeb::create([
-            'fecha' => now(),
-            'id_cliente' => $cliente->id_cliente,
-            'detalles_productos' => [],
-        ]);
-        $cotizacion = Cotizacion::create([
-            'solicitud_id' => $solicitud->id_solicitud,
-            'creada_por' => $admin->id,
-            'estado' => 'rechazada',
-        ]);
-        $solicitudPendiente = SolicitudWeb::create([
-            'fecha' => now(),
-            'id_cliente' => $cliente->id_cliente,
-            'detalles_productos' => [],
-        ]);
-        Cotizacion::create([
-            'solicitud_id' => $solicitudPendiente->id_solicitud,
-            'creada_por' => $admin->id,
-            'estado' => 'pendiente_revision',
-        ]);
+        $cliente = Cliente::create(['rut' => '11.111.111-1', 'nombre' => 'Cliente de prueba']);
+        $solicitud = SolicitudWeb::create(['fecha' => now(), 'id_cliente' => $cliente->id_cliente, 'detalles_productos' => []]);
+        $cotizacion = Cotizacion::create(['solicitud_id' => $solicitud->id_solicitud, 'creada_por' => $admin->id, 'estado' => 'aceptada']);
         $version = CotizacionVersion::create([
             'cotizacion_id' => $cotizacion->id_cotizacion,
             'numero_version' => 1,
@@ -195,80 +171,31 @@ class DashboardTest extends TestCase
             'metodo_entrega' => 'retiro',
             'vigente_hasta' => now()->addWeek(),
         ]);
-        Venta::create([
-            'fecha' => now(),
-            'tipo_documento' => 'Factura Electrónica',
-            'neto' => 1000,
-            'iva' => 190,
-            'total' => 1190,
-            'medio_pago' => 'Transferencia',
+        $completada = [
             'estado_venta' => 'confirmada',
             'estado_facturacion' => 'simulada_exitosa',
             'estado_entrega' => 'entregada',
-            'user_id' => $admin->id,
-            'id_cliente' => $cliente->id_cliente,
             'cotizacion_version_id' => $version->id_version,
-        ]);
-        $ventaPos = Venta::create([
-            'fecha' => now(),
-            'tipo_documento' => 'Boleta Electrónica',
-            'neto' => 2000,
-            'iva' => 380,
-            'total' => 2380,
-            'medio_pago' => 'Efectivo',
-            'user_id' => $admin->id,
-        ]);
-        $solicitudWeb = SolicitudWeb::create([
-            'fecha' => now(),
             'id_cliente' => $cliente->id_cliente,
-            'detalles_productos' => [],
-        ]);
-        $ventaWeb = Venta::create([
-            'fecha' => now(),
-            'tipo_documento' => 'Boleta Electrónica',
-            'neto' => 4000,
-            'iva' => 760,
-            'total' => 4760,
-            'medio_pago' => 'Pendiente de emisión',
-            'user_id' => $admin->id,
-            'id_cliente' => $cliente->id_cliente,
-        ]);
-        $solicitudWeb->update(['venta_id' => $ventaWeb->id_venta]);
-        Venta::create([
-            'fecha' => now(),
-            'tipo_documento' => 'Boleta Electrónica',
-            'neto' => 3000,
-            'iva' => 570,
-            'total' => 3570,
-            'medio_pago' => 'Efectivo',
-            'estado_venta' => 'pendiente_confirmacion',
-            'estado_facturacion' => 'pendiente',
-            'estado_entrega' => 'pendiente',
-            'user_id' => $admin->id,
-            'id_cliente' => $cliente->id_cliente,
-            'cotizacion_version_id' => $version->id_version,
-        ]);
+        ];
+        $this->venta($admin, 1190, null, $completada);
+        $this->venta($admin, 3570, null, [...$completada, 'estado_venta' => 'pendiente_confirmacion', 'estado_facturacion' => 'pendiente', 'estado_entrega' => 'pendiente']);
+        $this->venta($admin, 2380);
+        $ventaWeb = $this->venta($admin, 4760, null, ['id_cliente' => $cliente->id_cliente]);
+        SolicitudWeb::create(['fecha' => now(), 'id_cliente' => $cliente->id_cliente, 'detalles_productos' => [], 'venta_id' => $ventaWeb->id_venta]);
 
         $this->actingAs($admin)
-            ->get('/dashboard')
+            ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Ventas completadas desde cotizaciones')
-            ->assertSee('Total de cotizaciones')
-            ->assertViewHas('ventasCotizacionesCompletadas', 1)
-            ->assertViewHas('totalCotizaciones', 2)
-            ->assertViewHas('ventasPos', [
-                'cantidad' => 1,
-                'monto' => 2380.0,
-            ]);
+            ->assertViewHas('resumen', fn (array $r): bool => $r['cotizaciones'] === ['cantidad' => 1, 'monto' => 1190.0]
+                && $r['pos'] === ['cantidad' => 1, 'monto' => 2380.0]
+                && $r['total']['cantidad'] === 3);
     }
 
     public function test_dashboard_counts_all_products_with_critical_stock_including_zero_stock(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
-        $categoria = Categoria::create([
-            'nombre_categoria' => 'Stock de prueba',
-            'descripcion' => 'Productos para validar el conteo del dashboard',
-        ]);
+        $categoria = Categoria::create(['nombre_categoria' => 'Stock de prueba', 'descripcion' => 'Conteo']);
 
         foreach (range(1, 7) as $numeroProducto) {
             Producto::create([
@@ -291,7 +218,7 @@ class DashboardTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get('/dashboard')
+            ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('7 productos con stock bajo')
             ->assertSee('stock=critico')

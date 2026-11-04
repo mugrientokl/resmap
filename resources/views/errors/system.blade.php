@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $status }} · RESMAP</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    @vite('resources/css/app.css')
 </head>
 <body class="min-h-screen bg-[#f7f3f0] font-sans text-[#241817]">
     <main class="flex min-h-screen items-center justify-center px-5 py-12">

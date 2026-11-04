@@ -4,198 +4,153 @@
     <meta charset="utf-8">
     <title>Dashboard RESMAP</title>
     <style>
-        @page { margin: 28px 32px; }
-        body { color: #241817; font-family: DejaVu Sans, sans-serif; font-size: 9px; }
-        h1, h2 { color: #8f241d; }
-        h1 { margin: 0; font-size: 22px; }
-        h2 { margin: 18px 0 8px; font-size: 14px; }
-        p { margin: 5px 0; }
+        @page { margin: 30px 36px 36px; }
+        body { color: #292524; font-family: DejaVu Sans, sans-serif; font-size: 9px; }
         table { border-collapse: collapse; width: 100%; }
-        th { background: #8f241d; color: white; text-align: left; }
-        th, td { border: 1px solid #e4d0cd; padding: 7px; }
-        .header { border-bottom: 3px solid #b52f25; padding-bottom: 12px; }
-        .brand { color: #b52f25; font-size: 11px; font-weight: bold; letter-spacing: 2px; }
-        .muted { color: #756967; }
+        .header { border-bottom: 3px solid #9f2f25; padding-bottom: 14px; }
+        .header td { vertical-align: middle; }
+        .logo { height: 54px; width: auto; }
         .right { text-align: right; }
-        .filters td:first-child { background: #fcf4f3; font-weight: bold; width: 32%; }
-        .metrics th { background: #241817; }
-        .metrics .value { font-weight: bold; text-align: right; white-space: nowrap; }
-        .section { page-break-inside: avoid; }
-        .empty { color: #756967; padding: 12px; text-align: center; }
-        .footer { margin-top: 20px; color: #756967; text-align: center; }
+        .muted { color: #78716c; }
+        h1 { color: #9f2f25; font-size: 20px; margin: 0 0 4px; }
+        h2 { color: #292524; font-size: 11px; margin: 20px 0 6px; }
+        .period { background: #faf7f6; border-left: 3px solid #9f2f25; margin-top: 16px; padding: 10px 12px; line-height: 1.6; }
+        .period strong { color: #9f2f25; font-size: 12px; }
+        .cards { border-collapse: separate; border-spacing: 6px 0; margin: 14px -6px 0; width: 103%; }
+        .cards td { background: #fff; border: 1px solid #e7e5e4; border-top: 3px solid #9f2f25; padding: 9px 10px; vertical-align: top; width: 25%; }
+        .cards .label { color: #78716c; font-size: 8px; text-transform: uppercase; }
+        .cards .value { color: #292524; font-size: 15px; font-weight: bold; margin: 4px 0 2px; }
+        .chart { margin-top: 6px; page-break-inside: avoid; }
+        .bars td { height: 100px; padding: 0 2px; text-align: center; vertical-align: bottom; }
+        .bars .bar { background: #9f2f25; margin: 0 auto; width: 70%; }
+        .bars .bar-light { background: #e8a3ae; margin: 0 auto; width: 70%; }
+        .bars .value-label { color: #57534e; font-size: 6.5px; padding-bottom: 2px; }
+        .labels td { color: #57534e; font-size: 7px; padding-top: 3px; text-align: center; }
+        .labels-day td { font-size: 6px; }
+        .axis { border-top: 1px solid #a8a29e; }
+        .top td { border-bottom: 1px solid #f0efee; padding: 5px 4px; vertical-align: middle; }
+        .top .rank { color: #9f2f25; font-weight: bold; width: 16px; }
+        .top .name { width: 38%; }
+        .top .track { width: 46%; }
+        .top .fill { background: #9f2f25; height: 9px; }
+        .top .qty { font-weight: bold; text-align: right; width: 12%; }
+        .empty { color: #78716c; padding: 14px; text-align: center; }
+        .footer { border-top: 1px solid #d6d3d1; color: #78716c; margin-top: 22px; padding-top: 8px; text-align: center; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <table>
-            <tr>
-                <td style="border: 0; padding: 0;">
-                    <div class="brand">RESMAP · CENTRO DE OPERACIONES</div>
-                    <h1>Resumen general</h1>
-                </td>
-                <td class="right muted" style="border: 0; padding: 0;">
-                    Fecha de generación<br>
-                    <strong>{{ $fechaGeneracion->format('d/m/Y H:i') }}</strong>
-                </td>
-            </tr>
-        </table>
-    </div>
+    @php
+        $dinero = fn (float $monto): string => '$'.number_format($monto, 0, ',', '.');
+        $maxMensual = max(1, collect($ventasMensuales)->max('total'));
+        $maxDiario = max(1, collect($ventasDiarias)->max('total'));
+        $maxProducto = max(1, collect($productosMasVendidos)->max('total_vendido'));
+    @endphp
 
-    <h2>Filtros aplicados</h2>
-    <table class="filters">
+    <table class="header">
         <tr>
-            <td>Agrupar ventas por</td>
-            <td>{{ $agrupacion === 'week' ? 'Semana' : 'Mes' }}</td>
-        </tr>
-        @if($agrupacion === 'week')
-            <tr>
-                <td>Mes seleccionado</td>
-                <td>{{ $mesSeleccionado }}</td>
-            </tr>
-        @endif
-        <tr>
-            <td>Período de los indicadores</td>
-            <td>Hoy, semana actual, mes actual y últimos 6 meses, según corresponda.</td>
+            <td><img class="logo" src="{{ $logoDataUri }}" alt="RESMAP"></td>
+            <td class="right">
+                <h1>Resumen general</h1>
+                <span class="muted">Generado el {{ $fechaGeneracion->format('d/m/Y H:i') }}</span>
+            </td>
         </tr>
     </table>
 
-    <div class="section">
-        <h2>Indicadores principales</h2>
-        <table class="metrics">
-            <thead>
-                <tr>
-                    <th>Indicador</th>
-                    <th>Período</th>
-                    <th class="right">Cantidad</th>
-                    <th class="right">Monto</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>Ventas completadas</td>
-                    <td>Histórico</td>
-                    <td class="value">—</td>
-                    <td class="value">$ {{ number_format($estadisticasGenerales['monto_total_ventas'], 0, ',', '.') }}</td>
-                </tr>
-                <tr>
-                    <td>Ventas</td>
-                    <td>Semana actual</td>
-                    <td class="value">{{ number_format($resumenSemana['cantidad'], 0, ',', '.') }}</td>
-                    <td class="value">$ {{ number_format($resumenSemana['monto'], 0, ',', '.') }}</td>
-                </tr>
-                <tr>
-                    <td>Ventas</td>
-                    <td>Hoy</td>
-                    <td class="value">{{ number_format($estadisticasGenerales['cantidad_ventas_hoy'], 0, ',', '.') }}</td>
-                    <td class="value">$ {{ number_format($estadisticasGenerales['ventas_hoy'], 0, ',', '.') }}</td>
-                </tr>
-                <tr>
-                    <td>Ventas</td>
-                    <td>Mes actual</td>
-                    <td class="value">{{ number_format($resumenMes['cantidad'], 0, ',', '.') }}</td>
-                    <td class="value">$ {{ number_format($resumenMes['monto'], 0, ',', '.') }}</td>
-                </tr>
-                <tr>
-                    <td>Ventas originadas en cotizaciones</td>
-                    <td>Histórico</td>
-                    <td class="value">{{ number_format($ventasCotizacionesCompletadas, 0, ',', '.') }}</td>
-                    <td class="value">—</td>
-                </tr>
-                <tr>
-                    <td>Cotizaciones registradas</td>
-                    <td>Histórico</td>
-                    <td class="value">{{ number_format($totalCotizaciones, 0, ',', '.') }}</td>
-                    <td class="value">—</td>
-                </tr>
-                <tr>
-                    <td>Ventas registradas en POS</td>
-                    <td>Histórico</td>
-                    <td class="value">{{ number_format($ventasPos['cantidad'], 0, ',', '.') }}</td>
-                    <td class="value">$ {{ number_format($ventasPos['monto'], 0, ',', '.') }}</td>
-                </tr>
-                <tr>
-                    <td>Productos con stock crítico</td>
-                    <td>Actual</td>
-                    <td class="value">{{ number_format($cantidadStockCritico, 0, ',', '.') }}</td>
-                    <td class="value">—</td>
-                </tr>
-            </tbody>
+    <div class="period">
+        <span class="muted">Período de los indicadores</span><br>
+        <strong>{{ ucfirst($seleccion['etiqueta']) }}</strong><br>
+        <span class="muted">Todos los indicadores y gráficos de este documento corresponden a este período, salvo "Ventas por mes", que muestra los últimos 12 meses.</span>
+    </div>
+
+    <table class="cards">
+        <tr>
+            <td>
+                <div class="label">Monto vendido</div>
+                <div class="value">{{ $dinero($resumen['total']['monto']) }}</div>
+                <div class="muted">Ventas completadas</div>
+            </td>
+            <td>
+                <div class="label">Cantidad de ventas</div>
+                <div class="value">{{ number_format($resumen['total']['cantidad'], 0, ',', '.') }}</div>
+                <div class="muted">Ventas completadas</div>
+            </td>
+            <td>
+                <div class="label">Ventas en POS</div>
+                <div class="value">{{ number_format($resumen['pos']['cantidad'], 0, ',', '.') }}</div>
+                <div class="muted">{{ $dinero($resumen['pos']['monto']) }}</div>
+            </td>
+            <td>
+                <div class="label">Ventas por cotización</div>
+                <div class="value">{{ number_format($resumen['cotizaciones']['cantidad'], 0, ',', '.') }}</div>
+                <div class="muted">{{ $dinero($resumen['cotizaciones']['monto']) }}</div>
+            </td>
+        </tr>
+    </table>
+
+    @if($cantidadStockCritico > 0)
+        <p style="color: #9a3412; margin-top: 12px;"><strong>Stock crítico:</strong> {{ number_format($cantidadStockCritico, 0, ',', '.') }} {{ $cantidadStockCritico === 1 ? 'producto con stock bajo' : 'productos con stock bajo' }}.</p>
+    @endif
+
+    <div class="chart">
+        <h2>Ventas por mes (últimos 12 meses)</h2>
+        <table class="bars">
+            <tr>
+                @foreach($ventasMensuales as $mes)
+                    <td>
+                        <div class="value-label">{{ $mes['total'] > 0 ? number_format($mes['total'] / 1000, 0, ',', '.').'k' : '' }}</div>
+                        <div class="{{ $mes['periodo'] === $seleccion['mes'] ? 'bar' : 'bar-light' }}" style="height: {{ max(1, (int) round(($mes['total'] / $maxMensual) * 80)) }}px;"></div>
+                    </td>
+                @endforeach
+            </tr>
+        </table>
+        <table class="labels axis">
+            <tr>
+                @foreach($ventasMensuales as $mes)
+                    <td>{{ $mes['etiquetaCorta'] }}</td>
+                @endforeach
+            </tr>
+        </table>
+        <p class="muted" style="font-size: 7px;">Montos en miles de pesos (k). El mes seleccionado se destaca en rojo oscuro.</p>
+    </div>
+
+    <div class="chart">
+        <h2>Ventas por día — {{ ucfirst($seleccion['inicioMes']->copy()->locale('es')->isoFormat('MMMM YYYY')) }}</h2>
+        <table class="bars">
+            <tr>
+                @foreach($ventasDiarias as $dia)
+                    <td>
+                        <div class="{{ $seleccion['dia'] === null || $seleccion['dia'] === $dia['dia'] ? 'bar' : 'bar-light' }}" style="height: {{ max(1, (int) round(($dia['total'] / $maxDiario) * 90)) }}px; width: 80%;"></div>
+                    </td>
+                @endforeach
+            </tr>
+        </table>
+        <table class="labels labels-day axis">
+            <tr>
+                @foreach($ventasDiarias as $dia)
+                    <td>{{ $dia['etiqueta'] }}</td>
+                @endforeach
+            </tr>
         </table>
     </div>
 
-    <div class="section">
-        <h2>Ventas por día · últimos 7 días</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th class="right">Total vendido</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($ventasDiarias as $venta)
+    <div class="chart">
+        <h2>{{ $seleccion['dia'] ? 'Top 10 productos del día' : 'Top 10 productos más vendidos del mes' }}</h2>
+        @if(count($productosMasVendidos) > 0)
+            <table class="top">
+                @foreach($productosMasVendidos as $indice => $producto)
                     <tr>
-                        <td>{{ $venta['etiqueta'] }}</td>
-                        <td class="right">$ {{ number_format($venta['total'], 0, ',', '.') }}</td>
+                        <td class="rank">{{ $indice + 1 }}</td>
+                        <td class="name">{{ \Illuminate\Support\Str::limit($producto['etiqueta'], 38) }}</td>
+                        <td class="track"><div class="fill" style="width: {{ max(2, (int) round(($producto['total_vendido'] / $maxProducto) * 100)) }}%;"></div></td>
+                        <td class="qty">{{ number_format($producto['total_vendido'], 0, ',', '.') }} u.</td>
                     </tr>
                 @endforeach
-            </tbody>
-        </table>
+            </table>
+        @else
+            <div class="empty">Sin ventas de productos en este período.</div>
+        @endif
     </div>
 
-    <div class="section">
-        <h2>Ventas por {{ $agrupacion === 'week' ? 'semana · '.$mesSeleccionado : 'mes · últimos 6 meses' }}</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Período</th>
-                    <th class="right">Total vendido</th>
-                </tr>
-            </thead>
-            <tbody>
-                @forelse($ventasPorPeriodo as $venta)
-                    <tr>
-                        <td>{{ $venta['etiqueta'] }}</td>
-                        <td class="right">$ {{ number_format($venta['total'], 0, ',', '.') }}</td>
-                    </tr>
-                @empty
-                    <tr>
-                        <td colspan="2" class="empty">No hay ventas para el período seleccionado.</td>
-                    </tr>
-                @endforelse
-            </tbody>
-        </table>
-    </div>
-
-    <div class="section">
-        <h2>Productos más vendidos</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Esta semana</th>
-                    <th class="right">Unidades</th>
-                    <th>Este mes</th>
-                    <th class="right">Unidades</th>
-                </tr>
-            </thead>
-            <tbody>
-                @for($indice = 0; $indice < max(count($productosMasVendidosSemana), count($productosMasVendidosMes)); $indice++)
-                    <tr>
-                        <td>{{ $productosMasVendidosSemana[$indice]['etiqueta'] ?? '—' }}</td>
-                        <td class="right">{{ isset($productosMasVendidosSemana[$indice]) ? number_format($productosMasVendidosSemana[$indice]['total_vendido'], 0, ',', '.') : '—' }}</td>
-                        <td>{{ $productosMasVendidosMes[$indice]['etiqueta'] ?? '—' }}</td>
-                        <td class="right">{{ isset($productosMasVendidosMes[$indice]) ? number_format($productosMasVendidosMes[$indice]['total_vendido'], 0, ',', '.') : '—' }}</td>
-                    </tr>
-                @endfor
-                @if(count($productosMasVendidosSemana) === 0 && count($productosMasVendidosMes) === 0)
-                    <tr>
-                        <td colspan="4" class="empty">No hay productos vendidos en los períodos seleccionados.</td>
-                    </tr>
-                @endif
-            </tbody>
-        </table>
-    </div>
-
-    <p class="footer">Reporte interno generado desde el dashboard RESMAP.</p>
+    <div class="footer">RESMAP · Los Huillines 1041, Los Ángeles · resmap.la@gmail.com</div>
 </body>
 </html>

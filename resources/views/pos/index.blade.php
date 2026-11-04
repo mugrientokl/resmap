@@ -44,14 +44,7 @@
                     class="absolute left-0 top-full z-40 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
                 </div>
 
-                <select id="datos-productos" hidden aria-hidden="true" tabindex="-1">
-                    @foreach($productosBuscador as $producto)
-                        <option value="{{ $producto->nombre }}"
-                            data-codigo="{{ $producto->codigo_origen ?: $producto->codigo_barra }}">
-                            {{ $producto->nombre }}
-                        </option>
-                    @endforeach
-                </select>
+                <script type="application/json" id="datos-productos">@json($productosBuscador->map(fn ($p) => [$p->nombre, $p->codigo_origen ?: $p->codigo_barra])->values())</script>
             </div>
 
             <select name="categoria" aria-label="Categoría"
@@ -445,12 +438,12 @@ function normalizarBusqueda(texto) {
         .trim();
 }
 
-const productosSugeridos = Array.from(
-    document.getElementById('datos-productos').options
-).map(opcion => ({
-    nombre: opcion.value,
-    codigo: opcion.dataset.codigo || '',
-    palabras: normalizarBusqueda(`${opcion.value} ${opcion.dataset.codigo || ''}`)
+const productosSugeridos = JSON.parse(
+    document.getElementById('datos-productos').textContent
+).map(([nombre, codigo]) => ({
+    nombre,
+    codigo: codigo || '',
+    palabras: normalizarBusqueda(`${nombre} ${codigo || ''}`)
         .split(/\s+/)
         .filter(Boolean)
 }));

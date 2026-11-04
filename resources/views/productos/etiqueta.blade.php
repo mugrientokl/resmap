@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Etiqueta {{ $producto->codigo_barra }} | RESMAP</title>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+    <script src="{{ asset('js/vendor/JsBarcode.all.min.js') }}"></script>
     <style>
         @page { size: 50mm 30mm; margin: 0; }
         * { box-sizing: border-box; }

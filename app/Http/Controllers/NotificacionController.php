@@ -27,15 +27,16 @@ class NotificacionController extends Controller
 
     private function notifyCriticalProducts(User $usuario): void
     {
-        $productos = Producto::whereColumn('stock', '<=', 'stock_critico')->get();
+        $yaNotificados = $usuario->notifications()
+            ->where('type', ProductoStockCritico::class)
+            ->whereNull('read_at')
+            ->pluck('data')
+            ->pluck('producto_id')
+            ->flip();
 
-        foreach ($productos as $producto) {
-            $existe = $usuario->notifications()->where('type', ProductoStockCritico::class)
-                ->where('data->producto_id', $producto->id_producto)->whereNull('read_at')->exists();
-
-            if (! $existe) {
-                $usuario->notify(new ProductoStockCritico($producto));
-            }
-        }
+        Producto::whereColumn('stock', '<=', 'stock_critico')
+            ->get()
+            ->reject(fn (Producto $producto): bool => $yaNotificados->has($producto->id_producto))
+            ->each(fn (Producto $producto) => $usuario->notify(new ProductoStockCritico($producto)));
     }
 }

@@ -40,15 +40,7 @@
                 class="absolute left-0 top-full z-50 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-[#d9aaa3] bg-white shadow-lg">
             </div>
 
-            <select id="catalogo-datos" hidden aria-hidden="true" tabindex="-1">
-                @foreach($productosBuscador as $productoBuscador)
-                    <option value="{{ $productoBuscador->nombre }}"
-                        data-codigo="{{ $productoBuscador->codigo_origen ?: $productoBuscador->codigo_barra }}"
-                        data-categoria="{{ $productoBuscador->id_categoria }}">
-                        {{ $productoBuscador->nombre }}
-                    </option>
-                @endforeach
-            </select>
+            <script type="application/json" id="catalogo-datos">@json($productosBuscador->map(fn ($p) => [$p->nombre, $p->codigo_origen ?: $p->codigo_barra, $p->id_categoria])->values())</script>
         </div>
 
         <select id="catalogo-categoria" name="categoria" aria-label="Categoría"
@@ -288,13 +280,13 @@
         .split(/[^a-z0-9]+/)
         .filter(Boolean);
 
-    const productos = Array.from(
-        document.getElementById('catalogo-datos').options
-    ).map(opcion => ({
-        nombre: opcion.value,
-        codigo: opcion.dataset.codigo || '',
-        categoria: opcion.dataset.categoria,
-        texto: separarPalabras(`${opcion.value} ${opcion.dataset.codigo || ''}`)
+    const productos = JSON.parse(
+        document.getElementById('catalogo-datos').textContent
+    ).map(([nombre, codigo, categoria]) => ({
+        nombre,
+        codigo: codigo || '',
+        categoria: String(categoria),
+        texto: separarPalabras(`${nombre} ${codigo || ''}`)
     }));
 
     function cerrar() {
