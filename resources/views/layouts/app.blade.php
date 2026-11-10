@@ -97,6 +97,7 @@
                             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7" /></svg>
                         </button>
                         <div id="profile-menu" class="absolute right-0 mt-1 hidden min-w-48 rounded-md bg-white py-1 text-sm text-gray-700 shadow-xl">
+                            <a href="{{ route('perfil.show') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Mi perfil</a>
                             @if(auth()->user()->rol === 'Administrador')
                                 <a href="{{ route('reportes.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Reportes</a>
                                 <a href="{{ route('inventario.movimientos') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Movimientos de Inventario</a>

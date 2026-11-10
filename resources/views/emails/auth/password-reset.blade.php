@@ -11,8 +11,8 @@
             <td align="center">
                 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:620px;background:#ffffff;border:1px solid #ead8d5;">
                     <tr>
-                        <td style="background:#8f241d;padding:22px 30px;color:#ffffff;font-size:19px;font-weight:bold;letter-spacing:3px;">
-                            RESMAP
+                        <td style="background:#8f241d;padding:22px 30px;">
+                            <img src="{{ $logoUrl }}" alt="RESMAP" width="180" style="display:block;width:180px;max-width:100%;height:auto;">
                         </td>
                     </tr>
                     <tr>

@@ -8,6 +8,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\Storage;
 use RuntimeException;
+use Symfony\Component\Mime\Email;
 
 class OrdenCompraRecibida extends Notification
 {
@@ -44,7 +45,11 @@ class OrdenCompraRecibida extends Notification
                 'cliente' => $cliente,
                 'urlDetalle' => route('solicitudes.show', $solicitud->id_solicitud),
                 'urlOrdenCompra' => route('cotizaciones.orden-compra', $this->ordenCompra),
+                'logoUrl' => 'cid:resmap-logo',
             ]);
+        $correo->withSymfonyMessage(function (Email $message): void {
+            $message->embedFromPath(public_path('images/resmap sin fondo.png'), 'resmap-logo');
+        });
 
         if ($archivoAdjunto !== null) {
             $extension = strtolower(pathinfo($archivoAdjunto, PATHINFO_EXTENSION));

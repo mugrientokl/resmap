@@ -9,6 +9,7 @@ use App\Http\Controllers\ClienteController;
 use App\Http\Controllers\CotizacionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DetalleVentaController;
+use App\Http\Controllers\FaceRecognitionController;
 use App\Http\Controllers\InventarioMovimientoController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\ProductoController;
@@ -84,6 +85,10 @@ Route::middleware([
         ->middleware('throttle:10,1')
         ->name('login.store');
 
+    Route::post('/login/face', [FaceRecognitionController::class, 'login'])
+        ->middleware('throttle:10,1')
+        ->name('login.face');
+
     Route::get('/password/forgot', [AuthController::class, 'showForgotPasswordForm'])
         ->name('password.request');
 
@@ -105,6 +110,18 @@ Route::middleware([
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('dashboard');
+
+    Route::get('/perfil', [FaceRecognitionController::class, 'showProfile'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('perfil.show');
+
+    Route::post('/perfil/rostro', [FaceRecognitionController::class, 'enroll'])
+        ->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:10,1'])
+        ->name('perfil.rostro.store');
+
+    Route::delete('/perfil/rostro', [FaceRecognitionController::class, 'destroy'])
+        ->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:10,1'])
+        ->name('perfil.rostro.destroy');
 
     Route::get('/dashboard/exportar/pdf', [DashboardController::class, 'exportarPdf'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])

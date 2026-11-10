@@ -9,7 +9,7 @@
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 12px;background:#f3f4f6;">
         <tr><td align="center">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:700px;background:#fff;border:1px solid #ead8d5;">
-                <tr><td style="background:#8f241d;padding:22px 30px;color:#fff;font-size:17px;font-weight:bold;letter-spacing:3px;">RESMAP · GESTIÓN COMERCIAL</td></tr>
+                <tr><td style="background:#8f241d;padding:22px 30px;"><img src="{{ $logoUrl }}" alt="RESMAP · Gestión comercial" width="190" style="display:block;width:190px;max-width:100%;height:auto;"></td></tr>
                 <tr><td style="padding:30px;">
                     <p style="margin:0;color:#9f2f25;font-size:12px;font-weight:bold;letter-spacing:2px;">NUEVA RESPUESTA DE CLIENTE</p>
                     <h1 style="margin:12px 0;color:#241817;font-size:25px;">Se recibió una orden de compra</h1>
