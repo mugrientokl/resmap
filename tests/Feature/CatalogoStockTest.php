@@ -63,12 +63,12 @@ class CatalogoStockTest extends TestCase
         $this->assertDatabaseCount('solicitud_webs', 1);
         $this->assertDatabaseHas('clientes', [
             'telefono' => '+56912345678',
-            'telefono_whatsapp' => null,
-            'consentimiento_whatsapp_at' => null,
+            'telefono_whatsapp' => '+56912345678',
+            'consentimiento_whatsapp_origen' => 'catalogo',
         ]);
     }
 
-    public function test_request_can_send_whatsapp_to_an_alternate_number_without_changing_billing_phone(): void
+    public function test_legacy_alternate_number_is_ignored_in_favour_of_contact_number(): void
     {
         $productId = $this->createProductWithStock(3);
 
@@ -86,7 +86,7 @@ class CatalogoStockTest extends TestCase
 
         $this->assertDatabaseHas('clientes', [
             'telefono' => '+56912345678',
-            'telefono_whatsapp' => '+541123456789',
+            'telefono_whatsapp' => '+56912345678',
             'consentimiento_whatsapp_origen' => 'catalogo',
         ]);
         $this->assertDatabaseMissing('clientes', [
@@ -112,6 +112,29 @@ class CatalogoStockTest extends TestCase
             'telefono' => '+56912345678',
             'telefono_whatsapp' => '+56912345678',
             'consentimiento_whatsapp_origen' => 'catalogo',
+        ]);
+    }
+
+    public function test_new_request_does_not_override_whatsapp_opt_out(): void
+    {
+        $productId = $this->createProductWithStock(3);
+        $datos = [
+            ...$this->validCustomerData(),
+            'detalles_productos' => [
+                ['id_producto' => $productId, 'cantidad' => 1],
+            ],
+        ];
+        $this->post(route('catalogo.solicitudes.store'), $datos)->assertSessionHas('success');
+        DB::table('clientes')->update([
+            'consentimiento_whatsapp_at' => null,
+            'consentimiento_whatsapp_origen' => 'whatsapp_opt_out',
+        ]);
+
+        $this->post(route('catalogo.solicitudes.store'), $datos)->assertSessionHas('success');
+        $this->assertDatabaseHas('clientes', [
+            'telefono_whatsapp' => '+56912345678',
+            'consentimiento_whatsapp_at' => null,
+            'consentimiento_whatsapp_origen' => 'whatsapp_opt_out',
         ]);
     }
 

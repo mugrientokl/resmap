@@ -5,32 +5,19 @@
     $esServicio = $solicitud->tipo_solicitud === 'servicio';
     $ultimaVersion = $solicitud->cotizacion?->versiones->sortByDesc('numero_version')->first();
     $venta = $ultimaVersion?->venta ?? $solicitud->venta;
+    $ventaCompleta = $venta && $venta->estado_venta === 'confirmada' && $venta->stock_descontado_at;
     $ordenesCompra = $solicitud->cotizacion?->versiones->flatMap->ordenesCompra ?? collect();
-    $resumenDisponible = $esServicio
-        ? $solicitud->estado === 'Entregado y completado'
-        : $venta?->estado_venta === 'confirmada'
-            && $venta->estado_facturacion === 'simulada_exitosa'
-            && $venta->estado_entrega === 'entregada';
+    $itemsEdicion = $ultimaVersion
+        ? $ultimaVersion->detalles->map(fn ($item) => ['id_producto' => $item->producto_id, 'nombre' => $item->nombre_producto, 'cantidad' => $item->cantidad])
+        : $productos->map(fn ($item) => ['id_producto' => $item['producto']?->id_producto, 'nombre' => $item['producto']?->nombre ?? 'Producto no encontrado', 'cantidad' => $item['cantidad']]);
+    $datosResumen = $venta?->datos_resumen ?? [];
 @endphp
 <div class="mx-auto max-w-6xl">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <a href="{{ route('solicitudes.index') }}" class="text-sm font-bold text-[#9f2f25]">Volver a cotizaciones</a>
-        <div class="flex flex-wrap gap-3">
         @unless($esServicio)
-            <a href="{{ route('solicitudes.seguimiento', $solicitud->id_solicitud) }}" class="inline-flex items-center gap-2 border border-[#b52f25] bg-white px-5 py-3 text-sm font-bold text-[#b52f25] shadow-sm transition hover:bg-[#fff1ef]">
-                Ver seguimiento completo
-            </a>
+            <a href="{{ route('solicitudes.seguimiento', $solicitud->id_solicitud) }}" class="border border-[#b52f25] px-5 py-3 text-sm font-bold text-[#b52f25]">Ver seguimiento completo</a>
         @endunless
-        @if($resumenDisponible)
-            <a href="{{ route('solicitudes.pdf', $solicitud->id_solicitud) }}" class="inline-flex items-center gap-2 bg-[#b52f25] px-5 py-3 text-sm font-bold text-white shadow-sm transition hover:bg-[#8f241d]">
-                <span aria-hidden="true">↓</span> Descargar resumen interno
-            </a>
-        @else
-            <span class="inline-flex cursor-not-allowed items-center gap-2 bg-gray-200 px-5 py-3 text-sm font-bold text-gray-500" aria-disabled="true" title="Disponible cuando {{ $esServicio ? 'el servicio' : 'la venta' }} esté completad{{ $esServicio ? 'o' : 'a' }}.">
-                <span aria-hidden="true">↓</span> Descargar resumen interno
-            </span>
-        @endif
-        </div>
     </div>
     @if($errors->any())
         <div class="mt-5 border-l-4 border-red-600 bg-red-50 p-4 text-sm text-red-800" role="alert">
@@ -39,28 +26,28 @@
         </div>
     @endif
     <div class="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.6fr)]">
-        <section class="overflow-hidden bg-white shadow-sm">
-            <header class="border-b border-[#ead8d5] bg-[#fffaf9] p-6 md:p-8">
-                <p class="text-xs font-black uppercase tracking-[0.2em] text-[#b52f25]">{{ $esServicio ? 'Servicio' : 'Cotización' }} #{{ $solicitud->id_solicitud }}</p>
-                <h1 class="mt-2 text-3xl font-black text-[#241817]">{{ $esServicio ? 'Detalle del servicio' : 'Detalle de la cotización' }}</h1>
+        <section class="bg-white shadow-sm">
+            <header class="border-b border-[#ead8d5] bg-[#fffaf9] p-6">
+                <p class="text-xs font-black uppercase tracking-wider text-[#b52f25]">{{ $esServicio ? 'Servicio' : 'Cotización' }} #{{ $solicitud->id_solicitud }}</p>
+                <h1 class="mt-2 text-3xl font-black">Detalle {{ $esServicio ? 'del servicio' : 'de la cotización' }}</h1>
                 <p class="mt-2 text-sm text-gray-500">Recibida el {{ $solicitud->fecha?->format('d/m/Y H:i') }}</p>
                 <div class="mt-5 border-l-4 border-amber-500 bg-amber-50 p-4">
-                    <p class="font-black text-amber-950">{{ $solicitud->estado_comercial['titulo'] }}</p>
-                    <p class="mt-1 text-sm text-amber-900">{{ $solicitud->estado_comercial['detalle'] }}</p>
+                    <p class="font-black">{{ $solicitud->estado_comercial['titulo'] }}</p>
+                    <p class="mt-1 text-sm">{{ $solicitud->estado_comercial['detalle'] }}</p>
                 </div>
             </header>
-            <dl class="space-y-5 p-6 text-sm md:p-8">
-                <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">Cliente</dt><dd class="mt-1 text-lg font-black">{{ $solicitud->cliente->nombre }}</dd></div>
-                <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">RUT</dt><dd class="mt-1">{{ $solicitud->cliente->rut_formateado }}</dd></div>
-                <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">Correo</dt><dd class="mt-1 wrap-break-word">{{ $solicitud->cliente->correo ?: 'No informado' }}</dd></div>
-                <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">Teléfono</dt><dd class="mt-1">{{ $solicitud->cliente->telefono ?: 'No informado' }}</dd></div>
-                <div><dt class="text-xs font-bold uppercase tracking-wider text-gray-500">Dirección</dt><dd class="mt-1">{{ $solicitud->cliente->direccion ?: 'No informada' }}</dd></div>
+            <dl class="space-y-4 p-6 text-sm">
+                <div><dt class="font-bold">Cliente</dt><dd>{{ $solicitud->cliente->nombre }}</dd></div>
+                <div><dt class="font-bold">RUT</dt><dd>{{ $solicitud->cliente->rut_formateado }}</dd></div>
+                <div><dt class="font-bold">Correo</dt><dd>{{ $solicitud->cliente->correo ?: 'No informado' }}</dd></div>
+                <div><dt class="font-bold">Teléfono</dt><dd>{{ $solicitud->cliente->telefono ?: 'No informado' }}</dd></div>
+                <div><dt class="font-bold">Dirección</dt><dd>{{ $solicitud->cliente->direccion ?: 'No informada' }}</dd></div>
             </dl>
         </section>
-        <section class="min-w-0 bg-white p-6 shadow-sm md:p-8">
+        <section class="min-w-0 bg-white p-6 shadow-sm">
             @if($esServicio)
                 <h2 class="text-xl font-black">{{ $solicitud->tipo_servicio }}</h2>
-                <p class="mt-5 whitespace-pre-line border-l-4 border-[#b52f25] bg-[#f7e8e6] p-4 text-gray-700">{{ $solicitud->descripcion_servicio }}</p>
+                <p class="mt-5 whitespace-pre-line border-l-4 border-[#b52f25] bg-[#f7e8e6] p-4">{{ $solicitud->descripcion_servicio }}</p>
                 @php
                     $transicionesPermitidas = [
                         'Pendiente' => ['Pagado - pendiente de entrega', 'Entregado - pago pendiente', 'Entregado y completado', 'Rechazado'],
@@ -71,206 +58,162 @@
                     ][$solicitud->estado] ?? [];
                 @endphp
                 @if($transicionesPermitidas)
-                    <form method="POST" action="{{ route('solicitudes.estado', $solicitud->id_solicitud) }}" class="mt-6 border-t pt-6" data-confirm-message="¿Confirmas guardar el nuevo estado de este servicio?" data-confirm-kind="service-state">
+                    <form method="POST" action="{{ route('solicitudes.estado', $solicitud->id_solicitud) }}" class="mt-6 border-t pt-6" data-confirm-message="¿Confirmas guardar el nuevo estado de este servicio?">
                         @csrf @method('PATCH')
                         <label class="block text-sm font-bold">Siguiente estado
-                            <select name="estado" class="mt-2 w-full border border-gray-300 p-3">@foreach($transicionesPermitidas as $estadoPermitido)<option value="{{ $estadoPermitido }}">{{ $estadoPermitido }}</option>@endforeach</select>
+                            <select name="estado" class="mt-2 w-full border p-3">@foreach($transicionesPermitidas as $estadoPermitido)<option value="{{ $estadoPermitido }}">{{ $estadoPermitido }}</option>@endforeach</select>
                         </label>
-                        <label class="mt-4 block text-sm font-bold">Observaciones<textarea name="observaciones" rows="3" class="mt-2 w-full border border-gray-300 p-3">{{ $solicitud->observaciones }}</textarea></label>
+                        <label class="mt-4 block text-sm font-bold">Observaciones<textarea name="observaciones" rows="3" class="mt-2 w-full border p-3">{{ $solicitud->observaciones }}</textarea></label>
                         <button class="mt-4 bg-[#b52f25] px-5 py-3 font-bold text-white">Guardar estado</button>
                     </form>
                 @endif
+                @if($solicitud->estado === 'Entregado y completado')
+                    <a href="{{ route('solicitudes.pdf', $solicitud->id_solicitud) }}" class="mt-4 inline-block font-bold text-[#9f2f25] underline">Descargar resumen interno</a>
+                @endif
             @else
-                <div class="flex items-center justify-between gap-4"><h2 class="text-xl font-black">Repuestos cotizados</h2><span class="text-sm text-gray-500">{{ $productos->count() }} {{ $productos->count() === 1 ? 'línea' : 'líneas' }}</span></div>
-                <div class="mt-5 overflow-x-auto border border-[#ead8d5]">
-                    <div class="grid min-w-190 grid-cols-[minmax(220px,1fr)_80px_130px_130px_130px] bg-[#241817] px-4 py-3 text-xs font-black uppercase tracking-wider text-white"><span>Descripción</span><span class="text-center">Cantidad</span><span class="text-right">Valor neto</span><span class="text-right">Valor c/IVA</span><span class="text-right">Total c/IVA</span></div>
-                    @foreach($productos as $item)
-                        <div class="grid min-w-190 grid-cols-[minmax(220px,1fr)_80px_130px_130px_130px] items-center border-t border-[#ead8d5] px-4 py-4 text-sm">
-                            <div class="flex items-center gap-4">
-                                @if($item['producto']?->imagen)<img src="{{ asset('storage/'.$item['producto']->imagen) }}" class="h-14 w-14 object-cover" alt="">@endif
-                                <div><p class="font-bold">{{ $item['producto']->nombre ?? 'Producto no encontrado' }}</p><p class="text-sm text-gray-500">Código: {{ $item['producto']->codigo_origen ?? 'Sin código' }}</p></div>
+                <h2 class="text-xl font-black">Cotización y venta</h2>
+                <p class="mt-2 text-sm text-gray-600">El stock se reserva durante la cotización y se descuenta al convertirla en venta.</p>
+                @if($solicitud->cotizacion?->comentarios_cliente)
+                    <p class="mt-4 whitespace-pre-line border-l-4 border-amber-500 bg-amber-50 p-3 text-sm"><strong>Última respuesta registrada:</strong> {{ $solicitud->cotizacion->comentarios_cliente }}</p>
+                @endif
+                @foreach($solicitud->cotizacion?->versiones->sortByDesc('numero_version') ?? [] as $version)
+                    <div class="mt-3 border p-3 text-sm">
+                        <div class="flex flex-wrap items-center justify-between gap-3">
+                            <span>Versión {{ $version->numero_version }} · {{ ucfirst(str_replace('_', ' ', $version->estado)) }} · ${{ number_format($version->total, 0, ',', '.') }} · válida hasta {{ $version->vigente_hasta?->format('d/m/Y H:i') }}</span>
+                            <div class="flex flex-wrap gap-3">
+                                <a class="font-bold text-[#9f2f25] underline" href="{{ route('cotizaciones.pdf', $version->id_version) }}">Descargar cotización PDF</a>
+                                @if($version->estado === 'borrador')
+                                    <form method="POST" action="{{ route('cotizaciones.enviar', $version->id_version) }}" data-confirm-message="¿Enviar esta cotización al cliente?">@csrf<button class="font-bold text-[#9f2f25] underline">Enviar al cliente</button></form>
+                                @endif
                             </div>
-                            <span class="text-center font-bold">{{ $item['cantidad'] }}</span>
-                            <span class="text-right">$ {{ number_format($item['precio_neto'], 0, ',', '.') }}</span>
-                            <span class="text-right">$ {{ number_format($item['precio_iva'], 0, ',', '.') }}</span>
-                            <span class="text-right font-black">$ {{ number_format($item['total_iva'], 0, ',', '.') }}</span>
                         </div>
-                    @endforeach
-                </div>
-                <div class="ml-auto mt-6 max-w-sm space-y-3 text-sm"><div class="flex justify-between"><span class="text-gray-500">Neto</span><strong>$ {{ number_format($totales['neto'], 0, ',', '.') }}</strong></div><div class="flex justify-between"><span class="text-gray-500">IVA 19%</span><strong>$ {{ number_format($totales['iva'], 0, ',', '.') }}</strong></div><div class="flex justify-between border-t-2 border-[#241817] pt-3 text-lg"><span class="font-black">Total</span><strong class="text-[#b52f25]">$ {{ number_format($totales['total'], 0, ',', '.') }}</strong></div></div>
+                        <ul class="mt-2 list-disc pl-5 text-gray-600">
+                            @foreach($version->detalles as $detalle)
+                                <li>{{ $detalle->nombre_producto }} · {{ $detalle->cantidad }} × ${{ number_format($detalle->precio_unitario, 0, ',', '.') }}</li>
+                            @endforeach
+                        </ul>
+                        @if($version->enviada_at)
+                            <p class="mt-2 text-xs text-gray-600">Correo: {{ str_replace('_', ' ', $version->email_estado ?: 'no enviado') }} · WhatsApp: {{ str_replace('_', ' ', $version->whatsapp_estado ?: 'no enviado') }}</p>
+                        @endif
+                    </div>
+                @endforeach
 
-                <section class="mt-8 border-t border-[#ead8d5] pt-6">
-                    <h2 class="text-lg font-black">Etapas de cotización y venta</h2>
-                    <p class="mt-1 text-sm text-gray-600">Las unidades están reservadas; el stock disponible solo se descuenta cuando la facturación de prueba termina correctamente.</p>
-                    @if($solicitud->cotizacion)
-                        <p class="mt-4 text-sm">Estado de cotización: <strong>{{ $solicitud->estado_comercial['titulo'] }}</strong></p>
-                        @foreach($solicitud->cotizacion->versiones->sortByDesc('numero_version') as $version)
-                            <div class="mt-3 flex flex-wrap items-center justify-between gap-3 border p-3 text-sm">
-                                <span>Versión {{ $version->numero_version }} · {{ ucfirst(str_replace('_', ' ', $version->estado)) }} · ${{ number_format($version->total, 0, ',', '.') }} · válida hasta {{ $version->vigente_hasta?->format('d/m/Y H:i') ?? 'Sin fecha' }}</span>
-                                <div class="flex gap-3">
-                                    <a class="font-bold text-[#9f2f25] underline" href="{{ route('cotizaciones.pdf', $version->id_version) }}">Descargar cotización PDF</a>
-                                    @if($version->estado === 'borrador')
-                                        <form method="POST" action="{{ route('cotizaciones.enviar', $version->id_version) }}" data-confirm-message="Enviarás la versión {{ $version->numero_version }} de la cotización, por $ {{ number_format($version->total, 0, ',', '.') }}, a {{ $solicitud->cliente->nombre }} (correo: {{ $solicitud->cliente->correo ?: 'sin correo' }}, teléfono: {{ $solicitud->cliente->telefono ?: 'sin teléfono' }}). Se intentará enviar por los canales disponibles, pero la aceptación del proveedor no garantiza la entrega." data-confirm-title="Enviar cotización al cliente" data-confirm-text="Enviar cotización">@csrf<button class="font-bold text-[#9f2f25] underline">Enviar al cliente</button></form>
-                                    @endif
-                                </div>
-                            </div>
-                        @endforeach
-                    @else
-                        <p class="mt-3 text-sm text-gray-600">No se ha creado una versión de cotización.</p>
-                    @endif
-                    @if(! $solicitud->cotizacion || in_array($solicitud->cotizacion->estado, ['pendiente_revision', 'cambios_solicitados', 'vencida'], true))
-                        <form method="POST" action="{{ route('solicitudes.cotizacion.crear', $solicitud->id_solicitud) }}" class="mt-4 flex flex-wrap items-end gap-3" data-confirm-message="Crearás una nueva versión de cotización. El inventario disponible quedará reservado para esta solicitud y dejará de estar disponible para otras ventas. ¿Deseas continuar?" data-confirm-title="Crear y reservar cotización" data-confirm-text="Crear cotización">
-                            @csrf
-                            @if($solicitud->metodo_entrega === 'despacho')
-                                <label class="text-sm font-bold">Costo despacho
-                                    <input type="number" name="costo_despacho" min="0" step="1" value="{{ config('services.cotizaciones.costo_despacho', 0) }}" class="mt-1 block border p-2">
-                                </label>
-                            @endif
-                            <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Crear cotización</button>
-                        </form>
-                    @endif
-
-                    @if($ordenesCompra->isNotEmpty())
-                        <div class="mt-6 border-t pt-5">
-                            <h3 class="font-black">Orden(es) de compra recibida(s)</h3>
-                            @foreach($ordenesCompra as $ordenCompra)
-                                <div class="mt-3 flex flex-wrap items-center justify-between gap-3 rounded border bg-gray-50 p-3 text-sm">
-                                    <span>OC {{ $ordenCompra->numero ?: 'sin número' }} · {{ $ordenCompra->modalidad === 'cliente' ? 'Enviada por el cliente' : 'Autorizada para esta cotización' }}</span>
-                                    @if($ordenCompra->archivo_path)
-                                        <div class="flex flex-wrap gap-3">
-                                            <a href="{{ route('cotizaciones.orden-compra.ver', $ordenCompra->id_orden_compra) }}" target="_blank" rel="noopener" class="font-bold text-[#9f2f25] underline">Ver OC</a>
-                                            <a href="{{ route('cotizaciones.orden-compra', $ordenCompra->id_orden_compra) }}" class="font-bold text-[#9f2f25] underline">Descargar</a>
-                                        </div>
-                                    @endif
+                @if(! $solicitud->cotizacion || in_array($solicitud->cotizacion->estado, ['pendiente_revision', 'borrador', 'cambios_solicitados', 'vencida'], true) || ($solicitud->cotizacion->estado === 'enviada' && in_array('fallido', [$ultimaVersion?->email_estado, $ultimaVersion?->whatsapp_estado], true)))
+                    <form method="POST" action="{{ route('solicitudes.cotizacion.crear', $solicitud->id_solicitud) }}" class="mt-6 space-y-3 border-t pt-5" data-confirm-message="Se reservarán las unidades de esta versión. ¿Continuar?">
+                        @csrf
+                        <input type="hidden" name="items_edicion" value="1">
+                        <h3 class="font-black">Preparar cotización</h3>
+                        <p class="text-sm text-gray-600">Ajusta cantidades, elimina o agrega repuestos antes de crear la versión. Si un envío falló, puedes crear y enviar una nueva versión.</p>
+                        <div id="items-cotizacion" class="space-y-2">
+                            @foreach($itemsEdicion as $indice => $item)
+                                <div class="flex flex-wrap items-center gap-2" data-item>
+                                    <input type="hidden" name="items[{{ $indice }}][id_producto]" value="{{ $item['id_producto'] }}">
+                                    <span class="min-w-40 flex-1 text-sm">{{ $item['nombre'] }}</span>
+                                    <input type="number" name="items[{{ $indice }}][cantidad]" value="{{ $item['cantidad'] }}" min="1" max="99999" required class="w-24 border p-2" aria-label="Cantidad de {{ $item['nombre'] }}">
+                                    <button type="button" data-quitar class="text-sm font-bold text-[#9f2f25]">Quitar</button>
                                 </div>
                             @endforeach
                         </div>
-                    @endif
-
-                    @if($venta)
-                        <div class="mt-6 border-t pt-5">
-                            <h3 class="text-lg font-black">Venta #{{ $venta->id_venta }}</h3>
-                            @php
-                                $totalVenta = (float) $venta->total;
-                                $montoPagado = (float) ($venta->monto_pagado ?? 0);
-                                $saldoCredito = max(0, $totalVenta - $montoPagado);
-                                $estadoPagoLegible = match ($venta->estado_pago) {
-                                    'credito_autorizado' => 'Crédito autorizado',
-                                    'credito_parcial' => 'Crédito con abonos',
-                                    'pagado' => 'Pagado',
-                                    default => 'Pendiente',
-                                };
-                            @endphp
-                            <p class="mt-1 text-sm text-gray-700">Pago: {{ $estadoPagoLegible }} · Facturación: {{ str_replace('_', ' ', $venta->estado_facturacion ?: 'pendiente') }} · Entrega: {{ str_replace('_', ' ', $venta->estado_entrega ?: 'pendiente') }}</p>
-                            <div class="mt-3 rounded-lg border border-[#ead8d5] bg-white p-4 text-sm">
-                                <p><strong>Modalidad:</strong> {{ $venta->metodo_entrega === 'despacho' ? 'Delivery a domicilio' : 'Retiro en tienda' }}</p>
-                                @if($venta->metodo_entrega === 'despacho')
-                                    <p class="mt-1"><strong>Dirección:</strong> {{ $venta->direccion_despacho }}, {{ $venta->comuna_despacho }}, {{ $venta->ciudad_despacho }}, {{ $venta->region_despacho }}</p>
-                                    @if($venta->referencias_despacho)
-                                        <p class="mt-1"><strong>Referencias:</strong> {{ $venta->referencias_despacho }}</p>
-                                    @endif
-                                @endif
+                        <template id="nuevo-item">
+                            <div class="flex flex-wrap items-center gap-2" data-item>
+                                <select name="items[__INDEX__][id_producto]" required class="min-w-40 flex-1 border p-2" aria-label="Repuesto">
+                                    <option value="">Selecciona un repuesto</option>
+                                    @foreach($productosDisponibles as $producto)
+                                        <option value="{{ $producto->id_producto }}">{{ $producto->nombre }} · {{ $producto->codigo_origen ?: $producto->codigo_barra }}</option>
+                                    @endforeach
+                                </select>
+                                <input type="number" name="items[__INDEX__][cantidad]" value="1" min="1" max="99999" required class="w-24 border p-2" aria-label="Cantidad">
+                                <button type="button" data-quitar class="text-sm font-bold text-[#9f2f25]">Quitar</button>
                             </div>
-                            @if(in_array($venta->estado_pago, ['credito_autorizado', 'credito_parcial', 'pagado'], true))
-                                <div class="mt-3 rounded-lg border border-[#ead8d5] bg-[#fffaf9] p-4 text-sm">
-                                    <p><strong>Pagado:</strong> $ {{ number_format($montoPagado, 0, ',', '.') }} · <strong>Saldo:</strong> $ {{ number_format($saldoCredito, 0, ',', '.') }}</p>
-                                    @if($venta->creditoAutorizadoPor)
-                                        <p class="mt-1 text-gray-600">Crédito autorizado por {{ $venta->creditoAutorizadoPor->name }} el {{ $venta->credito_autorizado_at?->format('d/m/Y H:i') }}.</p>
-                                    @endif
-                                </div>
-                            @endif
-                            @if($venta->estado_venta === 'pendiente_confirmacion' && $ordenesCompra->isNotEmpty())
-                                <div class="mt-4 flex flex-wrap gap-4">
-                                    <form method="POST" action="{{ route('ventas.confirmar-comercial', $venta->id_venta) }}" class="flex flex-wrap items-end gap-2 rounded bg-gray-50 p-4" data-confirm-message="Confirma registrar el pago de esta venta." data-confirm-kind="sale-payment" data-confirm-title="Confirmar pago recibido" data-confirm-text="Registrar pago">
-                                        @csrf
-                                        <input type="hidden" name="tipo_confirmacion" value="pago">
-                                        <label class="text-sm font-bold">Pago recibido
-                                            <input type="number" name="monto_pagado" min="{{ $venta->total }}" step="1" value="{{ $venta->total }}" required class="mt-1 block w-40 border p-2">
-                                        </label>
-                                        <label class="text-sm font-bold">Medio
-                                            <select name="medio_pago" required class="mt-1 block border p-2"><option value="Transferencia">Transferencia</option><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option></select>
-                                        </label>
-                                        <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Confirmar pago</button>
-                                    </form>
-                                    @if(auth()->user()->rol === 'Administrador')
-                                        <form method="POST" action="{{ route('ventas.confirmar-comercial', $venta->id_venta) }}" class="self-end rounded bg-gray-50 p-4" data-confirm-message="Confirma autorizar un crédito para esta venta. El inventario se descontará al facturar." data-confirm-kind="credit-authorization" data-confirm-amount="{{ $venta->total }}" data-confirm-title="Autorizar crédito" data-confirm-text="Autorizar crédito">
-                                            @csrf
-                                            <input type="hidden" name="tipo_confirmacion" value="credito">
-                                            <button class="border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25]">Autorizar crédito</button>
-                                        </form>
-                                    @endif
-                                </div>
-                            @elseif($venta->estado_venta === 'pendiente_confirmacion')
-                                <p class="mt-3 rounded bg-amber-50 p-3 text-sm text-amber-900">No se puede confirmar la venta hasta recibir o autorizar la orden de compra del cliente.</p>
-                            @endif
-                            @if(in_array($venta->estado_pago, ['credito_autorizado', 'credito_parcial'], true) && $saldoCredito > 0)
-                                <form method="POST" action="{{ route('ventas.registrar-pago-credito', $venta->id_venta) }}" class="mt-4 flex flex-wrap items-end gap-3 rounded-lg border border-[#ead8d5] bg-white p-4" data-confirm-message="Confirma registrar este abono al crédito." data-confirm-kind="credit-payment" data-confirm-title="Confirmar abono" data-confirm-text="Registrar abono">
-                                    @csrf
-                                    <div class="w-full">
-                                        <p class="font-black">Registrar abono al crédito</p>
-                                        <p class="mt-1 text-sm text-gray-600">Saldo pendiente: $ {{ number_format($saldoCredito, 0, ',', '.') }}</p>
-                                    </div>
-                                    <label class="text-sm font-bold">Monto recibido
-                                        <input type="number" name="monto_pagado" min="0.01" max="{{ $saldoCredito }}" step="0.01" required class="mt-1 block w-44 border p-2">
-                                    </label>
-                                    <label class="text-sm font-bold">Medio de pago
-                                        <select name="medio_pago" required class="mt-1 block border p-2"><option value="Transferencia">Transferencia</option><option value="Efectivo">Efectivo</option><option value="Tarjeta">Tarjeta</option></select>
-                                    </label>
-                                    <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Guardar abono</button>
-                                </form>
-                            @endif
-                            @if($venta->estado_venta === 'confirmada' && $venta->estado_facturacion !== 'simulada_exitosa' && auth()->user()->rol === 'Administrador' && ! app()->isProduction())
-                                <div class="mt-4 rounded border border-amber-300 bg-amber-50 p-4">
-                                    <p class="font-bold text-amber-950">Facturación de prueba</p>
-                                    <p class="mt-1 text-sm text-amber-900">Esta simulación no emite un DTE real. Si resulta exitosa, registra la factura simulada y descuenta el stock.</p>
-                                    <form method="POST" action="{{ route('ventas.simular-facturacion', $venta->id_venta) }}" class="mt-3 flex flex-wrap items-end gap-3" data-confirm-message="Confirma ejecutar la simulación de facturación." data-confirm-kind="invoice-simulation" data-confirm-title="Confirmar simulación" data-confirm-text="Ejecutar simulación">
-                                        @csrf
-                                        <label class="text-sm font-bold">Resultado
-                                            <select name="resultado" required class="mt-1 block border p-2"><option value="exito">Simular éxito</option><option value="error">Simular error</option></select>
-                                        </label>
-                                        <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Ejecutar simulación</button>
-                                    </form>
-                                </div>
-                            @endif
-                            @if($venta->estado_facturacion === 'simulada_exitosa' && $venta->estado_entrega !== 'entregada')
-                                <form method="POST" action="{{ route('ventas.registrar-entrega', $venta->id_venta) }}" class="mt-4" data-confirm-message="¿Confirmas que la venta fue despachada o retirada por el cliente?">
-                                    @csrf
-                                    <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Registrar despacho o retiro</button>
-                                </form>
-                            @endif
+                        </template>
+                        <button type="button" id="agregar-item" class="block font-bold text-[#9f2f25]">+ Agregar repuesto</button>
+                        @if($solicitud->metodo_entrega === 'despacho')
+                            <label class="block text-sm font-bold">Costo despacho
+                                <input type="number" name="costo_despacho" min="0" step="1" value="{{ $ultimaVersion?->costo_despacho ?? config('services.cotizaciones.costo_despacho', 0) }}" class="mt-1 block border p-2">
+                            </label>
+                        @endif
+                        <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">{{ $ultimaVersion ? 'Crear nueva versión' : 'Crear cotización' }}</button>
+                    </form>
+                @endif
+
+                @if($ultimaVersion?->estado === 'enviada' && $solicitud->cotizacion?->estado === 'enviada')
+                    <form method="POST" action="{{ route('cotizaciones.respuesta-interna', $ultimaVersion->id_version) }}" class="mt-6 space-y-3 border-t pt-5" data-confirm-message="¿Registrar esta respuesta comunicada por el cliente?">
+                        @csrf
+                        <h3 class="font-black">Registrar respuesta del cliente</h3>
+                        <label class="block text-sm font-bold">Respuesta
+                            <select name="decision" required class="mt-1 block w-full border p-2">
+                                <option value="">Seleccionar</option>
+                                <option value="aceptada">Aceptada</option>
+                                <option value="rechazada">Rechazada o cancelada</option>
+                                <option value="cambios_solicitados">Solicita cambios</option>
+                            </select>
+                        </label>
+                        <label class="block text-sm font-bold">Comentarios<textarea name="comentarios" maxlength="2000" rows="3" class="mt-1 block w-full border p-2">{{ old('comentarios') }}</textarea></label>
+                        <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Registrar respuesta</button>
+                    </form>
+                @endif
+                @if($ultimaVersion?->estado === 'aceptada' && ! $ventaCompleta)
+                    <form method="POST" action="{{ route('cotizaciones.convertir-venta', $ultimaVersion->id_version) }}" class="mt-6 border-t pt-5" data-confirm-message="¿Confirmas que se registre la venta y se descuente el stock?">
+                        @csrf
+                        <p class="mb-3 text-sm">Puedes convertir la cotización aceptada en venta sin adjuntar una orden de compra.</p>
+                        <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Convertir en venta y descontar stock</button>
+                    </form>
+                @endif
+
+                @if($ordenesCompra->isNotEmpty())
+                    <div class="mt-6 border-t pt-5">
+                        <h3 class="font-black">Órdenes de compra anteriores</h3>
+                        @foreach($ordenesCompra as $ordenCompra)
+                            <p class="mt-2 text-sm">OC {{ $ordenCompra->numero ?: 'sin número' }}
+                                @if($ordenCompra->archivo_path)
+                                    · <a href="{{ route('cotizaciones.orden-compra.ver', $ordenCompra->id_orden_compra) }}" class="font-bold text-[#9f2f25] underline">Ver</a>
+                                @endif
+                            </p>
+                        @endforeach
+                    </div>
+                @endif
+                @if($ventaCompleta)
+                    <form method="POST" action="{{ route('ventas.generar-resumen', $venta->id_venta) }}" class="mt-6 space-y-3 border-t pt-5">
+                        @csrf
+                        <h3 class="text-lg font-black">Generar resumen interno · Venta #{{ $venta->id_venta }}</h3>
+                        <p class="text-sm text-amber-800">Este documento no es una factura ni un DTE tributario.</p>
+                        <div class="grid gap-3 sm:grid-cols-2">
+                            @foreach([
+                                'nombre' => ['Razón social o nombre', $solicitud->cliente->razon_social ?: $solicitud->cliente->nombre],
+                                'rut' => ['RUT', $solicitud->cliente->rut_formateado],
+                                'giro' => ['Giro', $solicitud->cliente->giro],
+                                'direccion' => ['Dirección', $solicitud->cliente->direccion],
+                                'comuna' => ['Comuna', $solicitud->cliente->comuna],
+                                'correo' => ['Correo', $solicitud->cliente->correo],
+                                'numero_oc' => ['Número real de OC', ''],
+                            ] as $campo => [$etiqueta, $valor])
+                                <label class="text-sm font-bold">{{ $etiqueta }}
+                                    <input name="{{ $campo }}" type="{{ $campo === 'correo' ? 'email' : 'text' }}" value="{{ old($campo, $datosResumen[$campo] ?? $valor) }}" required maxlength="255" class="mt-1 block w-full border p-2">
+                                </label>
+                            @endforeach
                         </div>
-                    @endif
-                </section>
+                        <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Generar resumen interno</button>
+                        <a href="{{ route('solicitudes.pdf', $solicitud->id_solicitud) }}" class="ml-3 font-bold text-[#9f2f25] underline">Descargar resumen</a>
+                    </form>
+                @endif
             @endif
         </section>
     </div>
 </div>
+@unless($esServicio)
 <script>
-    const formatConfirmationAmount = amount => new Intl.NumberFormat('es-CL', {
-        maximumFractionDigits: 2,
-    }).format(Number(amount) || 0);
-
-    document.querySelectorAll('[data-confirm-kind]').forEach(form => {
-        form.addEventListener('submit', () => {
-            const kind = form.dataset.confirmKind;
-            const amount = form.querySelector('[name="monto_pagado"]')?.value;
-            const paymentMethod = form.querySelector('[name="medio_pago"]')?.selectedOptions[0]?.textContent.trim();
-
-            if (kind === 'service-state') {
-                const nextState = form.querySelector('[name="estado"]')?.selectedOptions[0]?.textContent.trim();
-                form.dataset.confirmMessage = `Vas a cambiar el estado del servicio a «${nextState}». ¿Deseas continuar?`;
-            } else if (kind === 'sale-payment') {
-                form.dataset.confirmMessage = `Confirma que recibiste ${formatConfirmationAmount(amount)} por ${paymentMethod} para registrar el pago de la venta.`;
-            } else if (kind === 'credit-payment') {
-                form.dataset.confirmMessage = `Vas a registrar un abono de ${formatConfirmationAmount(amount)} por ${paymentMethod}. Verifica que el monto recibido sea correcto.`;
-            } else if (kind === 'credit-authorization') {
-                form.dataset.confirmMessage = `Confirma autorizar un crédito por ${formatConfirmationAmount(form.dataset.confirmAmount)} para esta venta. El inventario se descontará al facturar.`;
-            } else if (kind === 'invoice-simulation') {
-                const simulationSucceeds = form.querySelector('[name="resultado"]')?.value === 'exito';
-                const result = simulationSucceeds ? 'un resultado exitoso' : 'un resultado fallido';
-                form.dataset.confirmMessage = `Vas a ejecutar la facturación de prueba con ${result}. Si el resultado es exitoso, se registra la factura simulada y se descuenta el stock. No se emitirá un DTE real. ¿Deseas continuar?`;
-            }
+    const itemsCotizacion = document.getElementById('items-cotizacion');
+    const botonAgregar = document.getElementById('agregar-item');
+    if (itemsCotizacion && botonAgregar) {
+        let siguienteItem = itemsCotizacion.querySelectorAll('[data-item]').length;
+        botonAgregar.addEventListener('click', () => {
+            const plantilla = document.getElementById('nuevo-item').innerHTML.replaceAll('__INDEX__', siguienteItem++);
+            itemsCotizacion.insertAdjacentHTML('beforeend', plantilla);
         });
-    });
+        itemsCotizacion.addEventListener('click', event => {
+            if (event.target.closest('[data-quitar]')) event.target.closest('[data-item]').remove();
+        });
+    }
 </script>
+@endunless
 @endsection

@@ -17,7 +17,7 @@ class SolicitudWebRecibida extends Notification
 
     public function via(object $notifiable): array
     {
-        return $notifiable->rol === 'Administrador'
+        return $notifiable->rol === 'Administrador' || $this->solicitud->tipo_solicitud !== 'servicio'
             ? ['mail', 'database']
             : ['database'];
     }

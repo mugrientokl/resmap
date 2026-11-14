@@ -173,13 +173,14 @@ class DashboardTest extends TestCase
         ]);
         $completada = [
             'estado_venta' => 'confirmada',
+            'stock_descontado_at' => now(),
             'estado_facturacion' => 'simulada_exitosa',
             'estado_entrega' => 'entregada',
             'cotizacion_version_id' => $version->id_version,
             'id_cliente' => $cliente->id_cliente,
         ];
         $this->venta($admin, 1190, null, $completada);
-        $this->venta($admin, 3570, null, [...$completada, 'estado_venta' => 'pendiente_confirmacion', 'estado_facturacion' => 'pendiente', 'estado_entrega' => 'pendiente']);
+        $this->venta($admin, 3570, null, [...$completada, 'estado_venta' => 'pendiente_confirmacion', 'estado_facturacion' => 'pendiente', 'estado_entrega' => 'pendiente', 'stock_descontado_at' => null]);
         $this->venta($admin, 2380);
         $ventaWeb = $this->venta($admin, 4760, null, ['id_cliente' => $cliente->id_cliente]);
         SolicitudWeb::create(['fecha' => now(), 'id_cliente' => $cliente->id_cliente, 'detalles_productos' => [], 'venta_id' => $ventaWeb->id_venta]);

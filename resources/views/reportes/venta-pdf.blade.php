@@ -46,6 +46,7 @@
             default => 'Histórico',
         };
         $direccionCliente = collect([$cliente?->direccion, $cliente?->comuna, $cliente?->region])->filter()->implode(', ');
+        $datosResumen = $venta->datos_resumen;
     @endphp
     <table class="header">
         <tr>
@@ -72,11 +73,12 @@
         <tr>
             <td>
                 <strong>CLIENTE</strong><br>
-                {{ $cliente?->nombre ?? 'Sin cliente' }}<br>
-                RUT: {{ $cliente?->rut_formateado ?? 'N/A' }}<br>
-                @if($cliente?->correo)Correo: {{ $cliente->correo }}<br>@endif
+                {{ $datosResumen['nombre'] ?? $cliente?->nombre ?? 'Sin cliente' }}<br>
+                RUT: {{ $datosResumen['rut'] ?? $cliente?->rut_formateado ?? 'N/A' }}<br>
+                @if(!empty($datosResumen['giro']))Giro: {{ $datosResumen['giro'] }}<br>@endif
+                @if(!empty($datosResumen['correo']) || $cliente?->correo)Correo: {{ $datosResumen['correo'] ?? $cliente->correo }}<br>@endif
                 @if($cliente?->telefono)Teléfono: {{ $cliente->telefono }}<br>@endif
-                @if($direccionCliente)Dirección: {{ $direccionCliente }}@endif
+                @if(!empty($datosResumen['direccion']))Dirección: {{ $datosResumen['direccion'] }}, {{ $datosResumen['comuna'] }}@elseif($direccionCliente)Dirección: {{ $direccionCliente }}@endif
             </td>
             <td>
                 <strong>DETALLE DE LA VENTA</strong><br>
@@ -89,7 +91,7 @@
         </tr>
     </table>
     @if($venta->metodo_entrega)
-        <p><strong>Modalidad de entrega:</strong> {{ $venta->metodo_entrega === 'despacho' ? 'Despacho a domicilio' : 'Retiro en tienda' }}
+        <p><strong>Modalidad de entrega:</strong> {{ match ($venta->metodo_entrega) { 'despacho' => 'Despacho a domicilio', 'retiro' => 'Retiro en tienda', default => 'Por coordinar con RESMAP' } }}
             @if($venta->metodo_entrega === 'despacho')
                 · {{ collect([$venta->direccion_despacho, $venta->comuna_despacho, $venta->ciudad_despacho, $venta->region_despacho])->filter()->implode(', ') }}
                 @if($venta->referencias_despacho)<br><span class="muted">Referencias: {{ $venta->referencias_despacho }}</span>@endif
@@ -123,7 +125,9 @@
             <tr><td>Saldo</td><td class="right">$ {{ number_format($saldo, 0, ',', '.') }}</td></tr>
         @endif
     </table>
-    @if($venta->ordenesCompra->isNotEmpty())
+    @if(!empty($datosResumen['numero_oc']))
+        <p><strong>Orden de compra:</strong> {{ $datosResumen['numero_oc'] }}</p>
+    @elseif($venta->ordenesCompra->isNotEmpty())
         <p><strong>Orden(es) de compra:</strong> {{ $venta->ordenesCompra->pluck('numero')->filter()->implode(', ') ?: 'Adjunta(s)' }}</p>
     @endif
     @if($esCredito && $venta->creditoAutorizadoPor)

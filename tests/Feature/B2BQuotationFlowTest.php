@@ -4,332 +4,256 @@ namespace Tests\Feature;
 
 use App\Mail\CotizacionCliente;
 use App\Models\User;
-use App\Notifications\OrdenCompraRecibida;
+use App\Notifications\SolicitudWebRecibida;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class B2BQuotationFlowTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_b2b_quote_acceptance_keeps_stock_until_successful_simulated_billing(): void
+    public function test_team_records_acceptance_and_converts_quote_to_sale_once(): void
     {
         Mail::fake();
         Notification::fake();
-        Storage::fake('local');
-        Http::fake();
         $productId = $this->createProductWithStock(5);
-        $this->createProductRequest($productId, 2, 'cliente@example.test');
+        $this->createProductRequest($productId, 2);
         $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
-        $admin = User::factory()->create(['rol' => 'Administrador']);
-        $vendedor = User::factory()->create(['rol' => 'Vendedor']);
-
-        $this->actingAs($admin)
-            ->post(route('solicitudes.cotizacion.crear', $solicitudId))
-            ->assertRedirect(route('solicitudes.show', $solicitudId));
-
-        $this->actingAs($admin)->get(route('solicitudes.index'))
-            ->assertOk()
-            ->assertSee('Cotización lista para enviar');
-
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $this->actingAs($seller)->post(route('solicitudes.cotizacion.crear', $solicitudId))->assertSessionHasNoErrors();
         $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
-        $this->actingAs($admin)->get(route('cotizaciones.pdf', $versionId))
-            ->assertOk()
-            ->assertHeader('content-type', 'application/pdf');
-        $this->post(route('cotizaciones.enviar', $versionId))
-            ->assertRedirect(route('solicitudes.show', $solicitudId));
-
-        $this->assertDatabaseHas('cotizacion_versiones', [
-            'id_version' => $versionId,
-            'whatsapp_estado' => 'no_autorizado',
-        ]);
-        $this->assertDatabaseCount('mensajes_whatsapp', 0);
-
-        $mensaje = Mail::sent(CotizacionCliente::class)->first();
-        $this->assertNotNull($mensaje);
-        preg_match(
-            '~/cotizaciones/\d+/responder/([A-Za-z0-9]{48})$~',
-            (string) parse_url($mensaje->urlRespuesta, PHP_URL_PATH),
-            $coincidencias,
-        );
-        $this->assertArrayHasKey(1, $coincidencias);
-        $this->get(route('cotizaciones.responder.form', [
-            'version' => $versionId,
-            'token' => $coincidencias[1],
-        ]))->assertOk()
-            ->assertSee('Revisión de cotización')
-            ->assertSee('Tu respuesta')
-            ->assertSee('Adjuntar OC de mi empresa')
-            ->assertSee('data-confirm-title="Confirmar respuesta"', false)
-            ->assertSee('RESMAP');
-
-        auth()->logout();
-        $this->post(route('cotizaciones.responder', [
-            'version' => $versionId,
-            'token' => $coincidencias[1],
-        ]), [
-            'telefono' => '+56912345678',
-            'decision' => 'aceptar',
-            'metodo_entrega' => 'retiro',
-            'autorizar_oc_automatica' => '1',
-        ])->assertRedirect(route('home'));
-        $this->get(route('home'))
-            ->assertOk()
-            ->assertSee('La respuesta a la cotización fue registrada.');
-
-        $ventaId = (int) DB::table('ventas')->value('id_venta');
-        $ordenCompraRow = DB::table('ordenes_compra')->where('version_id', $versionId)->first();
-        $this->assertNotNull($ordenCompraRow?->archivo_path);
-        Storage::disk('local')->assertExists($ordenCompraRow->archivo_path);
-        $this->assertSame('application/pdf', Storage::disk('local')->mimeType($ordenCompraRow->archivo_path));
-        Notification::assertSentTo($admin, OrdenCompraRecibida::class);
-        $notificacionOrden = Notification::sent($admin, OrdenCompraRecibida::class)->first();
-        $this->assertNotNull($notificacionOrden);
-        $this->assertCount(1, $notificacionOrden->toMail($admin)->attachments);
-        Notification::assertSentTo($vendedor, OrdenCompraRecibida::class);
-        $this->actingAs($admin)->get(route('cotizaciones.orden-compra.ver', $ordenCompraRow->id_orden_compra))
-            ->assertOk()
-            ->assertHeader('content-type', 'application/pdf')
-            ->assertHeader('content-disposition', 'inline; filename="orden-compra-'.strtolower($ordenCompraRow->numero).'.pdf"');
-        $this->assertDatabaseHas('ventas', [
-            'id_venta' => $ventaId,
-            'estado_venta' => 'pendiente_confirmacion',
-            'estado_facturacion' => 'pendiente',
-            'folio_sii' => null,
-        ]);
+        $this->post(route('cotizaciones.enviar', $versionId))->assertRedirect();
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
 
-        $ordenCompra = (array) DB::table('ordenes_compra')->where('version_id', $versionId)->first();
-        $this->actingAs($admin)->get(route('solicitudes.show', $solicitudId))
+        $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada'])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseCount('ventas', 0);
+        $this->get(route('solicitudes.show', $solicitudId))
             ->assertOk()
-            ->assertSee('Orden de compra recibida; pendiente del equipo comercial')
-            ->assertSee('Confirmar pago')
-            ->assertSee('data-confirm-kind="sale-payment"', false)
-            ->assertSee('Autorizar crédito');
-        $this->actingAs($admin)->get(route('solicitudes.show', $solicitudId))->assertSee('Ver OC');
-        $this->get(route('cotizaciones.responder.form', [
-            'version' => $versionId,
-            'token' => $coincidencias[1],
-        ]))->assertStatus(410)
-            ->assertSee('Este enlace ya no está disponible')
-            ->assertDontSee('Symfony\\Component\\HttpKernel\\Exception');
-        DB::table('ordenes_compra')->where('version_id', $versionId)->delete();
-        $this->actingAs($admin)->post(route('ventas.confirmar-comercial', $ventaId), [
-            'tipo_confirmacion' => 'pago',
-            'monto_pagado' => 2380,
-            'medio_pago' => 'Transferencia',
-        ])->assertSessionHasErrors('orden_compra');
-        DB::table('ordenes_compra')->insert($ordenCompra);
+            ->assertSee('sin adjuntar una orden de compra')
+            ->assertDontSee('Confirmar pago');
+        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasNoErrors();
 
-        $this->actingAs($admin)->post(route('ventas.confirmar-comercial', $ventaId), [
-            'tipo_confirmacion' => 'pago',
-            'monto_pagado' => 2380,
-            'medio_pago' => 'Transferencia',
-        ])->assertRedirect();
-
-        $this->post(route('ventas.simular-facturacion', $ventaId), ['resultado' => 'error'])
-            ->assertRedirect();
-        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
-
-        $this->post(route('ventas.simular-facturacion', $ventaId), ['resultado' => 'exito'])
-            ->assertRedirect();
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 3]);
-        $detalleVentaUrl = route('reportes.ventas.detalle', $ventaId);
-        $this->actingAs($admin)->get(route('reportes.index'))
-            ->assertOk()
-            ->assertDontSee('data-sale-detail="'.$detalleVentaUrl.'"', false)
-            ->assertDontSee('ventas.confirmar-comercial')
-            ->assertDontSee('ventas.simular-facturacion');
-        $this->actingAs($admin)->get(route('reportes.ventas.detalle', $ventaId))->assertNotFound();
-        $this->post(route('ventas.registrar-entrega', $ventaId))->assertRedirect();
-        $this->assertDatabaseHas('ventas', [
-            'id_venta' => $ventaId,
-            'estado_entrega' => 'entregada',
-        ]);
-        $this->actingAs($admin)->get(route('reportes.index'))->assertSee('data-sale-detail="'.$detalleVentaUrl.'"', false);
-        $this->actingAs($admin)->get(route('reportes.ventas.detalle', $ventaId))->assertOk();
-        $this->assertDatabaseHas('ventas', [
-            'id_venta' => $ventaId,
-            'estado_facturacion' => 'simulada_exitosa',
-        ]);
+        $this->assertDatabaseCount('ventas', 1);
+        $this->assertDatabaseCount('inventario_movimientos', 1);
+        $this->assertDatabaseHas('cotizacion_versiones', ['id_version' => $versionId, 'respuesta_registrada_por' => $seller->id]);
+        $this->assertDatabaseHas('reservas_inventario', ['producto_id' => $productId, 'estado' => 'consumida', 'cantidad' => 2]);
+        $this->assertDatabaseHas('cotizacion_versiones', ['id_version' => $versionId, 'metodo_entrega' => 'por_coordinar']);
+        $this->assertDatabaseCount('ordenes_compra', 0);
+    }
 
-        $this->post(route('ventas.simular-facturacion', $ventaId), ['resultado' => 'exito'])
-            ->assertRedirect();
+    public function test_changes_create_new_version_and_release_removed_reservations(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $first = $this->createProductWithStock(5);
+        $second = $this->createProductWithStock(5);
+        $this->createProductRequest($first, 3);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $this->actingAs($seller)->post(route('solicitudes.cotizacion.crear', $solicitudId))->assertSessionHasNoErrors();
+        $firstVersion = (int) DB::table('cotizacion_versiones')->value('id_version');
+        $this->post(route('cotizaciones.enviar', $firstVersion))->assertRedirect();
+        $this->post(route('cotizaciones.respuesta-interna', $firstVersion), [
+            'decision' => 'cambios_solicitados',
+            'comentarios' => 'Cambiar cantidades',
+        ])->assertSessionHasNoErrors();
+        $this->post(route('solicitudes.cotizacion.crear', $solicitudId), [
+            'items_edicion' => '1',
+            'items' => [
+                ['id_producto' => $first, 'cantidad' => 1],
+                ['id_producto' => $second, 'cantidad' => 2],
+            ],
+        ])->assertSessionHasNoErrors();
+        $secondVersion = (int) DB::table('cotizacion_versiones')->where('numero_version', 2)->value('id_version');
+        $this->assertNotSame(0, $secondVersion);
+        $this->assertSame(1, (int) DB::table('reservas_inventario')->where('producto_id', $first)->where('estado', 'activa')->sum('cantidad'));
+        $this->assertSame(2, (int) DB::table('reservas_inventario')->where('producto_id', $second)->where('estado', 'activa')->sum('cantidad'));
+        $this->assertDatabaseHas('productos', ['id_producto' => $first, 'stock' => 5]);
+        $this->post(route('cotizaciones.enviar', $secondVersion))->assertRedirect();
+        $this->post(route('cotizaciones.respuesta-interna', $secondVersion), ['decision' => 'rechazada'])->assertSessionHasNoErrors();
+        $this->assertSame(0, DB::table('reservas_inventario')->where('estado', 'activa')->count());
+    }
+
+    public function test_sale_with_insufficient_stock_rolls_back_without_creating_a_sale(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 2);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $this->actingAs($seller)->post(route('solicitudes.cotizacion.crear', $solicitudId));
+        $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
+        $this->post(route('cotizaciones.enviar', $versionId));
+        $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
+        DB::table('productos')->where('id_producto', $productId)->update(['stock' => 1]);
+
+        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasErrors('stock');
+        $this->assertDatabaseCount('ventas', 0);
+        $this->assertDatabaseCount('inventario_movimientos', 0);
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 1]);
+    }
+
+    public function test_existing_matching_inventory_movements_are_not_deducted_again(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 2);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $this->actingAs($seller)->post(route('solicitudes.cotizacion.crear', $solicitudId));
+        $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
+        $this->post(route('cotizaciones.enviar', $versionId));
+        $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
+        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasNoErrors();
+        DB::table('ventas')->update(['stock_descontado_at' => null, 'estado_venta' => 'pendiente_confirmacion']);
+
+        $migration = require database_path('migrations/2026_11_13_224156_migrate_pending_b2b_sales_to_new_flow.php');
+        $migration->up();
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 3]);
         $this->assertDatabaseCount('inventario_movimientos', 1);
-        $this->assertDatabaseCount('eventos_facturacion', 2);
-        Http::assertNothingSent();
+        $this->assertDatabaseHas('ventas', ['estado_venta' => 'confirmada']);
+        $this->assertNotNull(DB::table('ventas')->value('stock_descontado_at'));
     }
 
-    public function test_vendor_can_record_partial_and_final_payments_on_authorized_credit(): void
-    {
-        Mail::fake();
-        Storage::fake('local');
-        Http::fake();
-        $productId = $this->createProductWithStock(5);
-        $this->createProductRequest($productId, 2, 'cliente@example.test');
-        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
-        $admin = User::factory()->create(['rol' => 'Administrador']);
-        $vendedor = User::factory()->create(['rol' => 'Vendedor']);
-
-        $this->actingAs($admin)->post(route('solicitudes.cotizacion.crear', $solicitudId));
-        $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
-        $this->post(route('cotizaciones.enviar', $versionId));
-        $mensaje = Mail::sent(CotizacionCliente::class)->first();
-        preg_match(
-            '~/cotizaciones/\d+/responder/([A-Za-z0-9]{48})$~',
-            (string) parse_url($mensaje->urlRespuesta, PHP_URL_PATH),
-            $coincidencias,
-        );
-        auth()->logout();
-        $this->post(route('cotizaciones.responder', [
-            'version' => $versionId,
-            'token' => $coincidencias[1],
-        ]), [
-            'telefono' => '+56912345678',
-            'decision' => 'aceptar',
-            'metodo_entrega' => 'retiro',
-            'modalidad_oc' => 'automatica',
-        ])->assertRedirect(route('home'));
-
-        $ventaId = (int) DB::table('ventas')->value('id_venta');
-        $this->actingAs($admin)->post(route('ventas.confirmar-comercial', $ventaId), [
-            'tipo_confirmacion' => 'credito',
-        ])->assertRedirect();
-        $this->assertDatabaseHas('ventas', [
-            'id_venta' => $ventaId,
-            'estado_pago' => 'credito_autorizado',
-            'monto_pagado' => 0,
-        ]);
-        $this->actingAs($vendedor)->post(route('ventas.registrar-pago-credito', $ventaId), [
-            'monto_pagado' => 1000,
-            'medio_pago' => 'Transferencia',
-        ])->assertRedirect();
-        $this->assertDatabaseHas('ventas', [
-            'id_venta' => $ventaId,
-            'estado_pago' => 'credito_parcial',
-            'monto_pagado' => 1000,
-        ]);
-        $this->actingAs($vendedor)->post(route('ventas.registrar-pago-credito', $ventaId), [
-            'monto_pagado' => 1381,
-            'medio_pago' => 'Transferencia',
-        ])->assertSessionHasErrors('monto_pagado');
-        $this->actingAs($admin)->post(route('ventas.simular-facturacion', $ventaId), [
-            'resultado' => 'exito',
-        ])->assertRedirect();
-        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 3]);
-
-        $this->actingAs($vendedor)->get(route('solicitudes.show', $solicitudId))
-            ->assertOk()
-            ->assertSee('Crédito con abonos')
-            ->assertSee('Registrar abono al crédito')
-            ->assertSee('Saldo pendiente');
-        $respuestaPagoFinal = $this->post(route('ventas.registrar-pago-credito', $ventaId), [
-            'monto_pagado' => 1380,
-            'medio_pago' => 'Transferencia',
-        ]);
-        $respuestaPagoFinal->assertRedirect();
-        $this->assertDatabaseHas('ventas', [
-            'id_venta' => $ventaId,
-            'estado_pago' => 'pagado',
-            'monto_pagado' => 2380,
-        ]);
-    }
-
-    public function test_customer_can_select_delivery_and_total_uses_configured_shipping_charge(): void
+    public function test_migration_rolls_back_all_sales_when_historical_movements_do_not_match(): void
     {
         Mail::fake();
         Notification::fake();
-        Storage::fake('local');
-        Http::fake();
-        config(['services.cotizaciones.costo_despacho' => 2500]);
-        $productId = $this->createProductWithStock(5);
-        $this->createProductRequest($productId, 2, 'cliente@example.test');
-        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
-        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $this->actingAs($seller);
 
-        $this->actingAs($admin)->post(route('solicitudes.cotizacion.crear', $solicitudId));
+        foreach ([1, 2] as $index) {
+            $productId = $this->createProductWithStock(10);
+            $this->createProductRequest($productId, 2);
+            $solicitudId = (int) DB::table('solicitud_webs')->max('id_solicitud');
+            $this->post(route('solicitudes.cotizacion.crear', $solicitudId))->assertSessionHasNoErrors();
+            $versionId = (int) DB::table('cotizacion_versiones')->max('id_version');
+            $this->post(route('cotizaciones.enviar', $versionId));
+            $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
+            $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasNoErrors();
+            $products[$index] = $productId;
+            $sales[$index] = (int) DB::table('ventas')->max('id_venta');
+        }
+
+        DB::table('ventas')->update(['stock_descontado_at' => null, 'estado_venta' => 'pendiente_confirmacion']);
+        DB::table('inventario_movimientos')->where('id_venta', $sales[1])->delete();
+        DB::table('inventario_movimientos')->where('id_venta', $sales[2])->update(['cantidad' => -1]);
+
+        try {
+            $migration = require database_path('migrations/2026_11_13_224156_migrate_pending_b2b_sales_to_new_flow.php');
+            $migration->up();
+            $this->fail('Se esperaba un error por movimientos históricos inconsistentes.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('venta', $exception->errors());
+        }
+
+        $this->assertDatabaseHas('productos', ['id_producto' => $products[1], 'stock' => 8]);
+        $this->assertDatabaseHas('productos', ['id_producto' => $products[2], 'stock' => 8]);
+        $this->assertDatabaseMissing('inventario_movimientos', ['id_venta' => $sales[1]]);
+        $this->assertSame(2, DB::table('ventas')->whereNull('stock_descontado_at')->count());
+    }
+
+    public function test_migration_deducts_stock_for_historical_sales_without_movements(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 2);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $this->actingAs(User::factory()->create(['rol' => 'Vendedor']))
+            ->post(route('solicitudes.cotizacion.crear', $solicitudId));
         $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
         $this->post(route('cotizaciones.enviar', $versionId));
-        $mensaje = Mail::sent(CotizacionCliente::class)->first();
-        preg_match(
-            '~/cotizaciones/\d+/responder/([A-Za-z0-9]{48})$~',
-            (string) parse_url($mensaje->urlRespuesta, PHP_URL_PATH),
-            $coincidencias,
-        );
-        $this->get(route('cotizaciones.responder.form', [
-            'version' => $versionId,
-            'token' => $coincidencias[1],
-        ]))->assertOk()
-            ->assertSee('name="metodo_entrega"', false)
-            ->assertSee('Delivery a domicilio')
-            ->assertSee('name="calle"', false)
-            ->assertDontSee('La enviaré más adelante');
+        $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
+        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasNoErrors();
+        DB::table('inventario_movimientos')->delete();
+        DB::table('productos')->where('id_producto', $productId)->update(['stock' => 5]);
+        DB::table('ventas')->update(['stock_descontado_at' => null, 'estado_venta' => 'pendiente_confirmacion']);
 
-        auth()->logout();
-        $datosRespuesta = [
-            'telefono' => '+56912345678',
-            'decision' => 'aceptar',
-            'metodo_entrega' => 'despacho',
-            'calle' => 'Avenida Central',
-            'numero' => '123',
+        $migration = require database_path('migrations/2026_11_13_224156_migrate_pending_b2b_sales_to_new_flow.php');
+        $migration->up();
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 3]);
+        $this->assertDatabaseCount('inventario_movimientos', 1);
+        $this->assertDatabaseHas('ventas', ['estado_venta' => 'confirmada']);
+        $this->assertNotNull(DB::table('ventas')->value('stock_descontado_at'));
+    }
+
+    public function test_sale_does_not_consume_stock_reserved_for_another_quote(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 2);
+        $firstRequest = (int) DB::table('solicitud_webs')->max('id_solicitud');
+        $this->createProductRequest($productId, 3);
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $this->actingAs($seller)->post(route('solicitudes.cotizacion.crear', $firstRequest));
+        $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
+        $this->post(route('cotizaciones.enviar', $versionId));
+        $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
+        DB::table('productos')->where('id_producto', $productId)->update(['stock' => 4]);
+
+        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasErrors('stock');
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 4]);
+        $this->assertSame(5, (int) DB::table('reservas_inventario')->where('estado', 'activa')->sum('cantidad'));
+        $this->assertDatabaseCount('ventas', 0);
+    }
+
+    public function test_internal_summary_records_customer_data_and_purchase_order_without_invoicing(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $this->actingAs($seller)->post(route('solicitudes.cotizacion.crear', $solicitudId));
+        $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
+        $this->post(route('cotizaciones.enviar', $versionId));
+        $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
+        $this->post(route('cotizaciones.convertir-venta', $versionId));
+        $ventaId = (int) DB::table('ventas')->value('id_venta');
+        $response = $this->post(route('ventas.generar-resumen', $ventaId), [
+            'nombre' => 'Empresa de prueba',
+            'rut' => '12.345.678-5',
+            'giro' => 'Comercio',
+            'direccion' => 'Calle 123',
             'comuna' => 'Santiago',
-            'ciudad' => 'Santiago',
-            'region' => 'Metropolitana',
-        ];
-        $this->post(route('cotizaciones.responder', [
-            'version' => $versionId,
-            'token' => $coincidencias[1],
-        ]), [
-            ...$datosRespuesta,
-            'metodo_entrega' => null,
-            'modalidad_oc' => 'automatica',
-        ])->assertSessionHasErrors('metodo_entrega');
-        $this->post(route('cotizaciones.responder', [
-            'version' => $versionId,
-            'token' => $coincidencias[1],
-        ]), $datosRespuesta)->assertSessionHasErrors('modalidad_oc');
-        $this->post(route('cotizaciones.responder', [
-            'version' => $versionId,
-            'token' => $coincidencias[1],
-        ]), [
-            ...$datosRespuesta,
-            'modalidad_oc' => 'automatica',
-            'calle' => '',
-        ])->assertSessionHasErrors('calle');
-        $this->post(route('cotizaciones.responder', [
-            'version' => $versionId,
-            'token' => $coincidencias[1],
-        ]), [
-            ...$datosRespuesta,
-            'modalidad_oc' => 'automatica',
-        ])->assertRedirect(route('home'));
-
-        $venta = DB::table('ventas')->where('cotizacion_version_id', $versionId)->first();
-        $this->assertNotNull($venta);
-        $this->assertSame('despacho', $venta->metodo_entrega);
-        $this->assertSame('Avenida Central 123', $venta->direccion_despacho);
-        $this->assertSame('Santiago', $venta->comuna_despacho);
-        $this->assertSame('Santiago', $venta->ciudad_despacho);
-        $this->assertSame('Metropolitana', $venta->region_despacho);
-        $this->assertSame(2500.0, (float) $venta->total - 2380.0);
-        $this->actingAs($admin)->get(route('solicitudes.show', $solicitudId))
-            ->assertOk()
-            ->assertSee('Delivery a domicilio')
-            ->assertSee('Avenida Central 123')
-            ->assertSee('Santiago, Santiago, Metropolitana');
-        $this->assertDatabaseHas('cotizacion_versiones', [
-            'id_version' => $versionId,
-            'metodo_entrega' => 'despacho',
-            'costo_despacho' => 2500,
-            'total' => 4880,
-            'calle' => 'Avenida Central',
+            'correo' => 'cliente@example.test',
+            'numero_oc' => 'OC-123',
         ]);
+        $response->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+        $this->assertSame('OC-123', json_decode(DB::table('ventas')->value('datos_resumen'), true)['numero_oc']);
+        $this->assertDatabaseCount('eventos_facturacion', 0);
+        $this->actingAs(User::factory()->create(['rol' => 'Administrador']))
+            ->get(route('reportes.ventas.resumen', $ventaId))->assertOk();
+    }
+
+    public function test_new_quote_notifies_admin_and_seller_by_email(): void
+    {
+        Notification::fake();
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+
+        foreach ([$admin, $seller] as $user) {
+            Notification::assertSentTo($user, SolicitudWebRecibida::class, function ($notification, $channels) use ($user, $solicitudId): bool {
+                return in_array('mail', $channels, true)
+                    && $notification->toMail($user)->viewData['urlSolicitud'] === route('solicitudes.show', $solicitudId);
+            });
+        }
     }
 
     public function test_http_errors_use_resmap_branded_pages(): void
@@ -442,6 +366,8 @@ class B2BQuotationFlowTest extends TestCase
             'services.whatsapp.test_mode' => true,
             'services.whatsapp.test_recipients' => ['+56987654321'],
             'services.whatsapp.quote_template' => 'resmap_quote_es_cl',
+            'services.whatsapp.quote_url_button' => true,
+            'services.whatsapp.quote_url_button_index' => 0,
         ]);
         $productId = $this->createProductWithStock(5);
         $this->createProductRequest($productId, 1);
@@ -472,7 +398,7 @@ class B2BQuotationFlowTest extends TestCase
         ]);
 
         $datosRegistrados = (string) DB::table('mensajes_whatsapp')->where('version_id', $versionId)->value('datos');
-        $this->assertStringContainsString('[REDACTED]', $datosRegistrados);
+        $this->assertStringContainsString('[LINK DE COTIZACION]', $datosRegistrados);
         $this->assertSame(0, preg_match('/quote:\d+:aceptar:[A-Za-z0-9]{48}/', $datosRegistrados));
     }
 
@@ -490,7 +416,9 @@ class B2BQuotationFlowTest extends TestCase
             'services.whatsapp.test_mode' => true,
             'services.whatsapp.test_recipients' => ['+56912345678'],
             'services.whatsapp.quote_template' => 'resmap_cotizacion_v2',
+            'services.whatsapp.quote_quick_replies' => true,
             'services.whatsapp.quote_url_button' => true,
+            'services.whatsapp.quote_url_button_index' => 3,
         ]);
         $this->createProductRequest($this->createProductWithStock(5), 1);
         DB::table('clientes')->update([
@@ -509,27 +437,121 @@ class B2BQuotationFlowTest extends TestCase
             $boton = collect($componentes)->firstWhere('sub_type', 'url');
 
             return count($componentes[0]['parameters']) === 3
+                && collect($componentes)->where('sub_type', 'quick_reply')->count() === 0
                 && $boton['index'] === '3'
-                && str_starts_with($boton['parameters'][0]['text'], $versionId.'/responder/');
+                && str_starts_with($boton['parameters'][0]['text'], $versionId.'/documento-externo?');
         });
     }
 
-    public function test_whatsapp_url_button_with_literal_placeholder_prefix_opens_the_response_form(): void
+    public function test_whatsapp_template_can_send_only_a_url_button(): void
     {
         Mail::fake();
+        Http::fake([
+            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.url-only']], 'contacts' => []]),
+        ]);
+        config([
+            'services.whatsapp.enabled' => true,
+            'services.whatsapp.api_version' => 'v25.0',
+            'services.whatsapp.phone_number_id' => 'test-phone-number-id',
+            'services.whatsapp.access_token' => 'test-access-token',
+            'services.whatsapp.test_mode' => true,
+            'services.whatsapp.test_recipients' => ['+56912345678'],
+            'services.whatsapp.quote_template' => 'resmap_cotizacion_v3',
+            'services.whatsapp.quote_quick_replies' => false,
+            'services.whatsapp.quote_url_button' => true,
+            'services.whatsapp.quote_url_button_index' => 0,
+        ]);
         $this->createProductRequest($this->createProductWithStock(5), 1);
+        DB::table('clientes')->update([
+            'consentimiento_whatsapp_at' => now(),
+            'consentimiento_whatsapp_origen' => 'prueba',
+        ]);
         $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
         $admin = User::factory()->create(['rol' => 'Administrador']);
+
         $this->actingAs($admin)->post(route('solicitudes.cotizacion.crear', $solicitudId));
         $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
-        $this->post(route('cotizaciones.enviar', $versionId));
+        $this->post(route('cotizaciones.enviar', $versionId))->assertRedirect();
+
         $mensaje = Mail::sent(CotizacionCliente::class)->first();
-        $token = basename((string) parse_url($mensaje->urlRespuesta, PHP_URL_PATH));
+        $this->assertNotNull($mensaje);
+        $rutaPdf = (string) parse_url($mensaje->urlPdf, PHP_URL_PATH).'?'.(string) parse_url($mensaje->urlPdf, PHP_URL_QUERY);
+        $this->get($rutaPdf)->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->get(str_replace('signature=', 'signature=incorrecta', $rutaPdf))->assertForbidden();
+        Http::assertSent(function ($request) use ($rutaPdf): bool {
+            $plantilla = $request->data()['template'];
+            $componentes = $plantilla['components'];
+
+            return $plantilla['name'] === 'resmap_cotizacion_v3'
+                && count($componentes) === 2
+                && $componentes[0]['type'] === 'body'
+                && count($componentes[0]['parameters']) === 3
+                && $componentes[1]['sub_type'] === 'url'
+                && $componentes[1]['index'] === '0'
+                && $componentes[1]['parameters'][0]['text'] === substr($rutaPdf, strlen('/cotizaciones/'));
+        });
+        $this->assertDatabaseHas('mensajes_whatsapp', [
+            'version_id' => $versionId,
+            'estado' => 'aceptado_por_meta',
+        ]);
+        $datosRegistrados = (string) DB::table('mensajes_whatsapp')->where('version_id', $versionId)->value('datos');
+        $this->assertStringNotContainsString((string) parse_url($mensaje->urlPdf, PHP_URL_QUERY), $datosRegistrados);
+    }
+
+    public function test_old_response_links_and_buttons_cannot_change_a_quote(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $this->actingAs(User::factory()->create(['rol' => 'Vendedor']))
+            ->post(route('solicitudes.cotizacion.crear', $solicitudId));
+        $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
+        $this->post(route('cotizaciones.enviar', $versionId));
         auth()->logout();
 
-        $this->get("/cotizaciones/%7B%7B1%7D%7D{$versionId}/responder/{$token}")
-            ->assertOk()
-            ->assertSee('Revisión de cotización');
+        $this->get(route('cotizaciones.responder.form', ['version' => $versionId, 'token' => 'antiguo']))->assertStatus(410);
+        $this->post(route('cotizaciones.responder', ['version' => $versionId, 'token' => 'antiguo']), ['decision' => 'aceptar'])->assertStatus(410);
+        config(['services.whatsapp.app_secret' => 'test-app-secret']);
+        $payload = [
+            'object' => 'whatsapp_business_account',
+            'entry' => [['changes' => [['value' => ['messages' => [[
+                'from' => '56912345678',
+                'id' => 'wamid.old-button',
+                'type' => 'button',
+                'button' => ['text' => 'Aceptar', 'payload' => "quote:{$versionId}:aceptar:".str_repeat('a', 48)],
+            ]]]]]]],
+        ];
+        $body = json_encode($payload, JSON_THROW_ON_ERROR);
+        $this->call('POST', route('whatsapp.webhook.recibir'), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $body, 'test-app-secret'),
+        ], $body)->assertOk();
+
+        $this->assertDatabaseHas('cotizacion_versiones', ['id_version' => $versionId, 'estado' => 'enviada']);
+        $this->assertDatabaseCount('ventas', 0);
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
+    }
+
+    public function test_quote_pdf_link_expires_and_internal_actions_require_authentication(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $this->actingAs(User::factory()->create(['rol' => 'Administrador']))
+            ->post(route('solicitudes.cotizacion.crear', $solicitudId));
+        $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
+        $this->post(route('cotizaciones.enviar', $versionId));
+        $mail = Mail::sent(CotizacionCliente::class)->first();
+        $url = (string) parse_url($mail->urlPdf, PHP_URL_PATH).'?'.(string) parse_url($mail->urlPdf, PHP_URL_QUERY);
+        auth()->logout();
+        $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada'])->assertRedirect(route('login'));
+        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertRedirect(route('login'));
+        $this->get($url)->assertOk();
+        $this->travel(8)->days();
+        $this->get($url)->assertForbidden();
     }
 
     public function test_whatsapp_webhook_verification_accepts_meta_query_parameters(): void
@@ -582,100 +604,6 @@ class B2BQuotationFlowTest extends TestCase
             'consentimiento_whatsapp_at' => null,
             'consentimiento_whatsapp_origen' => 'whatsapp_opt_out',
         ]);
-    }
-
-    public function test_signed_whatsapp_template_reply_accepts_only_from_the_registered_phone(): void
-    {
-        Mail::fake();
-        Http::fake([
-            'graph.facebook.com/*' => Http::response(['messages' => [['id' => 'wamid.quote-template']], 'contacts' => []]),
-        ]);
-        config([
-            'services.whatsapp.enabled' => true,
-            'services.whatsapp.api_version' => 'v25.0',
-            'services.whatsapp.phone_number_id' => 'test-phone-number-id',
-            'services.whatsapp.access_token' => 'test-access-token',
-            'services.whatsapp.test_mode' => true,
-            'services.whatsapp.test_recipients' => ['+56987654321'],
-            'services.whatsapp.quote_template' => 'resmap_quote_es_cl',
-            'services.whatsapp.app_secret' => 'test-app-secret',
-        ]);
-        $productId = $this->createProductWithStock(5);
-        $this->createProductRequest($productId, 2);
-        DB::table('clientes')->update([
-            'consentimiento_whatsapp_at' => now(),
-            'consentimiento_whatsapp_origen' => 'prueba',
-            'telefono_whatsapp' => '+56987654321',
-        ]);
-        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
-        $admin = User::factory()->create(['rol' => 'Administrador']);
-
-        $this->actingAs($admin)
-            ->post(route('solicitudes.cotizacion.crear', $solicitudId))
-            ->assertRedirect(route('solicitudes.show', $solicitudId));
-
-        $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
-        $this->post(route('cotizaciones.enviar', $versionId))
-            ->assertRedirect(route('solicitudes.show', $solicitudId));
-        $peticion = Http::recorded()->first()[0];
-        $payloadBoton = $peticion->data()['template']['components'][1]['parameters'][0]['payload'];
-
-        foreach (['56900000000', '56987654321'] as $indice => $remitente) {
-            $payload = [
-                'object' => 'whatsapp_business_account',
-                'entry' => [[
-                    'changes' => [[
-                        'value' => [
-                            'messages' => [[
-                                'from' => $remitente,
-                                'id' => 'wamid.inbound-'.$indice,
-                                'timestamp' => (string) now()->timestamp,
-                                'type' => 'button',
-                                'button' => ['text' => 'Aceptar', 'payload' => $payloadBoton],
-                            ]],
-                        ],
-                    ]],
-                ]],
-            ];
-            $cuerpo = json_encode($payload, JSON_THROW_ON_ERROR);
-            $firma = 'sha256='.hash_hmac('sha256', $cuerpo, 'test-app-secret');
-            $this->call('POST', route('whatsapp.webhook.recibir'), [], [], [], [
-                'CONTENT_TYPE' => 'application/json',
-                'HTTP_X_HUB_SIGNATURE_256' => $firma,
-            ], $cuerpo)->assertOk();
-        }
-
-        $this->assertDatabaseHas('cotizacion_versiones', [
-            'id_version' => $versionId,
-            'estado' => 'aceptada',
-        ]);
-        $this->assertDatabaseCount('ventas', 1);
-        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
-
-        $repetido = json_encode([
-            'object' => 'whatsapp_business_account',
-            'entry' => [[
-                'changes' => [[
-                    'value' => [
-                        'messages' => [[
-                            'from' => '56987654321',
-                            'id' => 'wamid.inbound-repeat',
-                            'timestamp' => (string) now()->timestamp,
-                            'type' => 'button',
-                            'button' => ['text' => 'Rechazar', 'payload' => $payloadBoton],
-                        ]],
-                    ],
-                ]],
-            ]],
-        ], JSON_THROW_ON_ERROR);
-        $this->call('POST', route('whatsapp.webhook.recibir'), [], [], [], [
-            'CONTENT_TYPE' => 'application/json',
-            'HTTP_X_HUB_SIGNATURE_256' => 'sha256='.hash_hmac('sha256', $repetido, 'test-app-secret'),
-        ], $repetido)->assertOk();
-
-        Http::assertSent(fn ($request): bool => ($request->data()['type'] ?? null) === 'text'
-            && str_contains($request->data()['text']['body'], 'ya fue respondida'));
-        $this->assertDatabaseHas('cotizacion_versiones', ['id_version' => $versionId, 'estado' => 'aceptada']);
     }
 
     private function createProductRequest(int $productId, int $cantidad, ?string $correo = null): void

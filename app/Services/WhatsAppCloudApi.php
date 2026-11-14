@@ -29,8 +29,8 @@ class WhatsAppCloudApi
         if ($nombrePlantilla === '') {
             throw new RuntimeException('Configura WHATSAPP_QUOTE_TEMPLATE con el nombre de una plantilla aprobada por Meta.');
         }
-        if (count($botones) < 1 || count($botones) > 3) {
-            throw new \InvalidArgumentException('La plantilla de cotización debe definir entre uno y tres botones de respuesta.');
+        if (count($botones) > 3 || ($botones === [] && $sufijoUrl === null)) {
+            throw new RuntimeException('La plantilla de cotización debe definir hasta tres botones de respuesta o un botón de URL.');
         }
 
         $componentes = [
@@ -168,6 +168,9 @@ class WhatsAppCloudApi
                         }
                     }
                 } elseif (($componente['type'] ?? null) === 'button') {
+                    if (($componente['sub_type'] ?? null) === 'url') {
+                        $componente['parameters'][0]['text'] = '[LINK DE COTIZACION]';
+                    }
                     $respuestaBoton = $componente['parameters'][0]['payload'] ?? null;
                     if (is_string($respuestaBoton)) {
                         $componente['parameters'][0]['payload'] = preg_replace(

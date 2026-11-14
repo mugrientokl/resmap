@@ -17,7 +17,6 @@ class CotizacionCliente extends Mailable
 
     public function __construct(
         public CotizacionVersion $version,
-        public string $urlRespuesta,
         public string $urlPdf,
         public string $pdf,
     ) {}
@@ -39,7 +38,6 @@ class CotizacionCliente extends Mailable
             with: [
                 'version' => $this->version,
                 'cliente' => $this->version->cotizacion->solicitud->cliente,
-                'urlRespuesta' => $this->urlRespuesta,
                 'urlPdf' => $this->urlPdf,
                 'logoUrl' => 'cid:resmap-logo',
             ],

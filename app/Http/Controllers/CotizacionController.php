@@ -17,8 +17,11 @@ use App\Models\SolicitudWeb;
 use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\OrdenCompraRecibida;
+use App\Rules\RutChileno;
 use App\Services\Facturacion\ProveedorFacturacion;
 use App\Services\InventarioReservaService;
+use App\Services\ResumenInternoVentaPdf;
+use App\Services\VentaCotizacionService;
 use App\Services\WhatsAppCloudApi;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Client\ConnectionException;
@@ -34,6 +37,7 @@ use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -45,6 +49,9 @@ class CotizacionController extends Controller
     {
         $datos = $request->validate([
             'costo_despacho' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'items' => [Rule::requiredIf($request->boolean('items_edicion')), 'array', 'min:1'],
+            'items.*.id_producto' => ['required_with:items', 'integer', 'distinct', 'exists:productos,id_producto'],
+            'items.*.cantidad' => ['required_with:items', 'integer', 'min:1', 'max:99999'],
         ]);
 
         abort_if($solicitud->tipo_solicitud === 'servicio', 422, 'Las solicitudes de servicio no generan cotizaciones de repuestos.');
@@ -69,7 +76,7 @@ class CotizacionController extends Controller
                 throw ValidationException::withMessages(['cotizacion' => 'La cotización ya está cerrada.']);
             }
 
-            $items = collect($solicitudBloqueada->detalles_productos ?? [])
+            $items = collect($datos['items'] ?? $solicitudBloqueada->detalles_productos ?? [])
                 ->groupBy('id_producto')
                 ->map(fn ($detalles): int => $detalles->sum(fn (array $detalle): int => (int) $detalle['cantidad']));
             if ($items->isEmpty()) {
@@ -84,7 +91,7 @@ class CotizacionController extends Controller
                 ->keyBy('id_producto');
 
             foreach ($items as $productoId => $cantidad) {
-                if (! $productos->has($productoId)) {
+                if (! $productos->has($productoId) || ! $productos->get($productoId)->activo) {
                     throw ValidationException::withMessages(['cotizacion' => 'Uno de los productos ya no está disponible.']);
                 }
             }
@@ -114,7 +121,7 @@ class CotizacionController extends Controller
                 'iva' => $iva,
                 'costo_despacho' => $costoDespacho,
                 'total' => $total + $costoDespacho,
-                'metodo_entrega' => $solicitudBloqueada->metodo_entrega ?? 'retiro',
+                'metodo_entrega' => $solicitudBloqueada->metodo_entrega ?? 'por_coordinar',
                 'calle' => $solicitudBloqueada->direccion_calle,
                 'numero' => $solicitudBloqueada->direccion_numero,
                 'comuna' => $solicitudBloqueada->direccion_comuna,
@@ -137,34 +144,8 @@ class CotizacionController extends Controller
                 ]);
             }
 
-            $reservasActivas = $cotizacion->reservas()
-                ->where('estado', 'activa')
-                ->where('expira_at', '>', now())
-                ->get()
-                ->groupBy('producto_id');
-            $faltantesReserva = [];
-            foreach ($items as $productoId => $cantidad) {
-                $reservado = (int) $reservasActivas->get($productoId, collect())->sum('cantidad');
-                if ($reservado < $cantidad) {
-                    $faltantesReserva[$productoId] = $cantidad - $reservado;
-                }
-            }
-            if ($faltantesReserva !== []) {
-                $reservas->reservar($cotizacion, $faltantesReserva, $version->id_version);
-            }
-
-            foreach ($reservasActivas->flatten() as $reserva) {
-                if ($reserva->version_id === null) {
-                    $reserva->update(['version_id' => $version->id_version]);
-                    EventoReserva::create([
-                        'reserva_id' => $reserva->id_reserva,
-                        'user_id' => $request->user()->id,
-                        'evento' => 'vinculada_cotizacion',
-                        'expiracion_anterior' => $reserva->expira_at,
-                        'expiracion_nueva' => $reserva->expira_at,
-                    ]);
-                }
-            }
+            $reservas->liberar($cotizacion, 'nueva_version', $request->user()->id);
+            $reservas->reservar($cotizacion, $items->all(), $version->id_version);
 
             $cotizacion->update([
                 'estado' => 'borrador',
@@ -183,30 +164,27 @@ class CotizacionController extends Controller
         abort_unless($version->estado === 'borrador', 422, 'Solo se pueden enviar cotizaciones en borrador.');
         abort_if($version->vigente_hasta->isPast(), 422, 'La cotización ya venció.');
 
-        $token = Str::random(48);
         $version->update([
             'estado' => 'enviada',
-            'token_cliente_hash' => hash('sha256', $token),
-            'token_expira_at' => $version->vigente_hasta,
+            'token_cliente_hash' => null,
+            'token_expira_at' => null,
             'enviada_at' => now(),
         ]);
         $cotizacion = $version->cotizacion;
         $cliente = $cotizacion->solicitud->cliente;
-        $urlRespuesta = route('cotizaciones.responder.form', [
-            'version' => $version->id_version,
-            'token' => $token,
-        ]);
-        $urlPdf = URL::temporarySignedRoute(
-            'cotizaciones.pdf.publico',
+        $rutaPdf = URL::temporarySignedRoute(
+            'cotizaciones.pdf.externo',
             $version->vigente_hasta,
             ['version' => $version->id_version],
+            absolute: false,
         );
+        $urlPdf = rtrim((string) config('app.url'), '/').$rutaPdf;
         $pdf = $this->generarPdf($version);
         $avisos = [];
 
         if ($cliente->correo) {
             try {
-                Mail::to($cliente->correo)->send(new CotizacionCliente($version, $urlRespuesta, $urlPdf, $pdf));
+                Mail::to($cliente->correo)->send(new CotizacionCliente($version, $urlPdf, $pdf));
                 $version->update(['email_estado' => 'aceptado_por_smtp']);
             } catch (TransportExceptionInterface $exception) {
                 $version->update(['email_estado' => 'fallido']);
@@ -214,7 +192,7 @@ class CotizacionController extends Controller
                     'version_id' => $version->id_version,
                     'error' => $exception->getMessage(),
                 ]);
-                $avisos[] = 'No fue posible enviar el correo a Mailtrap; revisa el log de la aplicación.';
+                $avisos[] = 'No fue posible enviar el correo; revisa el log de la aplicación.';
             }
         } else {
             $avisos[] = 'El cliente no tiene correo registrado.';
@@ -235,19 +213,15 @@ class CotizacionController extends Controller
             try {
                 $whatsapp->enviarPlantillaCotizacion(
                     $telefonoWhatsApp,
-                    "Cotización #{$cotizacion->id_cotizacion}, versión {$version->numero_version}. Responde aceptar, rechazar o solicitar cambios.",
+                    "Cotización #{$cotizacion->id_cotizacion}, versión {$version->numero_version}. Comunícate con RESMAP para responder o solicitar cambios.",
                     $parametrosPlantilla,
-                    [
-                        ['id' => "quote:{$version->id_version}:aceptar:{$token}", 'title' => 'Aceptar'],
-                        ['id' => "quote:{$version->id_version}:rechazar:{$token}", 'title' => 'Rechazar'],
-                        ['id' => "quote:{$version->id_version}:cambios:{$token}", 'title' => 'Solicitar cambios'],
-                    ],
+                    [],
                     $cotizacion,
                     $version,
-                    $usarBotonUrl ? "{$version->id_version}/responder/{$token}" : null,
+                    $usarBotonUrl ? Str::after($rutaPdf, '/cotizaciones/') : null,
                 );
                 $version->update(['whatsapp_estado' => 'aceptado_por_meta']);
-            } catch (ConnectionException|RequestException|RuntimeException $exception) {
+            } catch (ConnectionException|RequestException|RuntimeException|InvalidArgumentException $exception) {
                 $version->update(['whatsapp_estado' => 'fallido']);
                 Log::warning('Falló el envío de cotización por WhatsApp.', [
                     'version_id' => $version->id_version,
@@ -278,6 +252,79 @@ class CotizacionController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="cotizacion-'.$version->cotizacion_id.'-v'.$version->numero_version.'.pdf"',
         ]);
+    }
+
+    public function registrarRespuesta(Request $request, CotizacionVersion $version, InventarioReservaService $reservas): RedirectResponse
+    {
+        $datos = $request->validate([
+            'decision' => ['required', 'in:aceptada,rechazada,cambios_solicitados'],
+            'comentarios' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        DB::transaction(function () use ($request, $version, $reservas, $datos): void {
+            $cotizacion = Cotizacion::query()->whereKey($version->cotizacion_id)->lockForUpdate()->firstOrFail();
+            $version = CotizacionVersion::query()->whereKey($version->id_version)->lockForUpdate()->firstOrFail();
+            if ($cotizacion->estado !== 'enviada' || $version->estado !== 'enviada'
+                || $version->numero_version !== $cotizacion->ultima_version) {
+                throw ValidationException::withMessages(['cotizacion' => 'Solo se puede registrar una respuesta para la última versión enviada.']);
+            }
+            if ($version->vigente_hasta->isPast()) {
+                throw ValidationException::withMessages(['cotizacion' => 'La cotización venció; prepara una nueva versión.']);
+            }
+            $version->update([
+                'estado' => $datos['decision'],
+                'respuesta_registrada_por' => $request->user()->id,
+                'aceptada_at' => $datos['decision'] === 'aceptada' ? now() : null,
+                'rechazada_at' => $datos['decision'] === 'rechazada' ? now() : null,
+                'cambios_solicitados_at' => $datos['decision'] === 'cambios_solicitados' ? now() : null,
+                'token_cliente_hash' => null,
+                'token_expira_at' => null,
+            ]);
+            $cotizacion->update([
+                'estado' => $datos['decision'],
+                'comentarios_cliente' => $datos['comentarios'] ?? null,
+            ]);
+            if ($datos['decision'] === 'rechazada') {
+                $reservas->liberar($cotizacion, 'cotizacion_rechazada', $request->user()->id);
+            }
+        });
+
+        return back()->with('success', 'Se registró la respuesta informada por el cliente.');
+    }
+
+    public function convertirEnVenta(Request $request, CotizacionVersion $version, VentaCotizacionService $servicio): RedirectResponse
+    {
+        DB::transaction(function () use ($request, $version, $servicio): void {
+            $cotizacion = Cotizacion::query()->whereKey($version->cotizacion_id)->lockForUpdate()->firstOrFail();
+            $version = CotizacionVersion::query()->whereKey($version->id_version)->lockForUpdate()->firstOrFail();
+            if ($cotizacion->estado !== 'aceptada' || $version->estado !== 'aceptada'
+                || $version->numero_version !== $cotizacion->ultima_version) {
+                throw ValidationException::withMessages(['cotizacion' => 'Solo se puede convertir la última versión aceptada.']);
+            }
+            $venta = $this->crearVentaB2B($version, $request->user()->id);
+            $servicio->completar($venta, $request->user()->id);
+        });
+
+        return back()->with('success', 'La venta quedó registrada y el stock descontado.');
+    }
+
+    public function generarResumen(Request $request, Venta $venta, ResumenInternoVentaPdf $resumen)
+    {
+        abort_unless($venta->cotizacion_version_id !== null
+            && $venta->estado_venta === 'confirmada'
+            && $venta->stock_descontado_at !== null, 403);
+        $datos = $request->validate([
+            'nombre' => ['required', 'string', 'max:255'],
+            'rut' => ['required', 'string', 'max:20', new RutChileno],
+            'giro' => ['required', 'string', 'max:255'],
+            'direccion' => ['required', 'string', 'max:255'],
+            'comuna' => ['required', 'string', 'max:100'],
+            'correo' => ['required', 'email', 'max:255'],
+            'numero_oc' => ['required', 'string', 'max:100'],
+        ]);
+        $venta->update(['datos_resumen' => $datos]);
+
+        return $resumen->descargar($venta);
     }
 
     public function descargarOrdenCompra(OrdenCompra $ordenCompra): StreamedResponse
@@ -930,7 +977,7 @@ class CotizacionController extends Controller
         }
     }
 
-    private function crearVentaB2B(CotizacionVersion $version): Venta
+    private function crearVentaB2B(CotizacionVersion $version, ?int $usuarioResponsable = null): Venta
     {
         $existente = Venta::query()->where('cotizacion_version_id', $version->id_version)->first();
         if ($existente) {
@@ -938,13 +985,13 @@ class CotizacionController extends Controller
         }
         $version->loadMissing(['cotizacion.solicitud.cliente', 'detalles']);
         $solicitud = $version->cotizacion->solicitud;
-        $usuarioId = $version->revisada_por ?? $version->cotizacion->creada_por;
+        $usuarioId = $usuarioResponsable ?? $version->revisada_por ?? $version->cotizacion->creada_por;
         if ($usuarioId === null) {
             throw new RuntimeException('La cotización no tiene un usuario responsable para registrar la venta.');
         }
         $venta = Venta::create([
             'fecha' => now(),
-            'tipo_documento' => 'Factura Electrónica',
+            'tipo_documento' => $usuarioResponsable === null ? 'Factura Electrónica' : 'Resumen interno',
             'folio_sii' => null,
             'neto' => $version->neto,
             'iva' => $version->iva,

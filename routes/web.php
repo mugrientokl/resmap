@@ -55,11 +55,15 @@ Route::middleware([
         ->middleware('signed')
         ->name('cotizaciones.pdf.publico');
 
-    Route::get('/cotizaciones/{version}/responder/{token}', [CotizacionController::class, 'mostrarRespuesta'])
+    Route::get('/cotizaciones/{version}/documento-externo', [CotizacionController::class, 'pdfPublico'])
+        ->middleware('signed:relative')
+        ->name('cotizaciones.pdf.externo');
+
+    Route::get('/cotizaciones/{version}/responder/{token}', fn () => abort(410, 'La respuesta se coordina directamente con RESMAP.'))
         ->where('version', '(?:\{\{1\}\})?\d+')
         ->name('cotizaciones.responder.form');
 
-    Route::post('/cotizaciones/{version}/responder/{token}', [CotizacionController::class, 'responder'])
+    Route::post('/cotizaciones/{version}/responder/{token}', fn () => abort(410, 'La respuesta se coordina directamente con RESMAP.'))
         ->middleware('throttle:10,1')
         ->name('cotizaciones.responder');
 
@@ -256,19 +260,19 @@ Route::middleware([
         ->whereNumber('venta')
         ->name('ventas.resumen-interno');
 
-    Route::post('/ventas/{venta}/confirmar-comercial', [CotizacionController::class, 'confirmarVenta'])
+    Route::post('/ventas/{venta}/confirmar-comercial', fn () => abort(410, 'Esta etapa ya no forma parte del flujo de cotizaciones.'))
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('ventas.confirmar-comercial');
 
-    Route::post('/ventas/{venta}/registrar-pago-credito', [CotizacionController::class, 'registrarPagoCredito'])
+    Route::post('/ventas/{venta}/registrar-pago-credito', fn () => abort(410, 'Esta etapa ya no forma parte del flujo de cotizaciones.'))
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('ventas.registrar-pago-credito');
 
-    Route::post('/ventas/{venta}/simular-facturacion', [CotizacionController::class, 'simularFacturacion'])
+    Route::post('/ventas/{venta}/simular-facturacion', fn () => abort(410, 'Esta etapa ya no forma parte del flujo de cotizaciones.'))
         ->middleware(['auth', 'role:Administrador'])
         ->name('ventas.simular-facturacion');
 
-    Route::post('/ventas/{venta}/registrar-entrega', [CotizacionController::class, 'registrarEntrega'])
+    Route::post('/ventas/{venta}/registrar-entrega', fn () => abort(410, 'Esta etapa ya no forma parte del flujo de cotizaciones.'))
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('ventas.registrar-entrega');
 
@@ -287,6 +291,18 @@ Route::middleware([
     Route::post('/cotizaciones/versiones/{version}/enviar', [CotizacionController::class, 'enviar'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('cotizaciones.enviar');
+
+    Route::post('/cotizaciones/versiones/{version}/respuesta-interna', [CotizacionController::class, 'registrarRespuesta'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('cotizaciones.respuesta-interna');
+
+    Route::post('/cotizaciones/versiones/{version}/convertir-venta', [CotizacionController::class, 'convertirEnVenta'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('cotizaciones.convertir-venta');
+
+    Route::post('/ventas/{venta}/generar-resumen', [CotizacionController::class, 'generarResumen'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('ventas.generar-resumen');
 
     Route::get('/inventario/movimientos', [InventarioMovimientoController::class, 'index'])
         ->middleware(['auth', 'role:Administrador'])

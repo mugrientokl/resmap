@@ -55,11 +55,8 @@ class SeguimientoCotizacion
         $completadas = [
             'Solicitud recibida' => true,
             'Cotización enviada' => $ultima?->enviada_at !== null && ! in_array($cotizacion?->estado, ['cambios_solicitados', 'vencida'], true),
-            'Aceptada por el cliente' => $cotizacion?->estado === 'aceptada' || $ordenes->isNotEmpty() || $venta !== null,
-            'Orden de compra' => $ordenes->isNotEmpty(),
-            'Pago o crédito confirmado' => $venta?->estado_venta === 'confirmada',
-            'Facturación' => $venta?->estado_facturacion === 'simulada_exitosa',
-            'Entrega' => $venta?->estado_entrega === 'entregada',
+            'Respuesta registrada' => $cotizacion?->estado === 'aceptada' || $venta !== null,
+            'Venta y descuento de stock' => $venta?->estado_venta === 'confirmada' && $venta?->stock_descontado_at !== null,
         ];
 
         $etapas = [];
@@ -68,7 +65,7 @@ class SeguimientoCotizacion
             if ($completa) {
                 $estado = 'completada';
             } elseif ($cerrada) {
-                $estado = $titulo === 'Aceptada por el cliente' && $cotizacion?->estado === 'rechazada' ? 'rechazada' : 'omitida';
+                $estado = $titulo === 'Respuesta registrada' && $cotizacion?->estado === 'rechazada' ? 'rechazada' : 'omitida';
             } elseif (! $actualAsignada) {
                 $estado = 'actual';
                 $actualAsignada = true;
@@ -127,7 +124,7 @@ class SeguimientoCotizacion
                 $agregar($version->enviada_at, "Versión {$numero} enviada al cliente", $canales ?: null);
             }
             if ($version->aceptada_at) {
-                $agregar($version->aceptada_at, "Cliente aceptó la versión {$numero}", 'Respuesta registrada desde el enlace seguro de la cotización.', 'exito');
+                $agregar($version->aceptada_at, "Cliente aceptó la versión {$numero}", $version->respuesta_registrada_por ? 'Respuesta registrada por '.($nombre($version->respuesta_registrada_por) ?? 'el equipo RESMAP').'.' : 'Respuesta registrada en el flujo anterior.', 'exito');
             }
             if ($version->rechazada_at) {
                 $agregar($version->rechazada_at, "Cliente rechazó la versión {$numero}", $cotizacion?->comentarios_cliente, 'error');
@@ -157,9 +154,9 @@ class SeguimientoCotizacion
         }
 
         foreach ($ventas as $venta) {
-            $agregar($venta->created_at, 'Venta generada', 'Total '.$pesos($venta->total).'; pendiente de confirmación del equipo.');
+            $agregar($venta->created_at, 'Venta generada', 'Total '.$pesos($venta->total).'.');
 
-            if ($venta->estado_venta === 'confirmada') {
+            if (in_array($venta->estado_pago, ['pagado', 'credito_autorizado', 'credito_parcial'], true)) {
                 $esCredito = $venta->credito_autorizado_at !== null;
                 $detalle = $esCredito
                     ? 'Crédito autorizado por '.($venta->creditoAutorizadoPor?->name ?? 'un administrador')
@@ -180,7 +177,7 @@ class SeguimientoCotizacion
             }
 
             if ($venta->stock_descontado_at) {
-                $agregar($venta->stock_descontado_at, 'Stock descontado del inventario', 'Las unidades reservadas se consumieron al facturar.', 'exito');
+                $agregar($venta->stock_descontado_at, 'Stock descontado del inventario', 'Salida registrada para esta venta.', 'exito');
             }
             if ($venta->estado_entrega === 'entregada') {
                 $agregar($venta->entregada_at, 'Entrega registrada', $venta->metodo_entrega === 'despacho' ? 'Despacho entregado al cliente.' : 'Retiro realizado por el cliente.', 'exito');
@@ -224,6 +221,7 @@ class SeguimientoCotizacion
     {
         return collect([$cotizacion?->creada_por])
             ->merge($versiones->pluck('revisada_por'))
+            ->merge($versiones->pluck('respuesta_registrada_por'))
             ->merge($ordenes->pluck('autorizada_por'))
             ->merge($ventas->pluck('credito_autorizado_por'))
             ->filter()

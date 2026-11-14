@@ -44,6 +44,7 @@ class Venta extends Model
         'stock_descontado_at',
         'confirmada_at',
         'entregada_at',
+        'datos_resumen',
     ];
 
     protected function casts(): array
@@ -54,6 +55,7 @@ class Venta extends Model
             'stock_descontado_at' => 'datetime',
             'confirmada_at' => 'datetime',
             'entregada_at' => 'datetime',
+            'datos_resumen' => 'array',
         ];
     }
 
@@ -63,8 +65,7 @@ class Venta extends Model
             $query->whereNull('cotizacion_version_id')
                 ->orWhere(function (Builder $query): void {
                     $query->where('estado_venta', 'confirmada')
-                        ->where('estado_facturacion', 'simulada_exitosa')
-                        ->where('estado_entrega', 'entregada');
+                        ->whereNotNull('stock_descontado_at');
                 });
         });
     }

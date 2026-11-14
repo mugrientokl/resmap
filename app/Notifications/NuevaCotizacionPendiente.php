@@ -15,9 +15,7 @@ class NuevaCotizacionPendiente extends Notification
 
     public function via(object $notifiable): array
     {
-        return $notifiable->rol === 'Administrador'
-            ? ['database', 'mail']
-            : ['database'];
+        return ['database', 'mail'];
     }
 
     public function toMail(object $notifiable): MailMessage

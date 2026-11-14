@@ -69,13 +69,12 @@ class ResumenInternoVentaTest extends TestCase
         $this->actingAs($admin)
             ->get(route('solicitudes.show', $solicitud->id_solicitud))
             ->assertOk()
-            ->assertSee('aria-disabled="true"', false)
             ->assertDontSee(route('solicitudes.pdf', $solicitud->id_solicitud), false);
 
         $this->get(route('solicitudes.pdf', $solicitud->id_solicitud))->assertForbidden();
         $this->get(route('ventas.resumen-interno', $venta->id_venta))->assertNotFound();
 
-        $venta->update(['estado_facturacion' => 'simulada_exitosa', 'estado_entrega' => 'entregada']);
+        $venta->update(['stock_descontado_at' => now()]);
 
         $this->get(route('solicitudes.show', $solicitud->id_solicitud))
             ->assertSee(route('solicitudes.pdf', $solicitud->id_solicitud), false);

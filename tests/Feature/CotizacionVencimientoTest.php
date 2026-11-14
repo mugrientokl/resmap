@@ -81,7 +81,7 @@ class CotizacionVencimientoTest extends TestCase
             ->get(route('solicitudes.show', $solicitud->id_solicitud))
             ->assertOk()
             ->assertSee('Cotización vencida')
-            ->assertSee('Crear cotización');
+            ->assertSee('Crear nueva versión');
     }
 
     public function test_reservations_last_as_long_as_the_quote_validity(): void

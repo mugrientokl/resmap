@@ -21,6 +21,7 @@ class CotizacionVersion extends Model
     protected $fillable = [
         'cotizacion_id',
         'revisada_por',
+        'respuesta_registrada_por',
         'numero_version',
         'estado',
         'neto',

@@ -154,22 +154,6 @@ class CatalogoController extends Controller
                 'max:100',
             ],
             'direccion_referencias' => ['nullable', 'string', 'max:1000'],
-            'preferencia_cotizacion' => ['required', 'in:correo_whatsapp,solo_correo'],
-            'destino_whatsapp' => [
-                'exclude_unless:preferencia_cotizacion,correo_whatsapp',
-                'required_if:preferencia_cotizacion,correo_whatsapp',
-                'in:mismo_numero,otro_numero',
-            ],
-            'telefono_whatsapp_otro' => [
-                'exclude_unless:destino_whatsapp,otro_numero',
-                'required_if:destino_whatsapp,otro_numero',
-                'digits_between:4,14',
-            ],
-            'prefijo_telefono_whatsapp' => [
-                'exclude_unless:destino_whatsapp,otro_numero',
-                'required_if:destino_whatsapp,otro_numero',
-                'regex:/^\\+[1-9][0-9]{0,3}$/',
-            ],
         ], [
             'rut.required' => 'Escribe tu RUT, por ejemplo: 12.345.678-5.',
             'nombre.required' => 'Escribe tu nombre o razón social.',
@@ -177,35 +161,15 @@ class CatalogoController extends Controller
             'telefono.required' => 'Escribe los 8 dígitos de tu teléfono.',
             'telefono.regex' => 'El teléfono debe contener exactamente 8 dígitos.',
             'correo.required' => 'Escribe el correo donde recibirás tu cotización.',
-            'preferencia_cotizacion.required' => 'Selecciona cómo deseas recibir tu cotización.',
-            'destino_whatsapp.required_if' => 'Selecciona el número de WhatsApp de destino.',
-            'telefono_whatsapp_otro.required_if' => 'Escribe el número de WhatsApp alternativo.',
-            'telefono_whatsapp_otro.digits_between' => 'Ingresa un número local de 4 a 14 dígitos, sin el código de país.',
-            'prefijo_telefono_whatsapp.required_if' => 'Selecciona el código de país del WhatsApp alternativo.',
-            'prefijo_telefono_whatsapp.regex' => 'Selecciona un código de país válido.',
             'detalles_productos.required' => 'Agrega al menos un repuesto al carrito.',
             'detalles_productos.min' => 'Agrega al menos un repuesto al carrito.',
         ]);
 
         $telefono = $data['prefijo_telefono'].$data['telefono'];
-        $telefonoWhatsApp = null;
-
-        if ($data['preferencia_cotizacion'] === 'correo_whatsapp') {
-            $telefonoWhatsApp = $data['destino_whatsapp'] === 'mismo_numero'
-                ? $data['prefijo_telefono'].$data['telefono']
-                : $data['prefijo_telefono_whatsapp'].$data['telefono_whatsapp_otro'];
-
-            if (! preg_match('/^\\+[1-9][0-9]{6,14}$/', $telefonoWhatsApp)) {
-                throw ValidationException::withMessages([
-                    'telefono_whatsapp_otro' => 'Ingresa un número válido con el código de país seleccionado.',
-                ]);
-            }
-        }
 
         $solicitud = DB::transaction(function () use (
             $data,
             $telefono,
-            $telefonoWhatsApp,
             $reservas
         ): SolicitudWeb {
             $cantidadesSolicitadas = collect($data['detalles_productos'])
@@ -268,19 +232,17 @@ class CatalogoController extends Controller
                 'nombre' => $data['nombre'],
                 'correo' => $data['correo'] ?? null,
                 'telefono' => $telefono,
-                'telefono_whatsapp' => $telefonoWhatsApp,
+                'telefono_whatsapp' => $telefono,
                 'direccion' => $data['direccion'] ?? null,
                 'region' => $data['region'],
                 'comuna' => $data['comuna'],
                 'ciudad' => $data['comuna'],
             ];
 
-            if ($telefonoWhatsApp !== null) {
+            $clienteExistente = Cliente::query()->where('rut', $data['rut'])->lockForUpdate()->first();
+            if ($clienteExistente?->consentimiento_whatsapp_origen !== 'whatsapp_opt_out') {
                 $datosCliente['consentimiento_whatsapp_at'] = now();
                 $datosCliente['consentimiento_whatsapp_origen'] = 'catalogo';
-            } else {
-                $datosCliente['consentimiento_whatsapp_at'] = null;
-                $datosCliente['consentimiento_whatsapp_origen'] = null;
             }
 
             $cliente = Cliente::updateOrCreate(
@@ -293,7 +255,7 @@ class CatalogoController extends Controller
                 'estado' => 'Pendiente',
                 'id_cliente' => $cliente->id_cliente,
                 'detalles_productos' => $data['detalles_productos'],
-                'metodo_entrega' => $data['metodo_entrega'] ?? 'retiro',
+                'metodo_entrega' => $data['metodo_entrega'] ?? null,
                 'direccion_calle' => $data['direccion_calle'] ?? null,
                 'direccion_numero' => $data['direccion_numero'] ?? null,
                 'direccion_comuna' => $data['direccion_comuna'] ?? null,

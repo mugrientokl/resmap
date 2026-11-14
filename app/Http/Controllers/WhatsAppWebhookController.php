@@ -123,8 +123,6 @@ class WhatsAppWebhookController extends Controller
         ]);
 
         if (is_string($payloadRespuesta)) {
-            $cotizaciones->procesarRespuestaWhatsApp($telefono, $payloadRespuesta, $reservas);
-
             return;
         }
 

@@ -57,7 +57,7 @@
         {{ $cliente->nombre }}<br>
         RUT: {{ $cliente->rut_formateado }}<br>
         @if($cliente->correo)Correo: {{ $cliente->correo }}<br>@endif
-        Entrega: {{ $version->metodo_entrega === 'despacho' ? 'Despacho a domicilio' : 'Retiro en tienda' }}
+        Entrega: {{ match ($version->metodo_entrega) { 'despacho' => 'Despacho a domicilio', 'retiro' => 'Retiro en tienda', default => 'Por coordinar con RESMAP' } }}
         @if($version->metodo_entrega === 'despacho')
             <br>Dirección: {{ $version->calle }} {{ $version->numero }}, {{ $version->comuna }}, {{ $version->ciudad }}, {{ $version->region }}
             @if($version->referencias)<br>Referencias: {{ $version->referencias }}@endif

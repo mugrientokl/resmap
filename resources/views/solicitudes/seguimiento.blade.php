@@ -44,7 +44,7 @@
 
     <section class="mt-6 bg-white p-6 shadow-sm md:p-8" aria-label="Etapas del proceso">
         <h2 class="text-lg font-black">Etapas del proceso</h2>
-        <ol class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-7 lg:gap-2">
+        <ol class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-2">
             @foreach($datos['etapas'] as $indice => $etapa)
                 @php($estilo = $estilosEtapa[$etapa['estado']])
                 <li class="flex items-center gap-3 lg:flex-col lg:text-center" @if($etapa['estado'] === 'actual') aria-current="step" @endif>

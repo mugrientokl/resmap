@@ -17,9 +17,6 @@
                     'esperando_cliente' => 'Esperando al cliente',
                     'cambios_solicitados' => 'Cambios solicitados',
                     'aceptada' => 'Cotización aceptada',
-                    'pendiente_equipo' => 'Pendiente del equipo comercial',
-                    'pendiente_facturacion' => 'Pendiente de facturación',
-                    'pendiente_entrega' => 'Pendiente de entrega',
                     'completada' => 'Venta completada',
                     'cerrada' => 'Proceso cerrado',
                 ] as $valor => $etiqueta)

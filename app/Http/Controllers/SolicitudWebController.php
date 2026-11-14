@@ -33,12 +33,12 @@ class SolicitudWebController extends Controller
                             });
                     }),
                     'esperando_cliente' => $query->where('tipo_solicitud', '!=', 'servicio')
-                        ->whereHas('cotizacion', fn ($query) => $query->where('estado', 'enviada')
-                            ->orWhere(fn ($query) => $query->where('estado', 'aceptada')->whereDoesntHave('versiones.ordenesCompra'))),
+                        ->whereHas('cotizacion', fn ($query) => $query->where('estado', 'enviada')),
                     'cambios_solicitados' => $query->where('tipo_solicitud', '!=', 'servicio')
                         ->whereHas('cotizacion', fn ($query) => $query->where('estado', 'cambios_solicitados')),
                     'aceptada' => $query->where('tipo_solicitud', '!=', 'servicio')
-                        ->whereHas('cotizacion', fn ($query) => $query->where('estado', 'aceptada')),
+                        ->whereHas('cotizacion', fn ($query) => $query->where('estado', 'aceptada')
+                            ->whereDoesntHave('versiones.venta', fn ($query) => $query->where('estado_venta', 'confirmada')->whereNotNull('stock_descontado_at'))),
                     'pendiente_equipo' => $query->where('tipo_solicitud', '!=', 'servicio')
                         ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_venta', 'pendiente_confirmacion')),
                     'pendiente_facturacion' => $query->where('tipo_solicitud', '!=', 'servicio')
@@ -48,7 +48,7 @@ class SolicitudWebController extends Controller
                         ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_facturacion', 'simulada_exitosa')
                             ->where('estado_entrega', '!=', 'entregada')),
                     'completada' => $query->where('tipo_solicitud', '!=', 'servicio')
-                        ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_entrega', 'entregada')),
+                        ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_venta', 'confirmada')->whereNotNull('stock_descontado_at')),
                     'cerrada' => $query->where(function ($query): void {
                         $query->where('tipo_solicitud', '!=', 'servicio')
                             ->where(function ($query): void {
@@ -86,9 +86,11 @@ class SolicitudWebController extends Controller
         ])->findOrFail($id);
         $productos = $this->productosDeSolicitud($solicitud);
         $totales = $this->totalesDeSolicitud($productos);
+        $productosDisponibles = Producto::query()->where('activo', true)
+            ->orderBy('nombre')->get(['id_producto', 'nombre', 'codigo_origen', 'codigo_barra']);
         $solicitud->setAttribute('estado_comercial', $this->estadoComercial($solicitud));
 
-        return view('solicitudes.show', compact('solicitud', 'productos', 'totales'));
+        return view('solicitudes.show', compact('solicitud', 'productos', 'totales', 'productosDisponibles'));
     }
 
     public function seguimiento($id, SeguimientoCotizacion $seguimiento)
@@ -204,7 +206,22 @@ class SolicitudWebController extends Controller
 
         $version = $cotizacion->versiones->sortByDesc('numero_version')->first();
         $venta = $version?->venta ?? $solicitud->venta;
-        $tieneOrdenCompra = $version?->ordenesCompra->isNotEmpty() ?? false;
+
+        if ($venta?->estado_venta === 'confirmada' && $venta->stock_descontado_at !== null) {
+            return [
+                'titulo' => 'Venta completada',
+                'detalle' => 'La venta está registrada y el stock fue descontado. Puedes generar un resumen interno.',
+                'estado' => 'completada',
+            ];
+        }
+
+        if ($cotizacion->estado === 'aceptada') {
+            return [
+                'titulo' => 'Cotización aceptada',
+                'detalle' => 'El equipo puede convertirla en venta sin adjuntar una orden de compra.',
+                'estado' => 'aceptada',
+            ];
+        }
 
         if ($cotizacion->estado === 'pendiente_revision') {
             return [
@@ -225,7 +242,7 @@ class SolicitudWebController extends Controller
         if ($cotizacion->estado === 'enviada') {
             return [
                 'titulo' => 'Esperando respuesta del cliente',
-                'detalle' => 'Pendiente de aceptación o solicitud de cambios y de la orden de compra del cliente.',
+                'detalle' => 'El equipo debe registrar la respuesta recibida por WhatsApp u otro medio.',
                 'estado' => 'esperando_cliente',
             ];
         }
@@ -251,14 +268,6 @@ class SolicitudWebController extends Controller
                 'titulo' => $cotizacion->estado === 'rechazada' ? 'Cotización rechazada' : 'Cotización cancelada',
                 'detalle' => 'Este proceso comercial está cerrado.',
                 'estado' => 'cerrada',
-            ];
-        }
-
-        if ($cotizacion->estado === 'aceptada' && ! $tieneOrdenCompra) {
-            return [
-                'titulo' => 'Aceptada; falta la orden de compra',
-                'detalle' => 'Esperando que el cliente adjunte o autorice una orden de compra antes de continuar con la venta.',
-                'estado' => 'esperando_cliente',
             ];
         }
 
