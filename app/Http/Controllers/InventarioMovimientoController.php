@@ -5,9 +5,12 @@ namespace App\Http\Controllers;
 use App\Models\Categoria;
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
+use App\Models\Proveedor;
 use App\Models\ReservaInventario;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class InventarioMovimientoController extends Controller
 {
@@ -41,6 +44,7 @@ class InventarioMovimientoController extends Controller
             'movimientos' => $movimientos,
             'catalogoProductos' => $this->catalogoProductos(),
             'categorias' => Categoria::orderBy('nombre_categoria')->get(),
+            'proveedores' => Proveedor::orderBy('nombre')->get(),
             'productoFiltrado' => isset($filters['producto'])
                 ? Producto::with('categoria')->find($filters['producto'])
                 : null,
@@ -89,6 +93,7 @@ class InventarioMovimientoController extends Controller
             'producto' => $movimiento->producto?->nombre ?? 'Producto eliminado',
             'usuario' => $movimiento->usuario?->name ?? 'Sistema',
             'proveedor' => $movimiento->proveedor,
+            'contacto_proveedor' => $movimiento->contacto_proveedor,
             'documento_proveedor' => $movimiento->documento_proveedor,
             'precio_entrada' => $movimiento->precio_entrada ? (float) $movimiento->precio_entrada : null,
             'cantidad_adquirida' => $movimiento->cantidad_adquirida,
@@ -115,6 +120,9 @@ class InventarioMovimientoController extends Controller
 
     public function store(Request $request)
     {
+        $requiereProveedor = $request->input('tipo') === 'adquisicion'
+            || in_array($request->input('motivo'), ['Compra / Adquisición', 'Devolución'], true);
+
         $validated = $request->validate([
             'id_producto' => ['required', 'exists:productos,id_producto'],
             'tipo' => ['nullable', 'string', 'in:adquisicion,merma,ajuste,ingreso,egreso'],
@@ -122,14 +130,21 @@ class InventarioMovimientoController extends Controller
             'cantidad' => ['nullable', 'required_if:tipo,adquisicion,merma,ingreso,egreso', 'integer', 'min:1', 'max:2147483647'],
             'motivo' => ['required', 'string', 'max:255'],
             'fecha_evento' => ['required', 'date_format:Y-m-d'],
-            'proveedor' => ['nullable', 'required_if:tipo,adquisicion', 'string', 'max:255'],
+            'proveedor_id' => [Rule::requiredIf($requiereProveedor), 'nullable', 'integer', 'exists:proveedores,id'],
             'documento_proveedor' => ['nullable', 'string', 'max:100'],
             'precio_entrada' => ['nullable', 'required_if:tipo,adquisicion', 'numeric', 'min:0', 'max:9999999999.99'],
             'observaciones' => ['nullable', 'string', 'max:2000'],
         ]);
 
+        if ($validated['motivo'] === 'Devolución' && ($validated['tipo'] ?? 'ajuste') !== 'egreso') {
+            throw ValidationException::withMessages(['tipo' => 'Una devolución al proveedor debe ser un egreso.']);
+        }
+        if ($validated['motivo'] === 'Compra / Adquisición' && ! in_array($validated['tipo'] ?? 'ajuste', ['ingreso', 'adquisicion'], true)) {
+            throw ValidationException::withMessages(['tipo' => 'Una adquisición debe ser un ingreso.']);
+        }
+
         try {
-            DB::transaction(function () use ($validated, $request): void {
+            DB::transaction(function () use ($validated, $request, $requiereProveedor): void {
                 $producto = Producto::query()
                     ->whereKey($validated['id_producto'])
                     ->lockForUpdate()
@@ -137,6 +152,12 @@ class InventarioMovimientoController extends Controller
 
                 $stockAnterior = $producto->stock;
                 $tipo = $validated['tipo'] ?? 'ajuste';
+                $proveedor = $requiereProveedor
+                    ? Proveedor::query()->whereKey($validated['proveedor_id'])->sharedLock()->first()
+                    : null;
+                if ($requiereProveedor && ! $proveedor) {
+                    throw ValidationException::withMessages(['proveedor_id' => 'El proveedor seleccionado ya no existe.']);
+                }
 
                 $cantidad = match ($tipo) {
                     'adquisicion', 'ingreso' => (int) $validated['cantidad'],
@@ -169,7 +190,9 @@ class InventarioMovimientoController extends Controller
                     'stock_nuevo' => $stockNuevo,
                     'motivo' => $validated['motivo'],
                     'fecha_evento' => $validated['fecha_evento'],
-                    'proveedor' => $validated['proveedor'] ?? null,
+                    'proveedor_id' => $proveedor?->id,
+                    'proveedor' => $proveedor?->nombre,
+                    'contacto_proveedor' => $proveedor?->contacto,
                     'documento_proveedor' => $validated['documento_proveedor'] ?? null,
                     'precio_entrada' => $validated['precio_entrada'] ?? null,
                     'cantidad_adquirida' => in_array($tipo, ['adquisicion', 'ingreso']) ? $validated['cantidad'] : null,

@@ -3,9 +3,11 @@
 namespace Tests\Feature;
 
 use App\Models\InventarioMovimiento;
+use App\Models\Proveedor;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 class InventoryMovementTest extends TestCase
@@ -103,6 +105,7 @@ class InventoryMovementTest extends TestCase
     public function test_admin_can_register_an_acquisition_with_supplier_data(): void
     {
         [$admin, $productId] = $this->createInventoryFixture(3);
+        $proveedor = Proveedor::factory()->create(['nombre' => 'Proveedor Central SpA', 'contacto' => 'Contacto inicial']);
 
         $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
             'tipo' => 'adquisicion',
@@ -110,7 +113,7 @@ class InventoryMovementTest extends TestCase
             'cantidad' => 7,
             'motivo' => 'Compra de reposición',
             'fecha_evento' => '2026-10-15',
-            'proveedor' => 'Proveedor Central SpA',
+            'proveedor_id' => $proveedor->id,
             'precio_entrada' => 850.50,
             'documento_proveedor' => 'F-1024',
             'observaciones' => 'Entrega parcial de la orden de compra.',
@@ -122,6 +125,8 @@ class InventoryMovementTest extends TestCase
             'tipo' => 'adquisicion',
             'cantidad' => 7,
             'proveedor' => 'Proveedor Central SpA',
+            'proveedor_id' => $proveedor->id,
+            'contacto_proveedor' => 'Contacto inicial',
             'documento_proveedor' => 'F-1024',
             'precio_entrada' => 850.50,
             'cantidad_adquirida' => 7,
@@ -172,6 +177,7 @@ class InventoryMovementTest extends TestCase
     public function test_admin_can_fetch_the_full_movement_detail(): void
     {
         [$admin, $productId] = $this->createInventoryFixture(3);
+        $proveedor = Proveedor::factory()->create(['nombre' => 'Proveedor de prueba', 'contacto' => 'Contacto original']);
 
         $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
             'tipo' => 'adquisicion',
@@ -179,10 +185,11 @@ class InventoryMovementTest extends TestCase
             'cantidad' => 2,
             'motivo' => 'Compra de prueba',
             'fecha_evento' => '2026-10-15',
-            'proveedor' => 'Proveedor de prueba',
+            'proveedor_id' => $proveedor->id,
             'precio_entrada' => 1000,
         ]);
         $movementId = (int) DB::table('inventario_movimientos')->latest('id_movimiento')->value('id_movimiento');
+        $proveedor->update(['nombre' => 'Proveedor actualizado', 'contacto' => 'Contacto actualizado']);
 
         $this->actingAs($admin)
             ->getJson(route('inventario.movimientos.show', $movementId))
@@ -190,9 +197,96 @@ class InventoryMovementTest extends TestCase
             ->assertJsonPath('tipo', 'adquisicion')
             ->assertJsonPath('fecha_evento', '15/10/2026')
             ->assertJsonPath('proveedor', 'Proveedor de prueba')
+            ->assertJsonPath('contacto_proveedor', 'Contacto original')
             ->assertJsonPath('cantidad_adquirida', 2)
             ->assertJsonPath('precio_unitario_adquisicion', 500)
             ->assertJsonPath('precio_venta_recomendado', 595);
+    }
+
+    public function test_admin_can_create_and_edit_suppliers_with_initial_examples_available(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $this->actingAs($admin)->get(route('proveedores.index'))
+            ->assertOk()->assertSee('Imbra')->assertSee('Ricardo Soto')
+            ->assertSee('Brajovic')->assertSee('Victoria Rodriguez');
+        $this->post(route('proveedores.store'), ['nombre' => 'Repuestos del Sur', 'contacto' => 'María Díaz'])
+            ->assertRedirect(route('proveedores.index'))->assertSessionHasNoErrors();
+        $proveedor = Proveedor::where('nombre', 'Repuestos del Sur')->firstOrFail();
+        $this->put(route('proveedores.update', $proveedor), ['nombre' => 'Repuestos Sur', 'contacto' => 'Ana Soto'])
+            ->assertRedirect(route('proveedores.index'))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('proveedores', ['id' => $proveedor->id, 'nombre' => 'Repuestos Sur', 'contacto' => 'Ana Soto']);
+        $this->post(route('proveedores.store'), ['nombre' => 'Repuestos Sur', 'contacto' => 'Otra persona'])
+            ->assertSessionHasErrors('nombre');
+        $this->put(route('proveedores.update', $proveedor), ['nombre' => 'Repuestos Sur', 'contacto' => ''])
+            ->assertSessionHasErrors('contacto');
+    }
+
+    public function test_only_administrators_can_manage_suppliers(): void
+    {
+        $this->get(route('proveedores.index'))->assertRedirect(route('login'));
+        $this->actingAs(User::factory()->create(['rol' => 'Vendedor']))
+            ->get(route('proveedores.index'))->assertForbidden();
+        $this->post(route('proveedores.store'), ['nombre' => 'Proveedor', 'contacto' => 'Contacto'])->assertForbidden();
+    }
+
+    public function test_purchase_and_supplier_return_require_valid_supplier_and_correct_stock_direction(): void
+    {
+        [$admin, $productId] = $this->createInventoryFixture(5);
+        $proveedor = Proveedor::factory()->create(['nombre' => 'Proveedor retorno', 'contacto' => 'Contacto retorno']);
+        $this->actingAs($admin)->get(route('inventario.movimientos'))
+            ->assertOk()->assertSee('Proveedor retorno')->assertSee('Contacto retorno')
+            ->assertSee('id="movement-provider"', false);
+        $datos = [
+            'id_producto' => $productId, 'tipo' => 'ingreso', 'cantidad' => 2,
+            'motivo' => 'Compra / Adquisición', 'fecha_evento' => '2026-10-15',
+        ];
+        $this->post(route('inventario.movimientos.store'), $datos)->assertSessionHasErrors('proveedor_id');
+        $this->post(route('inventario.movimientos.store'), [...$datos, 'proveedor_id' => 999999])->assertSessionHasErrors('proveedor_id');
+        $this->post(route('inventario.movimientos.store'), [...$datos, 'tipo' => 'egreso', 'proveedor_id' => $proveedor->id])
+            ->assertSessionHasErrors('tipo');
+        $this->post(route('inventario.movimientos.store'), [...$datos, 'motivo' => 'Devolución', 'proveedor_id' => $proveedor->id])
+            ->assertSessionHasErrors('tipo');
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
+        $this->assertDatabaseCount('inventario_movimientos', 0);
+
+        $this->post(route('inventario.movimientos.store'), [
+            ...$datos, 'tipo' => 'egreso', 'motivo' => 'Devolución', 'proveedor_id' => $proveedor->id,
+        ])->assertRedirect(route('inventario.movimientos'));
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 3]);
+        $this->assertDatabaseHas('inventario_movimientos', [
+            'id_producto' => $productId, 'cantidad' => -2, 'proveedor_id' => $proveedor->id,
+            'proveedor' => 'Proveedor retorno', 'contacto_proveedor' => 'Contacto retorno',
+        ]);
+        $proveedor->update(['nombre' => 'Nombre modificado', 'contacto' => 'Contacto modificado']);
+        $this->get(route('inventario.movimientos'))
+            ->assertOk()->assertSee('Proveedor retorno')->assertSee('Contacto retorno');
+        $this->post(route('inventario.movimientos.store'), [
+            ...$datos, 'proveedor_id' => $proveedor->id,
+        ])->assertRedirect(route('inventario.movimientos'));
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
+        $this->assertDatabaseHas('inventario_movimientos', [
+            'id_producto' => $productId, 'cantidad' => 2, 'motivo' => 'Compra / Adquisición',
+            'proveedor' => 'Nombre modificado', 'contacto_proveedor' => 'Contacto modificado',
+        ]);
+    }
+
+    public function test_supplier_return_cannot_consume_reserved_stock(): void
+    {
+        Notification::fake();
+        [$admin, $productId] = $this->createInventoryFixture(5);
+        $proveedor = Proveedor::factory()->create();
+        $this->post(route('catalogo.solicitudes.store'), [
+            'rut' => '12345678-5', 'nombre' => 'Empresa', 'contacto' => 'Ana',
+            'correo' => 'cliente@example.test', 'prefijo_telefono' => '+569',
+            'telefono' => '12345678', 'region' => 'Metropolitana', 'comuna' => 'Santiago',
+            'detalles_productos' => [['id_producto' => $productId, 'cantidad' => 4]],
+        ])->assertSessionHasNoErrors();
+        $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
+            'id_producto' => $productId, 'tipo' => 'egreso', 'cantidad' => 2,
+            'motivo' => 'Devolución', 'fecha_evento' => '2026-10-15', 'proveedor_id' => $proveedor->id,
+        ])->assertSessionHasErrors('cantidad');
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
+        $this->assertDatabaseCount('inventario_movimientos', 0);
     }
 
     public function test_admin_can_filter_movements_by_product_type_and_event_date_range(): void

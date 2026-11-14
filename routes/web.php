@@ -13,6 +13,7 @@ use App\Http\Controllers\FaceRecognitionController;
 use App\Http\Controllers\InventarioMovimientoController;
 use App\Http\Controllers\NotificacionController;
 use App\Http\Controllers\ProductoController;
+use App\Http\Controllers\ProveedorController;
 use App\Http\Controllers\ReporteController;
 use App\Http\Controllers\ServicioController;
 use App\Http\Controllers\SolicitudWebController;
@@ -162,6 +163,18 @@ Route::middleware([
     Route::delete('/categorias/{id}', [CategoriaController::class, 'destroy'])
         ->middleware(['auth', 'role:Administrador'])
         ->name('categorias.destroy');
+
+    Route::get('/proveedores', [ProveedorController::class, 'index'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('proveedores.index');
+
+    Route::post('/proveedores', [ProveedorController::class, 'store'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('proveedores.store');
+
+    Route::put('/proveedores/{proveedor}', [ProveedorController::class, 'update'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('proveedores.update');
 
     Route::get('/productos', [ProductoController::class, 'index'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])

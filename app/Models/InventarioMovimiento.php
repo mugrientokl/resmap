@@ -13,7 +13,7 @@ class InventarioMovimiento extends Model
     protected $fillable = [
         'id_producto', 'user_id', 'tipo', 'cantidad', 'stock_anterior',
         'stock_nuevo', 'motivo', 'fecha_evento', 'id_venta', 'proveedor', 'documento_proveedor',
-        'precio_entrada', 'cantidad_adquirida', 'observaciones',
+        'precio_entrada', 'cantidad_adquirida', 'observaciones', 'proveedor_id', 'contacto_proveedor',
     ];
 
     protected function casts(): array

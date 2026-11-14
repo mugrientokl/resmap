@@ -67,6 +67,7 @@
                     <th class="px-4 py-3 text-xs font-medium uppercase text-gray-500">Cantidad</th>
                     <th class="px-4 py-3 text-xs font-medium uppercase text-gray-500">Stock Resultante</th>
                     <th class="px-4 py-3 text-xs font-medium uppercase text-gray-500">Motivo</th>
+                    <th class="px-4 py-3 text-xs font-medium uppercase text-gray-500">Proveedor</th>
                     <th class="px-4 py-3 text-xs font-medium uppercase text-gray-500">Usuario</th>
                 </tr>
             </thead>
@@ -90,11 +91,15 @@
                         <td class="px-4 py-3 font-bold">{{ abs($mov->cantidad) }}</td>
                         <td class="px-4 py-3">{{ $mov->stock_nuevo }}</td>
                         <td class="px-4 py-3 text-gray-700">{{ $mov->motivo }}</td>
+                        <td class="px-4 py-3 text-gray-700">
+                            {{ $mov->proveedor ?: '—' }}
+                            @if($mov->contacto_proveedor)<div class="text-xs text-gray-500">{{ $mov->contacto_proveedor }}</div>@endif
+                        </td>
                         <td class="px-4 py-3 text-gray-500">{{ $mov->usuario->name ?? 'Sistema' }}</td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-8 text-center text-gray-500">
+                        <td colspan="9" class="px-4 py-8 text-center text-gray-500">
                             No hay movimientos de inventario registrados aún.
                         </td>
                     </tr>
@@ -163,6 +168,16 @@
                     <option value="Ajuste de inventario" @selected(old('motivo') === 'Ajuste de inventario')>Ajuste de inventario</option>
                     <option value="Uso interno" @selected(old('motivo') === 'Uso interno')>Uso interno</option>
                 </select>
+            </div>
+            <div id="movement-provider-field" class="hidden">
+                <label for="movement-provider" class="mb-1 block text-sm font-medium text-gray-700">Proveedor</label>
+                <select id="movement-provider" name="proveedor_id" disabled class="w-full rounded-md border border-gray-300 p-2 text-sm">
+                    <option value="">Seleccione un proveedor</option>
+                    @foreach($proveedores as $proveedor)
+                        <option value="{{ $proveedor->id }}" @selected((string) old('proveedor_id') === (string) $proveedor->id)>{{ $proveedor->nombre }} · {{ $proveedor->contacto }}</option>
+                    @endforeach
+                </select>
+                <p class="mt-1 text-xs text-gray-600">La compra es un ingreso y la devolución al proveedor es un egreso. <a href="{{ route('proveedores.index') }}" class="font-bold text-[#9f2f25] underline">Administrar proveedores</a></p>
             </div>
             <div>
                 <label for="movement-event-date" class="mb-1 block text-sm font-medium text-gray-700">Fecha del evento</label>
@@ -363,6 +378,9 @@
         const movementModal = document.getElementById('movement-modal');
         const movementForm = document.getElementById('movement-form');
         const movementType = document.getElementById('movement-type');
+        const movementReason = document.getElementById('movement-reason');
+        const providerField = document.getElementById('movement-provider-field');
+        const providerSelect = document.getElementById('movement-provider');
         const movementQuantity = document.getElementById('movement-quantity');
         const selectedProductId = document.getElementById('movement-product-value');
         const movementQuantityLabel = document.querySelector('label[for="movement-quantity"]');
@@ -382,6 +400,20 @@
             movementQuantity.name = isStockAdjustment ? 'stock_nuevo' : 'cantidad';
             movementQuantity.min = isStockAdjustment ? '0' : '1';
             movementQuantityLabel.textContent = isStockAdjustment ? 'Nuevo stock' : 'Cantidad';
+        };
+
+        const updateProviderField = () => {
+            const isPurchase = movementReason.value === 'Compra / Adquisición';
+            const isReturn = movementReason.value === 'Devolución';
+            const required = isPurchase || isReturn;
+            providerField.classList.toggle('hidden', !required);
+            providerSelect.disabled = !required;
+            providerSelect.required = required;
+            movementReason.setCustomValidity(
+                isPurchase && movementType.value !== 'ingreso'
+                    ? 'Una adquisición debe registrarse como ingreso.'
+                    : (isReturn && movementType.value !== 'egreso' ? 'Una devolución al proveedor debe registrarse como egreso.' : '')
+            );
         };
 
         const openMovementModal = () => {
@@ -407,7 +439,20 @@
 
         openModalButton?.addEventListener('click', openMovementModal);
         closeModalButtons.forEach((button) => button?.addEventListener('click', closeMovementModal));
-        movementType?.addEventListener('change', updateMovementQuantityField);
+        movementType?.addEventListener('change', () => {
+            updateMovementQuantityField();
+            updateProviderField();
+        });
+        movementReason?.addEventListener('change', () => {
+            if (movementReason.value === 'Compra / Adquisición') {
+                movementType.value = 'ingreso';
+                updateMovementQuantityField();
+            } else if (movementReason.value === 'Devolución') {
+                movementType.value = 'egreso';
+                updateMovementQuantityField();
+            }
+            updateProviderField();
+        });
         movementForm?.addEventListener('submit', () => {
             const selectedProduct = document.getElementById(`movement-product-option-${selectedProductId.value}`);
             const currentStock = Number(selectedProduct?.dataset.currentStock);
@@ -435,6 +480,7 @@
             openMovementModal();
         }
         updateMovementQuantityField();
+        updateProviderField();
     });
 </script>
 @endsection

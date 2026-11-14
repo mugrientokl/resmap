@@ -107,6 +107,7 @@
                             @endif
                             @if(auth()->user()->rol === 'Administrador')
                                 <a href="{{ route('categorias.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Categorías</a>
+                                <a href="{{ route('proveedores.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Proveedores</a>
                                 <a href="{{ route('solicitudes.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Cotizaciones / Servicios</a>
                                 <a href="{{ route('backups.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Backups</a>
                                 <a href="{{ route('usuarios.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Usuarios</a>
