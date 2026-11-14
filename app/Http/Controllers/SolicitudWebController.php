@@ -12,8 +12,10 @@ use App\Models\Venta;
 use App\Services\ResumenInternoVentaPdf;
 use App\Services\SeguimientoCotizacion;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 class SolicitudWebController extends Controller
 {
@@ -26,6 +28,7 @@ class SolicitudWebController extends Controller
         ])
             ->when($request->filled('estado'), function ($query) use ($request): void {
                 match ($request->string('estado')->toString()) {
+                    'servicios' => $query->where('tipo_solicitud', 'servicio'),
                     'pendiente_comercial' => $query->where(function ($query): void {
                         $query->where('tipo_solicitud', '!=', 'servicio')
                             ->where(function ($query): void {
@@ -97,7 +100,7 @@ class SolicitudWebController extends Controller
         $productos = $this->productosDeSolicitud($solicitud);
         $totales = $this->totalesDeSolicitud($productos);
         $productosDisponibles = Producto::query()->where('activo', true)
-            ->orderBy('nombre')->get(['id_producto', 'nombre', 'codigo_origen', 'codigo_barra']);
+            ->orderBy('nombre')->get(['id_producto', 'nombre', 'codigo_origen', 'codigo_barra', 'precio']);
         $solicitud->setAttribute('estado_comercial', $this->estadoComercial($solicitud));
         $cliente = Cliente::desdeSnapshot($solicitud->snapshotDatosCliente());
 
@@ -130,7 +133,7 @@ class SolicitudWebController extends Controller
         $solicitud = SolicitudWeb::with(['cliente', 'venta', 'cotizacion.versiones.venta'])->findOrFail($id);
         $cliente = Cliente::desdeSnapshot($solicitud->snapshotDatosCliente());
 
-        if ($solicitud->tipo_solicitud === 'servicio') {
+        if ($solicitud->tipo_solicitud === 'servicio' && ! $solicitud->venta?->estado_venta) {
             abort_unless(
                 $solicitud->estado === 'Entregado y completado',
                 403,
@@ -360,11 +363,16 @@ class SolicitudWebController extends Controller
     public function actualizarEstado(Request $request, $id)
     {
         $request->validate([
-            'estado' => 'required|string|in:Pendiente,Pagado - pendiente de entrega,Entregado - pago pendiente,Entregado y completado,Rechazado',
+            'estado' => 'required|string|in:Pendiente,En proceso,Pagado - pendiente de entrega,Entregado - pago pendiente,Entregado y completado,Rechazado',
             'observaciones' => 'nullable|string|max:2000',
         ]);
 
         $solicitud = SolicitudWeb::with('cliente')->findOrFail($id);
+        if ($solicitud->tipo_solicitud === 'servicio' && $request->input('estado') === 'Entregado y completado') {
+            throw ValidationException::withMessages([
+                'estado' => 'Registra el servicio con su precio y repuestos para completarlo.',
+            ]);
+        }
         if ($solicitud->tipo_solicitud !== 'servicio' && $solicitud->cotizacion()->exists()) {
             $mensaje = 'Las cotizaciones de repuestos se gestionan desde el flujo comercial de cotizaciones.';
             if ($request->expectsJson()) {
@@ -380,6 +388,16 @@ class SolicitudWebController extends Controller
             'Entregado y completado' => [],
             'Rechazado' => [],
         ];
+        if ($solicitud->tipo_solicitud === 'servicio') {
+            $transiciones = [
+                'Pendiente' => ['En proceso', 'Rechazado'],
+                'En proceso' => ['Pendiente', 'Rechazado'],
+                'Pagado - pendiente de entrega' => ['En proceso', 'Rechazado'],
+                'Entregado - pago pendiente' => ['En proceso', 'Rechazado'],
+                'Entregado y completado' => [],
+                'Rechazado' => [],
+            ];
+        }
         $estadoNuevo = $request->string('estado')->toString();
 
         if (! in_array($estadoNuevo, $transiciones[$solicitud->estado] ?? [], true)) {
@@ -395,7 +413,16 @@ class SolicitudWebController extends Controller
         }
 
         try {
-            DB::transaction(function () use ($request, $solicitud, $estadoNuevo): void {
+            DB::transaction(function () use ($request, $solicitud, $estadoNuevo, $transiciones): void {
+                if ($solicitud->tipo_solicitud === 'servicio') {
+                    $solicitud = SolicitudWeb::query()->whereKey($solicitud->id_solicitud)->lockForUpdate()->firstOrFail();
+                    if ($solicitud->venta_id || in_array($solicitud->estado, ['Entregado y completado', 'Rechazado'], true)) {
+                        throw ValidationException::withMessages(['estado' => 'El servicio ya está cerrado.']);
+                    }
+                    if (! in_array($estadoNuevo, $transiciones[$solicitud->estado] ?? [], true)) {
+                        throw ValidationException::withMessages(['estado' => 'El estado del servicio cambió. Actualiza la página e inténtalo nuevamente.']);
+                    }
+                }
                 $solicitud->update([
                     'estado' => $estadoNuevo,
                     'observaciones' => $request->observaciones,
@@ -489,5 +516,126 @@ class SolicitudWebController extends Controller
             'message' => 'Estado de la solicitud actualizado.',
             'solicitud' => $solicitud,
         ]);
+    }
+
+    public function registrarServicio(Request $request, int $id): RedirectResponse
+    {
+        $datos = $request->validate([
+            'detalle_servicio' => ['required', 'string', 'max:255'],
+            'precio_servicio' => ['required', 'numeric', 'decimal:0,2', 'min:0', 'max:99999999.99'],
+            'medio_pago' => ['required', 'in:Efectivo,Transferencia,Tarjeta,Otro'],
+            'observaciones' => ['nullable', 'string', 'max:2000'],
+            'repuestos' => ['nullable', 'array', 'max:100'],
+            'repuestos.*.id_producto' => ['required', 'integer', 'distinct', 'exists:productos,id_producto'],
+            'repuestos.*.cantidad' => ['required', 'integer', 'min:1', 'max:99999'],
+        ]);
+
+        DB::transaction(function () use ($request, $id, $datos): void {
+            $solicitud = SolicitudWeb::query()->whereKey($id)->lockForUpdate()->firstOrFail();
+            abort_unless($solicitud->tipo_solicitud === 'servicio', 404);
+            if ($solicitud->venta_id || in_array($solicitud->estado, ['Entregado y completado', 'Rechazado'], true)) {
+                throw ValidationException::withMessages(['servicio' => 'El servicio ya está cerrado o registrado.']);
+            }
+
+            $repuestos = collect($datos['repuestos'] ?? [])->sortBy('id_producto');
+            $productos = Producto::query()
+                ->whereIn('id_producto', $repuestos->pluck('id_producto'))
+                ->orderBy('id_producto')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id_producto');
+            if ($productos->count() !== $repuestos->count()) {
+                throw ValidationException::withMessages(['repuestos' => 'Uno de los repuestos ya no existe. Actualiza la página e inténtalo nuevamente.']);
+            }
+            $detalles = [];
+            $totalCentavos = (int) round((float) $datos['precio_servicio'] * 100);
+            foreach ($repuestos as $repuesto) {
+                $producto = $productos->get($repuesto['id_producto']);
+                if (! $producto->activo) {
+                    throw ValidationException::withMessages(['repuestos' => "El repuesto {$producto->nombre} está inactivo."]);
+                }
+                $reservado = ReservaInventario::query()
+                    ->where('producto_id', $producto->id_producto)
+                    ->where('estado', 'activa')
+                    ->where('expira_at', '>', now())
+                    ->sum('cantidad');
+                $disponible = max(0, (int) $producto->stock - (int) $reservado);
+                $cantidad = (int) $repuesto['cantidad'];
+                if ($cantidad > $disponible) {
+                    throw ValidationException::withMessages(['repuestos' => "Stock insuficiente para {$producto->nombre}; hay {$disponible} unidades disponibles."]);
+                }
+                $subtotalCentavos = (int) round((float) $producto->precio * 100) * $cantidad;
+                $totalCentavos += $subtotalCentavos;
+                $detalles[] = compact('producto', 'cantidad', 'subtotalCentavos');
+            }
+            if ($totalCentavos > 9999999999) {
+                throw ValidationException::withMessages(['precio_servicio' => 'El total supera el máximo permitido para la venta.']);
+            }
+            $total = $totalCentavos / 100;
+            $neto = round($total / 1.19, 2);
+            $venta = Venta::create([
+                'fecha' => now(),
+                'tipo_documento' => 'Resumen interno',
+                'folio_sii' => null,
+                'neto' => $neto,
+                'iva' => round($total - $neto, 2),
+                'total' => $total,
+                'medio_pago' => $datos['medio_pago'],
+                'estado_sii' => 'Pendiente',
+                'estado_venta' => 'confirmada',
+                'estado_pago' => 'pagado',
+                'estado_facturacion' => 'pendiente',
+                'estado_entrega' => 'entregada',
+                'monto_pagado' => $total,
+                'confirmada_at' => now(),
+                'entregada_at' => now(),
+                'stock_descontado_at' => now(),
+                'user_id' => $request->user()->id,
+                'id_cliente' => $solicitud->id_cliente,
+                'datos_cliente' => $solicitud->snapshotDatosCliente(),
+                'contacto' => $solicitud->contacto,
+                'cargo' => $solicitud->cargo,
+            ]);
+            DetalleVenta::create([
+                'id_venta' => $venta->id_venta,
+                'id_producto' => null,
+                'descripcion' => $datos['detalle_servicio'],
+                'cantidad' => 1,
+                'precio_unitario' => $datos['precio_servicio'],
+                'subtotal' => $datos['precio_servicio'],
+            ]);
+            foreach ($detalles as $detalle) {
+                $producto = $detalle['producto'];
+                DetalleVenta::create([
+                    'id_venta' => $venta->id_venta,
+                    'id_producto' => $producto->id_producto,
+                    'descripcion' => $producto->nombre,
+                    'cantidad' => $detalle['cantidad'],
+                    'precio_unitario' => $producto->precio,
+                    'subtotal' => $detalle['subtotalCentavos'] / 100,
+                ]);
+                $stockAnterior = (int) $producto->stock;
+                $producto->decrement('stock', $detalle['cantidad']);
+                InventarioMovimiento::create([
+                    'id_producto' => $producto->id_producto,
+                    'user_id' => $request->user()->id,
+                    'tipo' => 'venta',
+                    'cantidad' => -$detalle['cantidad'],
+                    'stock_anterior' => $stockAnterior,
+                    'stock_nuevo' => $stockAnterior - $detalle['cantidad'],
+                    'motivo' => 'Repuesto utilizado en servicio',
+                    'fecha_evento' => now(),
+                    'id_venta' => $venta->id_venta,
+                ]);
+            }
+            $solicitud->update([
+                'venta_id' => $venta->id_venta,
+                'estado' => 'Entregado y completado',
+                'observaciones' => $datos['observaciones'] ?? null,
+                'atendida_at' => now(),
+            ]);
+        }, attempts: 3);
+
+        return redirect()->route('solicitudes.show', $id)->with('success', 'Servicio y venta registrados correctamente.');
     }
 }

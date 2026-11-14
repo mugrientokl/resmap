@@ -320,7 +320,7 @@ class CotizacionController extends Controller
 
     public function generarResumen(Request $request, Venta $venta, ResumenInternoVentaPdf $resumen)
     {
-        abort_unless($venta->cotizacion_version_id !== null
+        abort_unless(($venta->cotizacion_version_id !== null || $venta->solicitudServicio()->exists())
             && $venta->estado_venta === 'confirmada'
             && $venta->stock_descontado_at !== null, 403);
         $actividades = config('services.cotizaciones.actividades_emisor_prueba');
@@ -336,7 +336,7 @@ class CotizacionController extends Controller
             'contacto' => ['required', 'string', 'max:255'],
             'tipo_compra' => ['required', Rule::in(['del_giro'])],
             'correo' => ['required', 'email', 'max:255'],
-            'numero_oc' => ['required', 'string', 'max:100'],
+            'numero_oc' => [Rule::requiredIf($venta->cotizacion_version_id !== null), 'nullable', 'string', 'max:100'],
         ]);
         $datos['giro_emisor'] = $actividades[$datos['acteco_emisor']];
         $venta->update(['datos_resumen' => $datos]);

@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Venta extends Model
 {
@@ -109,6 +110,12 @@ class Venta extends Model
     public function cotizacionVersion(): BelongsTo
     {
         return $this->belongsTo(CotizacionVersion::class, 'cotizacion_version_id', 'id_version');
+    }
+
+    public function solicitudServicio(): HasOne
+    {
+        return $this->hasOne(SolicitudWeb::class, 'venta_id', 'id_venta')
+            ->where('tipo_solicitud', 'servicio');
     }
 
     public function eventosFacturacion(): HasMany

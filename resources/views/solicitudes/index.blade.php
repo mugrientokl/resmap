@@ -4,7 +4,7 @@
 <div class="mx-auto max-w-6xl">
     <div class="mb-8">
         <p class="text-sm font-bold uppercase tracking-wider text-[#9f2f25]">Atención comercial</p>
-        <h1 class="mt-1 text-3xl font-black text-gray-900">Cotizaciones web</h1>
+        <h1 class="mt-1 text-3xl font-black text-gray-900">Cotizaciones / Servicios</h1>
         <p class="mt-2 text-gray-500">Gestiona las cotizaciones de repuestos y consulta las solicitudes de servicio recibidas desde el sitio.</p>
     </div>
     <form method="GET" class="mb-6 flex flex-wrap items-end gap-3 rounded-lg bg-white p-4 shadow-sm">
@@ -19,6 +19,7 @@
                     'aceptada' => 'Cotización aceptada',
                     'completada' => 'Venta completada',
                     'cerrada' => 'Proceso cerrado',
+                    'servicios' => 'Todos los servicios',
                 ] as $valor => $etiqueta)
                     <option value="{{ $valor }}" @selected(request('estado') === $valor)>{{ $etiqueta }}</option>
                 @endforeach
@@ -30,7 +31,9 @@
     </form>
     <div class="space-y-4">
         @forelse($solicitudes as $solicitud)
-            @php($esPendiente = ! in_array($solicitud->estado_comercial['estado'], ['cerrada', 'completada', 'servicio'], true))
+            @php($esPendiente = $solicitud->tipo_solicitud === 'servicio'
+                ? ! in_array($solicitud->estado, ['Entregado y completado', 'Rechazado'], true)
+                : ! in_array($solicitud->estado_comercial['estado'], ['cerrada', 'completada'], true))
             <article class="border-l-4 {{ $esPendiente ? 'border-amber-500 bg-amber-50' : 'border-green-500 bg-white' }} p-6 shadow-sm">
                 <div class="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                     <div>

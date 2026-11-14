@@ -86,7 +86,7 @@
                     <a href="{{ route('pos.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">POS</a>
                     <a href="{{ route('catalogo.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">Catálogo</a>
                     <a href="{{ route('servicios.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">Servicios</a>
-                    <a href="{{ route('solicitudes.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">Cotizaciones @if($pendingRequests)<span class="ml-1 rounded-full bg-[#ffd5c9] px-2 py-0.5 text-xs text-[#8f241d]">{{ $pendingRequests }}</span>@endif</a>
+                    <a href="{{ route('solicitudes.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">Cotizaciones / Servicios @if($pendingRequests)<span class="ml-1 rounded-full bg-[#ffd5c9] px-2 py-0.5 text-xs text-[#8f241d]">{{ $pendingRequests }}</span>@endif</a>
                     @if(auth()->user()->rol === 'Administrador' || auth()->user()->rol === 'Vendedor')
                         <a href="{{ route('clientes.index') }}" class="block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]">Clientes</a>
                     @endif
@@ -107,7 +107,7 @@
                             @endif
                             @if(auth()->user()->rol === 'Administrador')
                                 <a href="{{ route('categorias.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Categorías</a>
-                                <a href="{{ route('solicitudes.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Cotizaciones</a>
+                                <a href="{{ route('solicitudes.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Cotizaciones / Servicios</a>
                                 <a href="{{ route('backups.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Backups</a>
                                 <a href="{{ route('usuarios.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Usuarios</a>
                             @endif

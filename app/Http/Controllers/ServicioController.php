@@ -10,6 +10,8 @@ use App\Services\ActualizarDatosCliente;
 use App\Support\Rut;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class ServicioController extends Controller
 {
@@ -80,8 +82,31 @@ class ServicioController extends Controller
             ]);
         });
 
-        User::whereIn('rol', ['Administrador', 'Vendedor'])->get()->each(fn (User $user) => $user->notify(new SolicitudWebRecibida($solicitud)));
+        $destinatarios = User::whereIn('rol', ['Administrador', 'Vendedor'])->get();
+        $fallosNotificacion = $destinatarios->isEmpty();
+        if ($fallosNotificacion) {
+            Log::warning('La solicitud de servicio quedó registrada sin destinatarios para el correo interno.', [
+                'solicitud_id' => $solicitud->id_solicitud,
+            ]);
+        }
+        foreach ($destinatarios as $user) {
+            try {
+                $user->notify(new SolicitudWebRecibida($solicitud));
+            } catch (TransportExceptionInterface $exception) {
+                $fallosNotificacion = true;
+                Log::warning('La solicitud de servicio quedó registrada, pero falló el correo interno.', [
+                    'solicitud_id' => $solicitud->id_solicitud,
+                    'usuario_id' => $user->id,
+                    'error' => $exception->getMessage(),
+                ]);
+            }
+        }
 
-        return redirect()->route('servicios.index')->with('success', 'Solicitud de servicio enviada. Te contactaremos pronto.');
+        return redirect()->route('servicios.index')->with(
+            $fallosNotificacion ? 'warning' : 'success',
+            $fallosNotificacion
+                ? 'Tu solicitud quedó registrada, pero no se pudo enviar algún aviso al equipo. Contacta a RESMAP.'
+                : 'Solicitud de servicio enviada. Te contactaremos pronto.'
+        );
     }
 }

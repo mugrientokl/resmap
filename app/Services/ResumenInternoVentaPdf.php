@@ -17,6 +17,7 @@ class ResumenInternoVentaPdf
             'user',
             'detalles.producto',
             'cotizacionVersion.cotizacion',
+            'solicitudServicio',
             'ordenesCompra',
             'creditoAutorizadoPor',
         ]);

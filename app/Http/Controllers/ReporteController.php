@@ -92,7 +92,7 @@ class ReporteController extends Controller
                 'fecha' => $evento->created_at?->format('d/m/Y H:i'),
             ])->values(),
             'detalles' => $venta->detalles->map(fn ($detalle): array => [
-                'producto' => $detalle->producto?->nombre ?? 'Producto eliminado',
+                'producto' => $detalle->producto?->nombre ?? ($detalle->descripcion ?: 'Producto eliminado'),
                 'cantidad' => $detalle->cantidad,
                 'precio_unitario' => (float) $detalle->precio_unitario,
                 'subtotal' => (float) $detalle->subtotal,

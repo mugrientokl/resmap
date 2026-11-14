@@ -410,6 +410,10 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('solicitudes.estado');
 
+    Route::post('/solicitudes-web/{id}/registrar-servicio', [SolicitudWebController::class, 'registrarServicio'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('solicitudes.registrar-servicio');
+
     Route::post('/solicitudes-web/{solicitud}/cotizacion', [CotizacionController::class, 'crearVersion'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('solicitudes.cotizacion.crear');

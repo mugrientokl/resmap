@@ -102,10 +102,10 @@ class InventarioMovimientoController extends Controller
             'venta' => $movimiento->venta ? [
                 'id_venta' => $movimiento->venta->id_venta,
                 'tipo_documento' => $movimiento->venta->tipo_documento,
-                'cliente' => $movimiento->venta->cliente?->nombre ?? 'Sin cliente',
+                'cliente' => data_get($movimiento->venta->snapshotDatosCliente(), 'nombre') ?: ($movimiento->venta->cliente?->nombre ?? 'Sin cliente'),
                 'total' => (float) $movimiento->venta->total,
                 'detalles' => $movimiento->venta->detalles->map(fn ($detalle): array => [
-                    'producto' => $detalle->producto?->nombre ?? 'Producto eliminado',
+                    'producto' => $detalle->producto?->nombre ?? ($detalle->descripcion ?: 'Producto eliminado'),
                     'cantidad' => $detalle->cantidad,
                     'subtotal' => (float) $detalle->subtotal,
                 ])->values(),

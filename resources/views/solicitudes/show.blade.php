@@ -14,7 +14,7 @@
 @endphp
 <div class="mx-auto max-w-6xl">
     <div class="flex flex-wrap items-center justify-between gap-4">
-        <a href="{{ route('solicitudes.index') }}" class="rounded-md border border-[#d9aaa3] px-4 py-2 text-sm font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">Volver a cotizaciones</a>
+        <a href="{{ route('solicitudes.index') }}" class="rounded-md border border-[#d9aaa3] px-4 py-2 text-sm font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">Volver a cotizaciones / servicios</a>
         @unless($esServicio)
             <a href="{{ route('solicitudes.seguimiento', $solicitud->id_solicitud) }}" class="rounded-md border border-[#b52f25] px-5 py-3 text-sm font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">Ver seguimiento completo</a>
         @endunless
@@ -52,9 +52,10 @@
                 <p class="mt-5 whitespace-pre-line border-l-4 border-[#b52f25] bg-[#f7e8e6] p-4">{{ $solicitud->descripcion_servicio }}</p>
                 @php
                     $transicionesPermitidas = [
-                        'Pendiente' => ['Pagado - pendiente de entrega', 'Entregado - pago pendiente', 'Entregado y completado', 'Rechazado'],
-                        'Pagado - pendiente de entrega' => ['Entregado y completado'],
-                        'Entregado - pago pendiente' => ['Entregado y completado'],
+                        'Pendiente' => ['En proceso', 'Rechazado'],
+                        'En proceso' => ['Pendiente', 'Rechazado'],
+                        'Pagado - pendiente de entrega' => ['En proceso', 'Rechazado'],
+                        'Entregado - pago pendiente' => ['En proceso', 'Rechazado'],
                         'Entregado y completado' => [],
                         'Rechazado' => [],
                     ][$solicitud->estado] ?? [];
@@ -69,7 +70,60 @@
                         <button class="mt-4 rounded-md bg-[#b52f25] px-5 py-3 font-bold text-white shadow-sm hover:bg-[#8f241d]">Guardar estado</button>
                     </form>
                 @endif
-                @if($solicitud->estado === 'Entregado y completado')
+                @if(! $solicitud->venta_id && ! in_array($solicitud->estado, ['Entregado y completado', 'Rechazado'], true))
+                    <form method="POST" action="{{ route('solicitudes.registrar-servicio', $solicitud->id_solicitud) }}" class="mt-6 space-y-4 border-t pt-6" data-confirm-message="¿Registrar el servicio como pagado y descontar los repuestos seleccionados?">
+                        @csrf
+                        <h3 class="text-lg font-black">Registrar servicio completado</h3>
+                        <p class="text-sm text-gray-600">El total será el precio del servicio más los repuestos a su precio de catálogo. La venta quedará pagada.</p>
+                        <label class="block text-sm font-bold">Detalle del servicio
+                            <input name="detalle_servicio" required maxlength="255" value="{{ old('detalle_servicio', $solicitud->tipo_servicio.' - '.\Illuminate\Support\Str::limit($solicitud->descripcion_servicio, 220)) }}" class="mt-1 block w-full rounded-md border p-2">
+                        </label>
+                        <label class="block text-sm font-bold">Precio del servicio (IVA incluido)
+                            <input name="precio_servicio" type="number" min="0" max="99999999.99" step="0.01" required value="{{ old('precio_servicio') }}" class="mt-1 block w-full rounded-md border p-2">
+                        </label>
+                        <label class="block text-sm font-bold">Medio de pago
+                            <select name="medio_pago" required class="mt-1 block w-full rounded-md border p-2">
+                                <option value="">Selecciona un medio de pago</option>
+                                @foreach(['Efectivo', 'Transferencia', 'Tarjeta', 'Otro'] as $medio)
+                                    <option value="{{ $medio }}" @selected(old('medio_pago') === $medio)>{{ $medio }}</option>
+                                @endforeach
+                            </select>
+                        </label>
+                        <label class="block text-sm font-bold">Observaciones finales
+                            <textarea name="observaciones" maxlength="2000" rows="3" class="mt-1 block w-full rounded-md border p-2">{{ old('observaciones', $solicitud->observaciones) }}</textarea>
+                        </label>
+                        <h4 class="font-black">Repuestos opcionales</h4>
+                        <div id="repuestos-servicio" class="space-y-2">
+                            @foreach(old('repuestos', []) as $indice => $repuesto)
+                                <div class="flex flex-wrap gap-2" data-repuesto>
+                                    <select name="repuestos[{{ $indice }}][id_producto]" required class="min-w-40 flex-1 border p-2" aria-label="Repuesto">
+                                        <option value="">Selecciona un repuesto</option>
+                                        @foreach($productosDisponibles as $producto)
+                                            <option value="{{ $producto->id_producto }}" @selected((string) ($repuesto['id_producto'] ?? '') === (string) $producto->id_producto)>{{ $producto->nombre }} · {{ $producto->codigo_origen ?: $producto->codigo_barra }} · ${{ number_format($producto->precio, 2, ',', '.') }}</option>
+                                        @endforeach
+                                    </select>
+                                    <input type="number" name="repuestos[{{ $indice }}][cantidad]" value="{{ $repuesto['cantidad'] ?? 1 }}" min="1" max="99999" required class="w-24 border p-2" aria-label="Cantidad">
+                                    <button type="button" data-quitar-repuesto class="rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25]">Quitar</button>
+                                </div>
+                            @endforeach
+                        </div>
+                        <template id="nuevo-repuesto-servicio">
+                            <div class="flex flex-wrap gap-2" data-repuesto>
+                                <select name="repuestos[__INDEX__][id_producto]" required class="min-w-40 flex-1 border p-2" aria-label="Repuesto">
+                                    <option value="">Selecciona un repuesto</option>
+                                    @foreach($productosDisponibles as $producto)
+                                        <option value="{{ $producto->id_producto }}">{{ $producto->nombre }} · {{ $producto->codigo_origen ?: $producto->codigo_barra }} · ${{ number_format($producto->precio, 2, ',', '.') }}</option>
+                                    @endforeach
+                                </select>
+                                <input type="number" name="repuestos[__INDEX__][cantidad]" value="1" min="1" max="99999" required class="w-24 border p-2" aria-label="Cantidad">
+                                <button type="button" data-quitar-repuesto class="rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25]">Quitar</button>
+                            </div>
+                        </template>
+                        <button type="button" id="agregar-repuesto-servicio" class="block rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">+ Agregar repuesto</button>
+                        <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Registrar servicio y venta</button>
+                    </form>
+                @endif
+                @if($solicitud->estado === 'Entregado y completado' && ! $ventaCompleta)
                     <a href="{{ route('solicitudes.pdf', $solicitud->id_solicitud) }}" class="mt-4 inline-block rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">Descargar resumen interno</a>
                 @endif
             @else
@@ -174,6 +228,7 @@
                         @endforeach
                     </div>
                 @endif
+            @endif
                 @if($ventaCompleta)
                     <form id="form-resumen" method="POST" action="{{ route('ventas.generar-resumen', $venta->id_venta) }}" class="mt-6 space-y-4 border-t pt-5">
                         @csrf
@@ -223,18 +278,32 @@
                             <p id="receptor-mensaje" role="status" class="mt-2 text-xs text-gray-600">Los datos se pueden editar para este resumen.</p>
                         </fieldset>
                         <label class="block text-sm font-bold">Número de orden de compra
-                            <input name="numero_oc" type="text" value="{{ old('numero_oc', $datosResumen['numero_oc'] ?? '') }}" required maxlength="100" class="mt-1 block w-full rounded-md border p-2">
+                            <input name="numero_oc" type="text" value="{{ old('numero_oc', $datosResumen['numero_oc'] ?? '') }}" @unless($esServicio) required @endunless maxlength="100" class="mt-1 block w-full rounded-md border p-2">
                         </label>
                         <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Generar resumen interno</button>
                     </form>
                 @endif
-            @endif
         </section>
     </div>
 </div>
-@unless($esServicio)
 <script src="{{ asset('js/rut.js') }}"></script>
 <script>
+    const repuestosServicio = document.getElementById('repuestos-servicio');
+    const botonRepuestoServicio = document.getElementById('agregar-repuesto-servicio');
+    if (repuestosServicio && botonRepuestoServicio) {
+        let siguienteRepuesto = Math.max(-1, ...Array.from(
+            repuestosServicio.querySelectorAll('select[name]'),
+            select => Number(select.name.match(/\[(\d+)\]/)?.[1] ?? -1)
+        )) + 1;
+        botonRepuestoServicio.addEventListener('click', () => {
+            const plantilla = document.getElementById('nuevo-repuesto-servicio').innerHTML.replaceAll('__INDEX__', siguienteRepuesto++);
+            repuestosServicio.insertAdjacentHTML('beforeend', plantilla);
+        });
+        repuestosServicio.addEventListener('click', event => {
+            if (event.target.closest('[data-quitar-repuesto]')) event.target.closest('[data-repuesto]').remove();
+        });
+    }
+
     const itemsCotizacion = document.getElementById('items-cotizacion');
     const botonAgregar = document.getElementById('agregar-item');
     if (itemsCotizacion && botonAgregar) {
@@ -311,5 +380,4 @@
         });
     }
 </script>
-@endunless
 @endsection

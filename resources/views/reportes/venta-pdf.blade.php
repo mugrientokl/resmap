@@ -63,7 +63,7 @@
             <td>
                 <h1>RESUMEN INTERNO DE VENTA</h1>
                 <div class="muted">Fecha de venta: {{ $venta->fecha?->format('d/m/Y H:i') }}</div>
-                <div class="muted">Origen: {{ $version ? 'Cotización #'.$version->cotizacion_id.' · Versión '.$version->numero_version : 'Venta en punto de venta (POS)' }}</div>
+                <div class="muted">Origen: {{ $version ? 'Cotización #'.$version->cotizacion_id.' · Versión '.$version->numero_version : ($venta->solicitudServicio ? 'Servicio #'.$venta->solicitudServicio->id_solicitud : 'Venta en punto de venta (POS)') }}</div>
             </td>
             <td class="number">Venta N.º {{ $venta->id_venta }}</td>
         </tr>
@@ -118,7 +118,14 @@
             @endif
         </p>
     @endif
-    <p class="section-title">DETALLE DE PRODUCTOS</p>
+    @if($venta->solicitudServicio)
+        <p><strong>Servicio solicitado: {{ $venta->solicitudServicio->tipo_servicio }}</strong><br>
+            {!! nl2br(e($venta->solicitudServicio->descripcion_servicio)) !!}</p>
+        @if($venta->solicitudServicio->observaciones)
+            <p><strong>Observaciones finales:</strong><br>{!! nl2br(e($venta->solicitudServicio->observaciones)) !!}</p>
+        @endif
+    @endif
+    <p class="section-title">DETALLE DE {{ $venta->solicitudServicio ? 'SERVICIO Y REPUESTOS' : 'PRODUCTOS' }}</p>
     <table class="items">
         <thead>
             <tr><th>Producto</th><th>Código</th><th class="center">Cantidad</th><th class="right">Precio unitario</th><th class="right">Subtotal</th></tr>
