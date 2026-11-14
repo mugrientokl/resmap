@@ -6,6 +6,7 @@ use App\Models\Cotizacion;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Symfony\Component\Mime\Email;
 
 class NuevaCotizacionPendiente extends Notification
 {
@@ -21,11 +22,17 @@ class NuevaCotizacionPendiente extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
-            ->subject('Nueva cotización B2B pendiente')
-            ->greeting('Hola '.$notifiable->name)
-            ->line('Se recibió una nueva cotización #'.$this->cotizacion->id_cotizacion.'.')
-            ->action('Revisar cotización', route('solicitudes.show', $this->cotizacion->solicitud_id))
-            ->line('La reserva inicial vence el '.$this->cotizacion->reservas()->min('expira_at').'.');
+            ->subject('Nueva cotización B2B pendiente · RESMAP')
+            ->view('emails.cotizacion-pendiente', [
+                'name' => $notifiable->name,
+                'cotizacion' => $this->cotizacion,
+                'urlSolicitud' => route('solicitudes.show', $this->cotizacion->solicitud_id),
+                'venceAt' => $this->cotizacion->reservas()->min('expira_at'),
+                'logoUrl' => 'cid:resmap-logo',
+            ])
+            ->withSymfonyMessage(function (Email $message): void {
+                $message->embedFromPath(public_path('images/resmap sin fondo.png'), 'resmap-logo');
+            });
     }
 
     public function toArray(object $notifiable): array

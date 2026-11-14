@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Acceso interno | RESMAP</title>@vite('resources/css/app.css')<link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Acceso interno | RESMAP</title>@vite(['resources/css/app.css', 'resources/js/face-recognition.js'])<link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"></head>
 <body class="flex min-h-screen items-center justify-center bg-[#8f241d] px-6 text-[#241817]">
     <main class="grid w-full max-w-4xl overflow-hidden bg-white shadow-2xl md:grid-cols-2">
         <div class="hidden min-h-130 bg-[linear-gradient(135deg,rgba(143,36,29,.9),rgba(55,16,13,.78)),url('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center p-10 text-white md:flex md:flex-col md:justify-between"><span class="text-xl font-black tracking-[.2em]">RESMAP</span><div><p class="text-sm font-bold uppercase tracking-[.25em] text-[#ffd5c9]">Centro de operaciones</p><h1 class="mt-3 text-4xl font-black leading-tight">Todo el trabajo, en un solo lugar.</h1></div></div>
@@ -16,7 +16,7 @@
                 </ul>
             </div>
         @endif
-            <form method="POST" action="{{ route('login.store') }}" class="mt-8 space-y-5">@csrf
+            <form method="POST" action="{{ route('login.store') }}" class="mt-8 space-y-5" data-face-mode="login" data-models-url="{{ asset('models') }}" data-face-login-url="{{ route('login.face') }}">@csrf
                 <div><label for="login" class="block text-sm font-bold">Usuario o correo</label><input id="login" name="login" value="{{ old('login') }}" required autofocus autocomplete="username" aria-invalid="{{ $errors->has('login') ? 'true' : 'false' }}" class="mt-2 w-full border border-gray-300 p-3 outline-none focus:border-[#b52f25]"></div>
                 <div>
                     <label for="password" class="block text-sm font-bold">Contraseña</label>
@@ -41,10 +41,16 @@
                     </div>
                 </div>
                 <button class="w-full bg-[#b52f25] p-3 font-bold text-white transition hover:bg-[#8f241d]">Ingresar</button>
+                <button type="button" data-face-open class="flex w-full items-center justify-center gap-2 border border-[#b52f25] p-3 font-bold text-[#8f241d] transition hover:bg-[#fff7f5] focus:outline-none focus:ring-2 focus:ring-[#b52f25]">
+                    <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7.5h3l1.5-2h7L17 7.5h3v11H4z"/><circle cx="12" cy="13" r="3.5" stroke-width="1.8"/></svg>
+                    Ingresar con reconocimiento facial
+                </button>
+                <p data-face-status class="min-h-5 text-center text-xs leading-5 text-gray-600" role="status" aria-live="polite">También se verificará tu contraseña. El rostro no inicia sesión por sí solo.</p>
                 <a href="{{ route('password.request') }}" class="block text-center text-sm font-bold text-[#9f2f25]">¿Olvidaste tu contraseña?</a>
             </form>
         </div>
     </main>
+    @include('components.face-camera')
     <script>
         const passwordInput = document.getElementById('password');
         const togglePassword = document.getElementById('toggle-password');
