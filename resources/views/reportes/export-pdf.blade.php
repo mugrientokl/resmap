@@ -88,7 +88,7 @@
             @forelse ($ventas as $venta)
                 <tr>
                     <td>{{ $venta->fecha?->format('d/m/Y H:i') }}</td>
-                    <td>{{ $venta->cliente?->nombre ?? 'Sin cliente' }}</td>
+                    <td>{{ \App\Models\Cliente::desdeSnapshot($venta->snapshotDatosCliente())->nombre ?: 'Sin cliente' }}</td>
                     <td>{{ $venta->user?->name ?? 'Sin usuario' }}</td>
                     <td>{{ $venta->medio_pago }}</td>
                     <td>$ {{ number_format((float) $venta->total, 0, ',', '.') }}</td>

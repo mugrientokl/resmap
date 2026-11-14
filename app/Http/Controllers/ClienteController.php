@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Auditoria;
 use App\Models\Cliente;
 use App\Rules\RutChileno;
 use App\Services\ResumenInternoVentaPdf;
@@ -10,6 +11,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 
 class ClienteController extends Controller
@@ -102,12 +104,14 @@ class ClienteController extends Controller
             'encontrado' => true,
             'cliente' => [
                 'nombre' => $cliente->nombre,
+                'contacto' => $cliente->contacto,
                 'giro' => $cliente->giro,
                 'correo' => $cliente->correo,
                 'telefono' => $cliente->telefono,
                 'direccion' => $cliente->direccion,
                 'region' => $cliente->region,
                 'comuna' => $cliente->comuna,
+                'ciudad' => $cliente->ciudad,
             ],
         ]);
     }
@@ -137,11 +141,13 @@ class ClienteController extends Controller
             'encontrado' => true,
             'cliente' => [
                 'nombre' => $cliente->nombre,
+                'contacto' => $cliente->contacto,
                 'correo' => $cliente->correo,
                 'telefono' => $cliente->telefono,
                 'direccion' => $cliente->direccion,
                 'region' => $cliente->region,
                 'comuna' => $cliente->comuna,
+                'ciudad' => $cliente->ciudad,
             ],
         ]);
     }
@@ -170,9 +176,23 @@ class ClienteController extends Controller
             ->orderByDesc('id_venta')
             ->paginate(10);
 
+        $contactosAnteriores = DB::table('cliente_contactos_historial')
+            ->where('id_cliente', $cliente->id_cliente)
+            ->orderByDesc('id')
+            ->get();
+        $historialDatos = Auditoria::query()
+            ->where('modelo', Cliente::class)
+            ->where('modelo_id', $cliente->id_cliente)
+            ->where('accion', 'editado')
+            ->whereNotNull('datos_anteriores')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id_auditoria')
+            ->limit(100)
+            ->get();
+
         return view(
             'clientes.historial',
-            compact('cliente', 'ventas')
+            compact('cliente', 'ventas', 'contactosAnteriores', 'historialDatos')
         );
     }
 
@@ -218,12 +238,16 @@ class ClienteController extends Controller
                     ->ignore($cliente->id_cliente, 'id_cliente'),
             ],
             'nombre' => ['required', 'string', 'max:255'],
+            'contacto' => ['nullable', 'string', 'max:255'],
             'correo' => ['nullable', 'email', 'max:255'],
             'telefono' => ['nullable', 'string', 'max:50'],
             'direccion' => ['nullable', 'string', 'max:255'],
         ]);
 
-        $cliente->update($datos);
+        DB::transaction(function () use ($cliente, $datos): void {
+            $cliente = Cliente::query()->whereKey($cliente->id_cliente)->lockForUpdate()->firstOrFail();
+            $cliente->update($datos);
+        });
 
         return redirect()
             ->route('clientes.index')

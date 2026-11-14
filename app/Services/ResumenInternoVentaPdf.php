@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Cliente;
 use App\Models\Venta;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
@@ -29,6 +30,7 @@ class ResumenInternoVentaPdf
 
         return Pdf::loadView('reportes.venta-pdf', [
             'venta' => $venta,
+            'cliente' => Cliente::desdeSnapshot($venta->snapshotDatosCliente()),
             'despacho' => $despacho,
             'logoDataUri' => 'data:image/png;base64,'.base64_encode($logo),
         ])->setPaper('a4')->download('resumen-interno-venta-'.$venta->id_venta.'.pdf');

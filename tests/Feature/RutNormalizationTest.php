@@ -60,6 +60,7 @@ class RutNormalizationTest extends TestCase
                 'medio_pago' => 'Efectivo',
                 'rut' => $rut,
                 'nombre_cliente' => 'Cliente',
+                'contacto' => 'Contacto de prueba',
                 'detalles' => [['id_producto' => $productoId, 'cantidad' => 1]],
             ])->assertCreated();
         }

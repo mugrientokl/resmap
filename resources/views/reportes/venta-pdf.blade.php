@@ -33,7 +33,6 @@
 </head>
 <body>
     @php
-        $cliente = $venta->cliente;
         $version = $venta->cotizacionVersion;
         $montoPagado = (float) ($venta->monto_pagado ?? 0);
         $saldo = max(0, (float) $venta->total - $montoPagado);
@@ -75,6 +74,9 @@
                 <strong>CLIENTE</strong><br>
                 {{ $datosResumen['nombre'] ?? $cliente?->nombre ?? 'Sin cliente' }}<br>
                 RUT: {{ $datosResumen['rut'] ?? $cliente?->rut_formateado ?? 'N/A' }}<br>
+                @if($datosResumen['contacto'] ?? $venta->contacto ?? $cliente?->contacto)
+                    Contacto: {{ $datosResumen['contacto'] ?? $venta->contacto ?? $cliente?->contacto }}<br>
+                @endif
                 @if(!empty($datosResumen['giro']))Giro: {{ $datosResumen['giro'] }}<br>@endif
                 @if(!empty($datosResumen['correo']) || $cliente?->correo)Correo: {{ $datosResumen['correo'] ?? $cliente->correo }}<br>@endif
                 @if($cliente?->telefono)Teléfono: {{ $cliente->telefono }}<br>@endif

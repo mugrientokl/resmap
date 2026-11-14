@@ -20,6 +20,7 @@ class CotizacionVersion extends Model
 
     protected $fillable = [
         'cotizacion_id',
+        'datos_cliente',
         'revisada_por',
         'respuesta_registrada_por',
         'numero_version',
@@ -52,6 +53,7 @@ class CotizacionVersion extends Model
     {
         return [
             'vigente_hasta' => 'datetime',
+            'datos_cliente' => 'array',
             'token_expira_at' => 'datetime',
             'enviada_at' => 'datetime',
             'aceptada_at' => 'datetime',
@@ -63,6 +65,18 @@ class CotizacionVersion extends Model
     public function cotizacion(): BelongsTo
     {
         return $this->belongsTo(Cotizacion::class, 'cotizacion_id', 'id_cotizacion');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function snapshotDatosCliente(): array
+    {
+        if (is_array($this->datos_cliente) && $this->datos_cliente !== []) {
+            return $this->datos_cliente;
+        }
+
+        return [];
     }
 
     public function detalles(): HasMany

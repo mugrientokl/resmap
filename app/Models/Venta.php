@@ -27,6 +27,9 @@ class Venta extends Model
         'estado_sii',
         'user_id',
         'id_cliente',
+        'datos_cliente',
+        'contacto',
+        'cargo',
         'cotizacion_version_id',
         'estado_venta',
         'estado_pago',
@@ -51,6 +54,7 @@ class Venta extends Model
     {
         return [
             'fecha' => 'datetime',
+            'datos_cliente' => 'array',
             'credito_autorizado_at' => 'datetime',
             'stock_descontado_at' => 'datetime',
             'confirmada_at' => 'datetime',
@@ -83,6 +87,18 @@ class Venta extends Model
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class, 'id_cliente', 'id_cliente');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function snapshotDatosCliente(): array
+    {
+        if (is_array($this->datos_cliente) && $this->datos_cliente !== []) {
+            return $this->datos_cliente;
+        }
+
+        return [];
     }
 
     public function detalles(): HasMany

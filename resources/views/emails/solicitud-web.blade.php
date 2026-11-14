@@ -31,6 +31,10 @@
                                     <td style="padding:12px 14px;border:1px solid #e5e7eb;color:#17211f;font-size:14px;">{{ $cliente->correo ?: 'No informado' }}</td>
                                 </tr>
                                 <tr>
+                                    <td style="padding:12px 14px;border:1px solid #e5e7eb;background:#f9fafb;color:#6b7280;font-size:12px;">CONTACTO</td>
+                                    <td style="padding:12px 14px;border:1px solid #e5e7eb;color:#17211f;font-size:14px;">{{ $solicitud->contacto ?: 'No informado' }}</td>
+                                </tr>
+                                <tr>
                                     <td style="padding:12px 14px;border:1px solid #e5e7eb;background:#f9fafb;color:#6b7280;font-size:12px;">TELÉFONO</td>
                                     <td style="padding:12px 14px;border:1px solid #e5e7eb;color:#17211f;font-size:14px;">{{ $cliente->telefono ?: 'No informado' }}</td>
                                 </tr>

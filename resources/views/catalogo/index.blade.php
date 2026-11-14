@@ -207,7 +207,7 @@
         @endif
 
         <form method="POST" action="{{ route('catalogo.solicitudes.store') }}"
-            class="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2">
+            class="grid grid-cols-1 items-start gap-4 p-6 sm:grid-cols-2">
             @csrf
 
             <div id="detalles_productos" class="contents"></div>
@@ -217,18 +217,22 @@
                     placeholder="12.345.678-5" data-rut maxlength="12"
                     autocomplete="off"
                     class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
-                <p class="mt-1 text-xs text-gray-500">
-                    Puedes escribirlo con o sin puntos y guion.
-                </p>
                 <p id="mensaje-cliente-solicitud" class="mt-1 text-xs text-gray-600"
-                    role="status" aria-live="polite">
-                    Ingresa tu RUT para buscar tus datos registrados.
-                </p>
+                    role="status" aria-live="polite"></p>
             </div>
 
             <input name="nombre" value="{{ old('nombre') }}" required
                 placeholder="Nombre o razón social"
                 class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
+
+            <label class="block text-sm font-bold" for="contacto_solicitud">Contacto <span class="text-[#b52f25]" aria-hidden="true">*</span>
+                <input id="contacto_solicitud" name="contacto" value="{{ old('contacto') }}" required maxlength="255"
+                    placeholder="Persona o responsable" class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
+            </label>
+            <label class="block text-sm font-bold" for="cargo_solicitud">Cargo <span class="font-normal text-gray-500">(opcional)</span>
+                <input id="cargo_solicitud" name="cargo" value="{{ old('cargo') }}" maxlength="255"
+                    placeholder="Ej.: OT, equipo o patente" class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
+            </label>
 
             <input name="correo" type="email" value="{{ old('correo') }}" required
                 placeholder="Correo"
@@ -697,6 +701,7 @@ if (solicitudForm) {
     const mensajeCliente = document.getElementById('mensaje-cliente-solicitud');
     const camposCliente = {
         nombre: solicitudForm.querySelector('input[name="nombre"]'),
+        contacto: solicitudForm.querySelector('input[name="contacto"]'),
         correo: solicitudForm.querySelector('input[name="correo"]'),
         direccion: solicitudForm.querySelector('input[name="direccion"]'),
         telefono: solicitudForm.querySelector('#telefono'),
@@ -723,6 +728,7 @@ if (solicitudForm) {
 
     const limpiarDatosCliente = () => {
         camposCliente.nombre.value = '';
+        camposCliente.contacto.value = '';
         camposCliente.correo.value = '';
         camposCliente.direccion.value = '';
         camposCliente.telefono.value = '';
@@ -781,6 +787,7 @@ if (solicitudForm) {
 
             const cliente = datos.cliente;
             camposCliente.nombre.value = cliente.nombre || '';
+            camposCliente.contacto.value = cliente.contacto || '';
             camposCliente.correo.value = cliente.correo || '';
             camposCliente.direccion.value = cliente.direccion || '';
 
@@ -872,7 +879,6 @@ if (solicitudForm) {
     correo.id = 'correo_solicitud';
 
     const correoWrapper = document.createElement('div');
-    correoWrapper.className = 'sm:col-span-2';
     correo.before(correoWrapper);
     correoWrapper.append(
         obligatorioLabel(correo.id, 'Correo electrónico'),

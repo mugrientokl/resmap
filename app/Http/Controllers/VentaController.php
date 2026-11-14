@@ -29,6 +29,8 @@ class VentaController extends Controller
             'medio_pago' => 'required|string|in:Efectivo,Transferencia,Tarjeta',
             'rut' => ['required', 'string', 'max:20', new RutChileno],
             'nombre_cliente' => 'required|string|max:255',
+            'contacto' => 'required|string|max:255',
+            'cargo' => 'nullable|string|max:255',
             'razon_social_cliente' => 'nullable|string|max:255',
             'giro_cliente' => 'nullable|string|max:255',
             'correo_cliente' => 'nullable|email|max:255',
@@ -43,10 +45,11 @@ class VentaController extends Controller
 
         try {
             $resultado = DB::transaction(function () use ($request) {
-                $cliente = Cliente::firstOrCreate(
+                $cliente = Cliente::query()->lockForUpdate()->firstOrCreate(
                     ['rut' => $request->rut],
                     [
                         'nombre' => $request->nombre_cliente,
+                        'contacto' => $request->contacto,
                         'razon_social' => $request->razon_social_cliente,
                         'giro' => $request->giro_cliente,
                         'correo' => $request->correo_cliente,
@@ -60,6 +63,7 @@ class VentaController extends Controller
 
                 $cliente->update([
                     'nombre' => $request->nombre_cliente,
+                    'contacto' => $request->contacto,
                     'razon_social' => $request->razon_social_cliente ?? $cliente->razon_social,
                     'giro' => $request->giro_cliente ?? $cliente->giro,
                     'correo' => $request->correo_cliente ?? $cliente->correo,
@@ -119,6 +123,9 @@ class VentaController extends Controller
                     'stock_descontado_at' => now(),
                     'user_id' => $request->user()->id,
                     'id_cliente' => $cliente->id_cliente,
+                    'datos_cliente' => $cliente->snapshotDatos(),
+                    'contacto' => $request->contacto,
+                    'cargo' => $request->cargo,
                 ]);
 
                 foreach ($detallesCalculados as $det) {

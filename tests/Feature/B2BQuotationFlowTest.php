@@ -27,6 +27,24 @@ class B2BQuotationFlowTest extends TestCase
         $seller = User::factory()->create(['rol' => 'Vendedor']);
         $this->actingAs($seller)->post(route('solicitudes.cotizacion.crear', $solicitudId))->assertSessionHasNoErrors();
         $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
+        $this->post(route('catalogo.solicitudes.store'), [
+            'rut' => '12345678-5',
+            'nombre' => 'Cliente actualizado',
+            'contacto' => 'Contacto nuevo',
+            'correo' => 'nuevo@example.test',
+            'prefijo_telefono' => '+569',
+            'telefono' => '87654321',
+            'region' => 'Metropolitana',
+            'comuna' => 'Santiago',
+            'detalles_productos' => [['id_producto' => $productId, 'cantidad' => 1]],
+        ])->assertRedirect(route('catalogo.index'))->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('clientes', ['rut' => '12345678-5', 'nombre' => 'Cliente actualizado']);
+        $this->assertDatabaseHas('cotizacion_versiones', [
+            'id_version' => $versionId,
+            'datos_cliente->nombre' => 'Cliente de prueba',
+            'datos_cliente->contacto' => 'Contacto B2B',
+        ]);
+
         $this->post(route('cotizaciones.enviar', $versionId))->assertRedirect();
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
 
@@ -42,6 +60,12 @@ class B2BQuotationFlowTest extends TestCase
 
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 3]);
         $this->assertDatabaseCount('ventas', 1);
+        $this->assertDatabaseHas('ventas', ['contacto' => 'Contacto B2B', 'cargo' => 'OT-123']);
+        $this->assertDatabaseHas('ventas', [
+            'id_cliente' => DB::table('clientes')->value('id_cliente'),
+            'datos_cliente->nombre' => 'Cliente de prueba',
+            'datos_cliente->contacto' => 'Contacto B2B',
+        ]);
         $this->assertDatabaseCount('inventario_movimientos', 1);
         $this->assertDatabaseHas('cotizacion_versiones', ['id_version' => $versionId, 'respuesta_registrada_por' => $seller->id]);
         $this->assertDatabaseHas('reservas_inventario', ['producto_id' => $productId, 'estado' => 'consumida', 'cantidad' => 2]);
@@ -611,6 +635,8 @@ class B2BQuotationFlowTest extends TestCase
         $datos = [
             'rut' => '12345678-5',
             'nombre' => 'Cliente de prueba',
+            'contacto' => 'Contacto B2B',
+            'cargo' => 'OT-123',
             'correo' => $correo ?? 'cliente@example.test',
             'prefijo_telefono' => '+569',
             'telefono' => '12345678',

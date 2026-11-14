@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\SolicitudWeb;
 use Illuminate\Bus\Queueable;
@@ -24,7 +25,7 @@ class SolicitudWebRecibida extends Notification
 
     public function toMail(object $notifiable): MailMessage
     {
-        $cliente = $this->solicitud->cliente;
+        $cliente = Cliente::desdeSnapshot($this->solicitud->snapshotDatosCliente());
         $detalles = collect($this->solicitud->detalles_productos ?? []);
         $productos = Producto::whereIn('id_producto', $detalles->pluck('id_producto')->filter())
             ->get()
@@ -70,7 +71,7 @@ class SolicitudWebRecibida extends Notification
             'tipo' => 'solicitud',
             'tipo_solicitud' => $this->solicitud->tipo_solicitud,
             'titulo' => $esServicio ? 'Nuevo servicio solicitado' : 'Nueva cotización web',
-            'mensaje' => ($esServicio ? 'Servicio' : 'Cotización').' #'.$this->solicitud->id_solicitud.' de '.$this->solicitud->cliente->nombre.($faltantes ? ' requiere revisar disponibilidad de stock.' : ''),
+            'mensaje' => ($esServicio ? 'Servicio' : 'Cotización').' #'.$this->solicitud->id_solicitud.' de '.Cliente::desdeSnapshot($this->solicitud->snapshotDatosCliente())->nombre.($faltantes ? ' requiere revisar disponibilidad de stock.' : ''),
             'faltantes_stock' => $faltantes,
             'url' => route('solicitudes.show', $this->solicitud->id_solicitud),
         ];

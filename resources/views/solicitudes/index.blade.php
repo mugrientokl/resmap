@@ -42,7 +42,7 @@
                                 {{ $solicitud->estado_comercial['titulo'] }}
                             </span>
                         </div>
-                        <p class="mt-2 text-sm text-gray-600">{{ $solicitud->cliente->nombre }} · {{ $solicitud->cliente->rut_formateado }} · {{ $solicitud->cliente->correo ?: 'Sin correo' }}</p>
+                        <p class="mt-2 text-sm text-gray-600">{{ $solicitud->cliente_snapshot->nombre }} · {{ $solicitud->cliente_snapshot->rut_formateado }} · {{ $solicitud->cliente_snapshot->correo ?: 'Sin correo' }}</p>
                         <p class="mt-1 text-xs text-gray-500">{{ $solicitud->fecha->format('d/m/Y H:i') }}</p>
                     </div>
                     <div class="flex flex-col gap-2">

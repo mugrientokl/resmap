@@ -22,6 +22,9 @@ class SolicitudWeb extends Model
         'tipo_servicio',
         'descripcion_servicio',
         'id_cliente',
+        'datos_cliente',
+        'contacto',
+        'cargo',
         'venta_id',
         'detalles_productos',
         'observaciones',
@@ -40,12 +43,25 @@ class SolicitudWeb extends Model
     protected $casts = [
         'fecha' => 'datetime',
         'detalles_productos' => 'array',
+        'datos_cliente' => 'array',
         'atendida_at' => 'datetime',
     ];
 
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class, 'id_cliente', 'id_cliente');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function snapshotDatosCliente(): array
+    {
+        if (is_array($this->datos_cliente) && $this->datos_cliente !== []) {
+            return $this->datos_cliente;
+        }
+
+        return [];
     }
 
     public function venta(): BelongsTo

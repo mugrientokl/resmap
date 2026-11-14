@@ -47,11 +47,12 @@
     </table>
     <div class="client">
         <strong>CLIENTE</strong><br>
-        {{ $solicitud->cliente->nombre }}<br>
-        RUT: {{ $solicitud->cliente->rut_formateado }}<br>
-        Correo: {{ $solicitud->cliente->correo ?: 'No informado' }}<br>
-        Teléfono: {{ $solicitud->cliente->telefono ?: 'No informado' }}<br>
-        Dirección: {{ collect([$solicitud->cliente->direccion, $solicitud->cliente->comuna, $solicitud->cliente->region])->filter()->implode(', ') ?: 'No informada' }}
+        {{ $cliente->nombre }}<br>
+        RUT: {{ $cliente->rut_formateado }}<br>
+        @if($solicitud->contacto)Contacto: {{ $solicitud->contacto }}<br>@endif
+        Correo: {{ $cliente->correo ?: 'No informado' }}<br>
+        Teléfono: {{ $cliente->telefono ?: 'No informado' }}<br>
+        Dirección: {{ collect([$cliente->direccion, $cliente->comuna, $cliente->region])->filter()->implode(', ') ?: 'No informada' }}
     </div>
     <p class="section-title">SERVICIO SOLICITADO: {{ strtoupper($solicitud->tipo_servicio) }}</p>
     <div class="box">{{ $solicitud->descripcion_servicio }}</div>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cliente;
 use App\Models\OrdenCompra;
 use App\Models\User;
 use App\Models\Venta;
@@ -30,6 +31,10 @@ class ReporteController extends Controller
             ->selectRaw('COUNT(*) as cantidad, COALESCE(SUM(total), 0) as total, COALESCE(SUM(iva), 0) as iva')
             ->first();
 
+        $ventas->getCollection()->each(function (Venta $venta): void {
+            $venta->setAttribute('cliente_snapshot', Cliente::desdeSnapshot($venta->snapshotDatosCliente()));
+        });
+
         $usuarios = User::orderBy('name')->get(['id', 'name']);
         $panel = 'ventas';
 
@@ -54,6 +59,8 @@ class ReporteController extends Controller
             'eventosFacturacion.usuario',
         ])->findOrFail($id);
 
+        $cliente = Cliente::desdeSnapshot($venta->snapshotDatosCliente());
+
         return response()->json([
             'id_venta' => $venta->id_venta,
             'fecha' => $venta->fecha?->format('d/m/Y H:i'),
@@ -65,8 +72,8 @@ class ReporteController extends Controller
             'estado_facturacion' => $venta->estado_facturacion ?? 'sin registro histórico',
             'estado_entrega' => $venta->estado_entrega ?? 'sin registro histórico',
             'medio_pago' => $venta->medio_pago,
-            'cliente' => $venta->cliente?->nombre ?? 'Sin cliente',
-            'rut_cliente' => $venta->cliente?->rut_formateado,
+            'cliente' => $cliente->nombre ?: 'Sin cliente',
+            'rut_cliente' => $cliente->rut_formateado,
             'usuario' => $venta->user?->name ?? 'Sin usuario',
             'neto' => (float) $venta->neto,
             'iva' => (float) $venta->iva,
@@ -184,7 +191,7 @@ class ReporteController extends Controller
                     fputcsv($handle, [
                         $venta->id_venta,
                         $venta->fecha?->format('d/m/Y H:i'),
-                        $venta->cliente?->nombre ?? 'Sin cliente',
+                        Cliente::desdeSnapshot($venta->snapshotDatosCliente())->nombre ?: 'Sin cliente',
                         $venta->user?->name ?? 'Sin usuario',
                         $venta->medio_pago,
                         $venta->total,
@@ -220,12 +227,18 @@ class ReporteController extends Controller
 
                 $rutBuscado = preg_replace('/[^0-9kK]/', '', $cliente) ?? '';
 
-                $query->whereHas('cliente', function (Builder $clienteQuery) use ($cliente, $rutBuscado): void {
-                    $clienteQuery->where('nombre', 'like', '%'.$cliente.'%')
-                        ->orWhere('rut', 'like', '%'.$cliente.'%');
+                $query->where(function (Builder $query) use ($cliente, $rutBuscado): void {
+                    $query->whereHas('cliente', function (Builder $clienteQuery) use ($cliente, $rutBuscado): void {
+                        $clienteQuery->where('nombre', 'like', '%'.$cliente.'%')
+                            ->orWhere('rut', 'like', '%'.$cliente.'%');
+
+                        if (preg_match('/[0-9]/', $cliente) === 1 && $rutBuscado !== '') {
+                            $clienteQuery->orWhereRaw("REPLACE(rut, '-', '') LIKE ?", ['%'.strtoupper($rutBuscado).'%']);
+                        }
+                    })->orWhere('datos_cliente->nombre', 'like', '%'.$cliente.'%');
 
                     if (preg_match('/[0-9]/', $cliente) === 1 && $rutBuscado !== '') {
-                        $clienteQuery->orWhereRaw("REPLACE(rut, '-', '') LIKE ?", ['%'.strtoupper($rutBuscado).'%']);
+                        $query->orWhere('datos_cliente->rut', 'like', '%'.strtoupper($rutBuscado).'%');
                     }
                 });
             })

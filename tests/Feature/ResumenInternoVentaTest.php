@@ -40,6 +40,7 @@ class ResumenInternoVentaTest extends TestCase
             'medio_pago' => 'Efectivo',
             'rut' => '12.345.678-5',
             'nombre_cliente' => 'Cliente POS',
+            'contacto' => 'Contacto POS',
             'detalles' => [['id_producto' => $productoId, 'cantidad' => 1]],
         ])->assertCreated();
 

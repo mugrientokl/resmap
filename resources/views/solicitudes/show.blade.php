@@ -37,11 +37,13 @@
                 </div>
             </header>
             <dl class="space-y-4 p-6 text-sm">
-                <div><dt class="font-bold">Cliente</dt><dd>{{ $solicitud->cliente->nombre }}</dd></div>
-                <div><dt class="font-bold">RUT</dt><dd>{{ $solicitud->cliente->rut_formateado }}</dd></div>
-                <div><dt class="font-bold">Correo</dt><dd>{{ $solicitud->cliente->correo ?: 'No informado' }}</dd></div>
-                <div><dt class="font-bold">Teléfono</dt><dd>{{ $solicitud->cliente->telefono ?: 'No informado' }}</dd></div>
-                <div><dt class="font-bold">Dirección</dt><dd>{{ $solicitud->cliente->direccion ?: 'No informada' }}</dd></div>
+                <div><dt class="font-bold">Cliente</dt><dd>{{ $cliente->nombre }}</dd></div>
+                <div><dt class="font-bold">Contacto</dt><dd>{{ $solicitud->contacto ?: 'No informado' }}</dd></div>
+                <div><dt class="font-bold">Cargo</dt><dd>{{ $solicitud->cargo ?: 'No informado' }}</dd></div>
+                <div><dt class="font-bold">RUT</dt><dd>{{ $cliente->rut_formateado }}</dd></div>
+                <div><dt class="font-bold">Correo</dt><dd>{{ $cliente->correo ?: 'No informado' }}</dd></div>
+                <div><dt class="font-bold">Teléfono</dt><dd>{{ $cliente->telefono ?: 'No informado' }}</dd></div>
+                <div><dt class="font-bold">Dirección</dt><dd>{{ $cliente->direccion ?: 'No informada' }}</dd></div>
             </dl>
         </section>
         <section class="min-w-0 bg-white p-6 shadow-sm">
@@ -179,12 +181,13 @@
                         <p class="text-sm text-amber-800">Este documento no es una factura ni un DTE tributario.</p>
                         <div class="grid gap-3 sm:grid-cols-2">
                             @foreach([
-                                'nombre' => ['Razón social o nombre', $solicitud->cliente->razon_social ?: $solicitud->cliente->nombre],
-                                'rut' => ['RUT', $solicitud->cliente->rut_formateado],
-                                'giro' => ['Giro', $solicitud->cliente->giro],
-                                'direccion' => ['Dirección', $solicitud->cliente->direccion],
-                                'comuna' => ['Comuna', $solicitud->cliente->comuna],
-                                'correo' => ['Correo', $solicitud->cliente->correo],
+                                'nombre' => ['Razón social o nombre', $cliente->razon_social ?: $cliente->nombre],
+                                'rut' => ['RUT', $cliente->rut_formateado],
+                                'giro' => ['Giro', $cliente->giro],
+                                'direccion' => ['Dirección', $cliente->direccion],
+                                'comuna' => ['Comuna', $cliente->comuna],
+                                'correo' => ['Correo', $cliente->correo],
+                                'contacto' => ['Contacto', $solicitud->contacto ?: $cliente->contacto],
                                 'numero_oc' => ['Número real de OC', ''],
                             ] as $campo => [$etiqueta, $valor])
                                 <label class="text-sm font-bold">{{ $etiqueta }}

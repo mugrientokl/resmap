@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\NuevaCotizacionPendiente;
 use App\Notifications\SolicitudWebRecibida;
 use App\Rules\RutChileno;
+use App\Services\ActualizarDatosCliente;
 use App\Services\InventarioReservaService;
 use App\Support\Rut;
 use Illuminate\Http\Request;
@@ -90,7 +91,8 @@ class CatalogoController extends Controller
 
     public function storeRequest(
         Request $request,
-        InventarioReservaService $reservas
+        InventarioReservaService $reservas,
+        ActualizarDatosCliente $actualizarCliente,
     ) {
         $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
 
@@ -102,6 +104,8 @@ class CatalogoController extends Controller
                 new RutChileno,
             ],
             'nombre' => ['required', 'string', 'max:255'],
+            'contacto' => ['required', 'string', 'max:255'],
+            'cargo' => ['nullable', 'string', 'max:255'],
             'correo' => ['required', 'email', 'max:255'],
             'prefijo_telefono' => [
                 'required',
@@ -170,7 +174,8 @@ class CatalogoController extends Controller
         $solicitud = DB::transaction(function () use (
             $data,
             $telefono,
-            $reservas
+            $reservas,
+            $actualizarCliente,
         ): SolicitudWeb {
             $cantidadesSolicitadas = collect($data['detalles_productos'])
                 ->groupBy(
@@ -229,7 +234,9 @@ class CatalogoController extends Controller
             }
 
             $datosCliente = [
+                'rut' => $data['rut'],
                 'nombre' => $data['nombre'],
+                'contacto' => $data['contacto'],
                 'correo' => $data['correo'] ?? null,
                 'telefono' => $telefono,
                 'telefono_whatsapp' => $telefono,
@@ -245,15 +252,18 @@ class CatalogoController extends Controller
                 $datosCliente['consentimiento_whatsapp_origen'] = 'catalogo';
             }
 
-            $cliente = Cliente::updateOrCreate(
-                ['rut' => $data['rut']],
-                $datosCliente
+            $cliente = $actualizarCliente->actualizarDesdeSolicitud(
+                $datosCliente,
+                'la solicitud de cotización web'
             );
 
             $solicitud = SolicitudWeb::create([
                 'fecha' => now(),
                 'estado' => 'Pendiente',
                 'id_cliente' => $cliente->id_cliente,
+                'datos_cliente' => $cliente->snapshotDatos(),
+                'contacto' => $data['contacto'],
+                'cargo' => $data['cargo'] ?? null,
                 'detalles_productos' => $data['detalles_productos'],
                 'metodo_entrega' => $data['metodo_entrega'] ?? null,
                 'direccion_calle' => $data['direccion_calle'] ?? null,

@@ -37,6 +37,10 @@
 
         <div class="mt-5 grid grid-cols-1 gap-3 text-sm md:grid-cols-3">
             <div>
+                <span class="font-semibold">Contacto actual:</span>
+                {{ $cliente->contacto ?: 'Sin registro' }}
+            </div>
+            <div>
                 <span class="font-semibold">Correo:</span>
                 {{ $cliente->correo ?: 'Sin registro' }}
             </div>
@@ -50,6 +54,56 @@
                 <span class="font-semibold">Dirección:</span>
                 {{ $cliente->direccion ?: 'Sin registro' }}
             </div>
+        </div>
+    </div>
+
+    <div class="rounded-lg bg-white p-6 shadow-md">
+        <h3 class="mb-4 text-lg font-bold text-gray-800">Historial de contactos</h3>
+        <ul class="space-y-2 text-sm text-gray-700">
+            @forelse($contactosAnteriores as $contactoAnterior)
+                <li>{{ $contactoAnterior->contacto }} <span class="text-gray-500">· hasta {{ \Illuminate\Support\Carbon::parse($contactoAnterior->cambiado_at)->format('d/m/Y H:i') }}</span></li>
+            @empty
+                <li class="text-gray-500">No hay contactos anteriores registrados.</li>
+            @endforelse
+        </ul>
+    </div>
+
+    <div class="rounded-lg bg-white p-6 shadow-md">
+        <h3 class="mb-4 text-lg font-bold text-gray-800">Cambios anteriores en los datos</h3>
+        <div class="space-y-3">
+            @forelse($historialDatos as $registro)
+                @php
+                    $etiquetasDatosCliente = [
+                        'nombre' => 'Nombre o razón social',
+                        'contacto' => 'Contacto',
+                        'correo' => 'Correo',
+                        'telefono' => 'Teléfono',
+                        'telefono_whatsapp' => 'Teléfono WhatsApp',
+                        'direccion' => 'Dirección',
+                        'region' => 'Región',
+                        'comuna' => 'Comuna',
+                        'ciudad' => 'Ciudad',
+                        'giro' => 'Giro',
+                    ];
+                    $datosAnteriores = collect($registro->datos_anteriores)
+                        ->only(array_keys($etiquetasDatosCliente));
+                @endphp
+                <details class="rounded-md border border-gray-200 p-4">
+                    <summary class="cursor-pointer font-semibold text-gray-800">
+                        {{ $registro->created_at?->format('d/m/Y H:i') }} · Datos anteriores
+                    </summary>
+                    <dl class="mt-3 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
+                        @foreach($datosAnteriores as $campo => $valor)
+                            <div>
+                                <dt class="font-medium text-gray-500">{{ $etiquetasDatosCliente[$campo] }}</dt>
+                                <dd>{{ $valor ?: 'Sin registro' }}</dd>
+                            </div>
+                        @endforeach
+                    </dl>
+                </details>
+            @empty
+                <p class="text-sm text-gray-500">No hay cambios anteriores registrados.</p>
+            @endforelse
         </div>
     </div>
 

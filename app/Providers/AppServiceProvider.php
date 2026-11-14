@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Listeners\RegistrarEventoAutenticacion;
+use App\Models\Cliente;
 use App\Models\User;
 use App\Observers\AuditoriaObserver;
+use App\Observers\ClienteContactoObserver;
 use App\Services\Facturacion\FacturacionSimulada;
 use App\Services\Facturacion\ProveedorFacturacion;
 use App\Services\RegistroActividad;
@@ -37,6 +39,8 @@ class AppServiceProvider extends ServiceProvider
         foreach (array_keys(config('actividad.modelos')) as $modelo) {
             $modelo::observe(AuditoriaObserver::class);
         }
+
+        Cliente::observe(ClienteContactoObserver::class);
 
         Gate::define('ver-actividad', fn (User $usuario): bool => $usuario->rol === 'Administrador');
 

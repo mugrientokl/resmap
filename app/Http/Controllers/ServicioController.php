@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Cliente;
 use App\Models\SolicitudWeb;
 use App\Models\User;
 use App\Notifications\SolicitudWebRecibida;
 use App\Rules\RutChileno;
+use App\Services\ActualizarDatosCliente;
 use App\Support\Rut;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -23,13 +23,15 @@ class ServicioController extends Controller
         ]);
     }
 
-    public function store(Request $request)
+    public function store(Request $request, ActualizarDatosCliente $actualizarCliente)
     {
         $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
 
         $data = $request->validate([
             'rut' => ['required', 'string', 'max:20', new RutChileno],
             'nombre' => ['required', 'string', 'max:255'],
+            'contacto' => ['required', 'string', 'max:255'],
+            'cargo' => ['nullable', 'string', 'max:255'],
             'correo' => ['nullable', 'email', 'max:255'],
             'prefijo_telefono' => ['required', 'regex:/^\+[1-9][0-9]{0,4}$/'],
             'telefono' => ['required', 'regex:/^[0-9]{8}$/'],
@@ -51,16 +53,18 @@ class ServicioController extends Controller
 
         $telefono = $data['prefijo_telefono'].$data['telefono'];
 
-        $solicitud = DB::transaction(function () use ($data, $telefono): SolicitudWeb {
-            $cliente = Cliente::updateOrCreate(['rut' => $data['rut']], [
+        $solicitud = DB::transaction(function () use ($data, $telefono, $actualizarCliente): SolicitudWeb {
+            $cliente = $actualizarCliente->actualizarDesdeSolicitud([
+                'rut' => $data['rut'],
                 'nombre' => $data['nombre'],
+                'contacto' => $data['contacto'],
                 'correo' => $data['correo'] ?? null,
                 'telefono' => $telefono,
                 'direccion' => $data['direccion'] ?? null,
                 'region' => $data['region'],
                 'comuna' => $data['comuna'],
                 'ciudad' => $data['comuna'],
-            ]);
+            ], 'la solicitud de servicio');
 
             return SolicitudWeb::create([
                 'fecha' => now(),
@@ -69,6 +73,9 @@ class ServicioController extends Controller
                 'tipo_servicio' => $data['tipo_servicio'],
                 'descripcion_servicio' => $data['descripcion_servicio'],
                 'id_cliente' => $cliente->id_cliente,
+                'datos_cliente' => $cliente->snapshotDatos(),
+                'contacto' => $data['contacto'],
+                'cargo' => $data['cargo'] ?? null,
                 'detalles_productos' => [],
             ]);
         });

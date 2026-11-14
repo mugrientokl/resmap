@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Mail\CotizacionCliente;
+use App\Models\Cliente;
 use App\Models\Cotizacion;
 use App\Models\CotizacionDetalle;
 use App\Models\CotizacionVersion;
@@ -61,6 +62,13 @@ class CotizacionController extends Controller
                 ->whereKey($solicitud->id_solicitud)
                 ->lockForUpdate()
                 ->firstOrFail();
+            $datosCliente = $solicitudBloqueada->snapshotDatosCliente();
+            if ($datosCliente === []) {
+                throw ValidationException::withMessages([
+                    'cotizacion' => 'No se puede cotizar esta solicitud porque no tiene datos históricos verificables del cliente.',
+                ]);
+            }
+
             $cotizacion = Cotizacion::query()
                 ->where('solicitud_id', $solicitudBloqueada->id_solicitud)
                 ->lockForUpdate()
@@ -129,6 +137,7 @@ class CotizacionController extends Controller
                 'region' => $solicitudBloqueada->direccion_region,
                 'referencias' => $solicitudBloqueada->direccion_referencias,
                 'vigente_hasta' => $vigenteHasta,
+                'datos_cliente' => $datosCliente,
             ]);
 
             foreach ($items as $productoId => $cantidad) {
@@ -172,6 +181,7 @@ class CotizacionController extends Controller
         ]);
         $cotizacion = $version->cotizacion;
         $cliente = $cotizacion->solicitud->cliente;
+        $clienteSnapshot = Cliente::desdeSnapshot($version->snapshotDatosCliente());
         $rutaPdf = URL::temporarySignedRoute(
             'cotizaciones.pdf.externo',
             $version->vigente_hasta,
@@ -182,9 +192,9 @@ class CotizacionController extends Controller
         $pdf = $this->generarPdf($version);
         $avisos = [];
 
-        if ($cliente->correo) {
+        if ($clienteSnapshot->correo) {
             try {
-                Mail::to($cliente->correo)->send(new CotizacionCliente($version, $urlPdf, $pdf));
+                Mail::to($clienteSnapshot->correo)->send(new CotizacionCliente($version, $urlPdf, $pdf));
                 $version->update(['email_estado' => 'aceptado_por_smtp']);
             } catch (TransportExceptionInterface $exception) {
                 $version->update(['email_estado' => 'fallido']);
@@ -206,7 +216,7 @@ class CotizacionController extends Controller
 
         if ($telefonoWhatsApp && $tieneConsentimientoWhatsApp) {
             $usarBotonUrl = (bool) config('services.whatsapp.quote_url_button');
-            $parametrosPlantilla = [$cliente->nombre, (string) $cotizacion->id_cotizacion, (string) $version->numero_version];
+            $parametrosPlantilla = [$clienteSnapshot->nombre, (string) $cotizacion->id_cotizacion, (string) $version->numero_version];
             if (! $usarBotonUrl) {
                 $parametrosPlantilla[] = $urlPdf;
             }
@@ -392,7 +402,7 @@ class CotizacionController extends Controller
 
         return view('cotizaciones.responder', [
             'version' => $cotizacionVersion,
-            'cliente' => $cotizacionVersion->cotizacion->solicitud->cliente,
+            'cliente' => Cliente::desdeSnapshot($cotizacionVersion->snapshotDatosCliente()),
             'token' => $token,
         ]);
     }
@@ -496,7 +506,8 @@ class CotizacionController extends Controller
         }
 
         $telefono = $this->soloDigitos($datos['telefono']);
-        $telefonoRegistrado = $this->soloDigitos((string) $versionCotizacion->cotizacion->solicitud->cliente->telefono);
+        $clienteSnapshot = Cliente::desdeSnapshot($versionCotizacion->snapshotDatosCliente());
+        $telefonoRegistrado = $this->soloDigitos((string) $clienteSnapshot->telefono);
         if ($telefono === '' || ! hash_equals($telefonoRegistrado, $telefono)) {
             throw ValidationException::withMessages(['telefono' => 'El teléfono no coincide con el registrado para el cliente.']);
         }
@@ -603,7 +614,7 @@ class CotizacionController extends Controller
                         'ordenCompra' => $ordenCompra,
                         'version' => $version,
                         'venta' => $venta,
-                        'cliente' => $version->cotizacion->solicitud->cliente,
+                        'cliente' => Cliente::desdeSnapshot($version->snapshotDatosCliente()),
                         'logoDataUri' => 'data:image/png;base64,'.base64_encode($logo),
                     ])->setPaper('a4')->output();
                     $archivoPath = 'ordenes-compra/'.Str::uuid().'.pdf';
@@ -910,7 +921,7 @@ class CotizacionController extends Controller
         }
 
         $telefonoRemitente = $this->soloDigitos($telefono);
-        $cliente = $version->cotizacion->solicitud->cliente;
+        $cliente = Cliente::desdeSnapshot($version->snapshotDatosCliente());
         $telefonoCliente = $this->soloDigitos((string) (
             $cliente->telefono_whatsapp ?? $cliente->telefono
         ));
@@ -1011,6 +1022,9 @@ class CotizacionController extends Controller
             'cotizacion_version_id' => $version->id_version,
             'user_id' => $usuarioId,
             'id_cliente' => $solicitud->id_cliente,
+            'datos_cliente' => $version->snapshotDatosCliente(),
+            'contacto' => $solicitud->contacto,
+            'cargo' => $solicitud->cargo,
         ]);
         $solicitud->update(['venta_id' => $venta->id_venta]);
 
@@ -1139,7 +1153,7 @@ class CotizacionController extends Controller
 
         return Pdf::loadView('cotizaciones.pdf', [
             'version' => $version,
-            'cliente' => $version->cotizacion->solicitud->cliente,
+            'cliente' => Cliente::desdeSnapshot($version->snapshotDatosCliente()),
             'logoDataUri' => 'data:image/png;base64,'.base64_encode($logo),
         ])->setPaper('a4')->output();
     }

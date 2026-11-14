@@ -292,6 +292,7 @@ class CatalogoStockTest extends TestCase
         return [
             'rut' => '12345678-5',
             'nombre' => 'Cliente de prueba',
+            'contacto' => 'Contacto de prueba',
             'correo' => 'cliente@example.com',
             'prefijo_telefono' => '+569',
             'telefono' => '12345678',

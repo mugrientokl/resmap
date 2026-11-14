@@ -19,6 +19,7 @@ class Cliente extends Model
     protected $fillable = [
         'rut',
         'nombre',
+        'contacto',
         'razon_social',
         'giro',
         'correo',
@@ -49,6 +50,35 @@ class Cliente extends Model
         return Attribute::make(
             get: fn (): ?string => Rut::formatear($this->attributes['rut'] ?? null),
         );
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    public function snapshotDatos(): array
+    {
+        return [
+            'rut' => $this->rut,
+            'nombre' => $this->nombre,
+            'contacto' => $this->contacto,
+            'razon_social' => $this->razon_social,
+            'giro' => $this->giro,
+            'correo' => $this->correo,
+            'telefono' => $this->telefono,
+            'telefono_whatsapp' => $this->telefono_whatsapp,
+            'direccion' => $this->direccion,
+            'region' => $this->region,
+            'comuna' => $this->comuna,
+            'ciudad' => $this->ciudad,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $datos
+     */
+    public static function desdeSnapshot(array $datos): self
+    {
+        return new self($datos);
     }
 
     public function ventas(): HasMany

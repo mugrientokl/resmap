@@ -171,6 +171,19 @@
 
                 <div class="grid grid-cols-2 gap-2">
                     <div>
+                        <label for="contacto_cliente" class="block text-xs font-medium text-gray-700">Contacto *</label>
+                        <input type="text" id="contacto_cliente" maxlength="255" required placeholder="Persona o responsable"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
+                    </div>
+                    <div>
+                        <label for="cargo" class="block text-xs font-medium text-gray-700">Cargo (opcional)</label>
+                        <input type="text" id="cargo" maxlength="255" placeholder="OT, equipo o patente"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
                         <label for="correo_cliente" class="block text-xs font-medium text-gray-700">
                             Correo
                         </label>
@@ -314,6 +327,8 @@ const claveBorrador = 'resmap-pos-venta-pendiente';
 const idsCamposCliente = [
     'rut',
     'nombre_cliente',
+    'contacto_cliente',
+    'cargo',
     'giro_cliente',
     'correo_cliente',
     'prefijo_telefono_cliente',
@@ -680,12 +695,18 @@ async function procesarVenta() {
 
     const rut = document.getElementById('rut').value.trim();
     const nombre = document.getElementById('nombre_cliente').value.trim();
+    const contacto = document.getElementById('contacto_cliente').value.trim();
     const telefono = document.getElementById('telefono_cliente').value;
     const region = document.getElementById('region_cliente').value;
     const comuna = document.getElementById('comuna_cliente').value;
 
     if (!rut || !nombre) {
         window.resmapAlert('Ingresa el RUT y el nombre del cliente.', 'warning');
+        return;
+    }
+
+    if (!contacto) {
+        window.resmapAlert('Ingresa la persona de contacto.', 'warning');
         return;
     }
 
@@ -717,6 +738,8 @@ async function procesarVenta() {
         medio_pago: medioPago,
         rut,
         nombre_cliente: nombre,
+        contacto,
+        cargo: document.getElementById('cargo').value.trim(),
         razon_social_cliente: nombre,
         giro_cliente: document.getElementById('giro_cliente').value,
         correo_cliente: document.getElementById('correo_cliente').value,
@@ -859,6 +882,7 @@ renderCarro();
 
     const campos = {
         nombre: document.getElementById('nombre_cliente'),
+        contacto: document.getElementById('contacto_cliente'),
         giro: document.getElementById('giro_cliente'),
         correo: document.getElementById('correo_cliente'),
         direccion: document.getElementById('direccion_cliente')

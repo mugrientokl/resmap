@@ -26,8 +26,8 @@
 
     <header class="mt-5 bg-white p-6 shadow-sm md:p-8">
         <p class="text-xs font-black uppercase tracking-[0.2em] text-[#b52f25]">Seguimiento · Cotización #{{ $solicitud->id_solicitud }}</p>
-        <h1 class="mt-2 text-3xl font-black text-[#241817]">{{ $solicitud->cliente->nombre }}</h1>
-        <p class="mt-1 text-sm text-gray-500">{{ $solicitud->cliente->rut_formateado }} · Recibida el {{ $solicitud->fecha?->format('d/m/Y H:i') }}</p>
+        <h1 class="mt-2 text-3xl font-black text-[#241817]">{{ $cliente->nombre }}</h1>
+        <p class="mt-1 text-sm text-gray-500">{{ $cliente->rut_formateado }} · Recibida el {{ $solicitud->fecha?->format('d/m/Y H:i') }}</p>
 
         <div class="mt-6 grid gap-4 md:grid-cols-[1.4fr_1fr]">
             <div class="border-l-4 {{ $datos['cerrada'] ? 'border-gray-400 bg-gray-50' : 'border-amber-500 bg-amber-50' }} p-4">

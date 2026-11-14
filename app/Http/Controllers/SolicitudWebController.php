@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Cliente;
 use App\Models\DetalleVenta;
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
@@ -69,9 +70,18 @@ class SolicitudWebController extends Controller
             $solicitud->setAttribute('estado_comercial', $this->estadoComercial($solicitud));
         });
 
-        return request()->expectsJson()
-            ? response()->json($solicitudes)
-            : view('solicitudes.index', compact('solicitudes'));
+        if (request()->expectsJson()) {
+            return response()->json($solicitudes);
+        }
+
+        $solicitudes->getCollection()->each(function (SolicitudWeb $solicitud): void {
+            $solicitud->setAttribute(
+                'cliente_snapshot',
+                Cliente::desdeSnapshot($solicitud->snapshotDatosCliente())
+            );
+        });
+
+        return view('solicitudes.index', compact('solicitudes'));
     }
 
     public function show($id)
@@ -89,8 +99,9 @@ class SolicitudWebController extends Controller
         $productosDisponibles = Producto::query()->where('activo', true)
             ->orderBy('nombre')->get(['id_producto', 'nombre', 'codigo_origen', 'codigo_barra']);
         $solicitud->setAttribute('estado_comercial', $this->estadoComercial($solicitud));
+        $cliente = Cliente::desdeSnapshot($solicitud->snapshotDatosCliente());
 
-        return view('solicitudes.show', compact('solicitud', 'productos', 'totales', 'productosDisponibles'));
+        return view('solicitudes.show', compact('solicitud', 'cliente', 'productos', 'totales', 'productosDisponibles'));
     }
 
     public function seguimiento($id, SeguimientoCotizacion $seguimiento)
@@ -109,13 +120,15 @@ class SolicitudWebController extends Controller
         $estadoComercial = $this->estadoComercial($solicitud);
         $solicitud->setAttribute('estado_comercial', $estadoComercial);
         $datos = $seguimiento->construir($solicitud, $estadoComercial);
+        $cliente = Cliente::desdeSnapshot($solicitud->snapshotDatosCliente());
 
-        return view('solicitudes.seguimiento', compact('solicitud', 'datos'));
+        return view('solicitudes.seguimiento', compact('solicitud', 'datos', 'cliente'));
     }
 
     public function descargarSolicitudPdf($id, ResumenInternoVentaPdf $resumen)
     {
         $solicitud = SolicitudWeb::with(['cliente', 'venta', 'cotizacion.versiones.venta'])->findOrFail($id);
+        $cliente = Cliente::desdeSnapshot($solicitud->snapshotDatosCliente());
 
         if ($solicitud->tipo_solicitud === 'servicio') {
             abort_unless(
@@ -128,6 +141,7 @@ class SolicitudWebController extends Controller
 
             return Pdf::loadView('solicitudes.factura-pdf', [
                 'solicitud' => $solicitud,
+                'cliente' => $cliente,
                 'logoDataUri' => 'data:image/png;base64,'.base64_encode((string) $logo),
             ])->setPaper('a4')->download('resumen-servicio-'.$solicitud->id_solicitud.'.pdf');
         }
@@ -327,10 +341,13 @@ class SolicitudWebController extends Controller
             'detalles_productos' => 'required|array|min:1',
         ]);
 
+        $cliente = Cliente::findOrFail($request->id_cliente);
         $solicitud = SolicitudWeb::create([
             'fecha' => now(),
             'estado' => 'Pendiente',
             'id_cliente' => $request->id_cliente,
+            'datos_cliente' => $cliente->snapshotDatos(),
+            'contacto' => $cliente->contacto,
             'detalles_productos' => $request->detalles_productos,
         ]);
 
@@ -426,6 +443,9 @@ class SolicitudWebController extends Controller
                     'estado_sii' => 'Pendiente',
                     'user_id' => $request->user()->id,
                     'id_cliente' => $solicitud->id_cliente,
+                    'datos_cliente' => $solicitud->snapshotDatosCliente(),
+                    'contacto' => $solicitud->contacto,
+                    'cargo' => $solicitud->cargo,
                 ]);
 
                 foreach ($detallesVenta as $detalle) {

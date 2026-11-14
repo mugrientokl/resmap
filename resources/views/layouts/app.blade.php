@@ -194,6 +194,16 @@
                     <a href="https://www.google.com/maps/search/?api=1&query=-37.4741361,-72.32925" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex items-center font-bold text-[#9f2f25] hover:text-[#721d18]">Abrir en Google Maps <span class="ml-2">→</span></a>
                 </div>
             </div>
+            <section class="mx-auto mt-8 flex max-w-7xl flex-col items-start gap-5 border-t border-[#f0ddda] pt-6 sm:flex-row sm:items-center" aria-labelledby="instituto-title">
+                <a href="https://admision.virginiogomez.cl/sedes/" target="_blank" rel="noopener noreferrer">
+                    <img src="https://www.virginiogomez.cl/static/admision/Logo_IPVG.png" alt="Instituto Profesional Virginio Gómez" class="h-auto w-48 object-contain" loading="lazy">
+                </a>
+                <div>
+                    <h2 id="instituto-title" class="font-bold text-[#241817]">Instituto Profesional Virginio Gómez · Sede Los Ángeles</h2>
+                    <p class="mt-1">Ercilla 444, Los Ángeles, Biobío</p>
+                    <a href="tel:+56432317764" class="mt-1 inline-block hover:text-[#9f2f25]">+56 43 231 7764</a>
+                </div>
+            </section>
         @endif
         <p class="mt-8 border-t border-[#f0ddda] pt-5 text-center">© RESMAP 2026. Todos Los Derechos Reservados.</p>
     </footer>

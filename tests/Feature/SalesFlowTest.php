@@ -37,6 +37,7 @@ class SalesFlowTest extends TestCase
             'medio_pago' => 'Efectivo',
             'rut' => '66666666-6',
             'nombre_cliente' => 'Cliente de prueba',
+            'contacto' => 'Contacto de prueba',
             'detalles' => [
                 ['id_producto' => $productId, 'cantidad' => 1],
             ],

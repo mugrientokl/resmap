@@ -2,6 +2,7 @@
 
 namespace App\Mail;
 
+use App\Models\Cliente;
 use App\Models\CotizacionVersion;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
@@ -37,7 +38,7 @@ class CotizacionCliente extends Mailable
             view: 'emails.cotizacion-cliente',
             with: [
                 'version' => $this->version,
-                'cliente' => $this->version->cotizacion->solicitud->cliente,
+                'cliente' => Cliente::desdeSnapshot($this->version->snapshotDatosCliente()),
                 'urlPdf' => $this->urlPdf,
                 'logoUrl' => 'cid:resmap-logo',
             ],
