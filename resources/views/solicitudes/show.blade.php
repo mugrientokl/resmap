@@ -14,9 +14,9 @@
 @endphp
 <div class="mx-auto max-w-6xl">
     <div class="flex flex-wrap items-center justify-between gap-4">
-        <a href="{{ route('solicitudes.index') }}" class="text-sm font-bold text-[#9f2f25]">Volver a cotizaciones</a>
+        <a href="{{ route('solicitudes.index') }}" class="rounded-md border border-[#d9aaa3] px-4 py-2 text-sm font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">Volver a cotizaciones</a>
         @unless($esServicio)
-            <a href="{{ route('solicitudes.seguimiento', $solicitud->id_solicitud) }}" class="border border-[#b52f25] px-5 py-3 text-sm font-bold text-[#b52f25]">Ver seguimiento completo</a>
+            <a href="{{ route('solicitudes.seguimiento', $solicitud->id_solicitud) }}" class="rounded-md border border-[#b52f25] px-5 py-3 text-sm font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">Ver seguimiento completo</a>
         @endunless
     </div>
     @if($errors->any())
@@ -66,11 +66,11 @@
                             <select name="estado" class="mt-2 w-full border p-3">@foreach($transicionesPermitidas as $estadoPermitido)<option value="{{ $estadoPermitido }}">{{ $estadoPermitido }}</option>@endforeach</select>
                         </label>
                         <label class="mt-4 block text-sm font-bold">Observaciones<textarea name="observaciones" rows="3" class="mt-2 w-full border p-3">{{ $solicitud->observaciones }}</textarea></label>
-                        <button class="mt-4 bg-[#b52f25] px-5 py-3 font-bold text-white">Guardar estado</button>
+                        <button class="mt-4 rounded-md bg-[#b52f25] px-5 py-3 font-bold text-white shadow-sm hover:bg-[#8f241d]">Guardar estado</button>
                     </form>
                 @endif
                 @if($solicitud->estado === 'Entregado y completado')
-                    <a href="{{ route('solicitudes.pdf', $solicitud->id_solicitud) }}" class="mt-4 inline-block font-bold text-[#9f2f25] underline">Descargar resumen interno</a>
+                    <a href="{{ route('solicitudes.pdf', $solicitud->id_solicitud) }}" class="mt-4 inline-block rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">Descargar resumen interno</a>
                 @endif
             @else
                 <h2 class="text-xl font-black">Cotización y venta</h2>
@@ -83,9 +83,9 @@
                         <div class="flex flex-wrap items-center justify-between gap-3">
                             <span>Versión {{ $version->numero_version }} · {{ ucfirst(str_replace('_', ' ', $version->estado)) }} · ${{ number_format($version->total, 0, ',', '.') }} · válida hasta {{ $version->vigente_hasta?->format('d/m/Y H:i') }}</span>
                             <div class="flex flex-wrap gap-3">
-                                <a class="font-bold text-[#9f2f25] underline" href="{{ route('cotizaciones.pdf', $version->id_version) }}">Descargar cotización PDF</a>
+                                <a class="inline-block rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]" href="{{ route('cotizaciones.pdf', $version->id_version) }}">Descargar cotización PDF</a>
                                 @if($version->estado === 'borrador')
-                                    <form method="POST" action="{{ route('cotizaciones.enviar', $version->id_version) }}" data-confirm-message="¿Enviar esta cotización al cliente?">@csrf<button class="font-bold text-[#9f2f25] underline">Enviar al cliente</button></form>
+                                    <form method="POST" action="{{ route('cotizaciones.enviar', $version->id_version) }}" data-confirm-message="¿Enviar esta cotización al cliente?">@csrf<button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Enviar al cliente</button></form>
                                 @endif
                             </div>
                         </div>
@@ -112,7 +112,7 @@
                                     <input type="hidden" name="items[{{ $indice }}][id_producto]" value="{{ $item['id_producto'] }}">
                                     <span class="min-w-40 flex-1 text-sm">{{ $item['nombre'] }}</span>
                                     <input type="number" name="items[{{ $indice }}][cantidad]" value="{{ $item['cantidad'] }}" min="1" max="99999" required class="w-24 border p-2" aria-label="Cantidad de {{ $item['nombre'] }}">
-                                    <button type="button" data-quitar class="text-sm font-bold text-[#9f2f25]">Quitar</button>
+                                    <button type="button" data-quitar class="rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Quitar</button>
                                 </div>
                             @endforeach
                         </div>
@@ -125,16 +125,16 @@
                                     @endforeach
                                 </select>
                                 <input type="number" name="items[__INDEX__][cantidad]" value="1" min="1" max="99999" required class="w-24 border p-2" aria-label="Cantidad">
-                                <button type="button" data-quitar class="text-sm font-bold text-[#9f2f25]">Quitar</button>
+                                <button type="button" data-quitar class="rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Quitar</button>
                             </div>
                         </template>
-                        <button type="button" id="agregar-item" class="block font-bold text-[#9f2f25]">+ Agregar repuesto</button>
+                        <button type="button" id="agregar-item" class="block rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">+ Agregar repuesto</button>
                         @if($solicitud->metodo_entrega === 'despacho')
                             <label class="block text-sm font-bold">Costo despacho
                                 <input type="number" name="costo_despacho" min="0" step="1" value="{{ $ultimaVersion?->costo_despacho ?? config('services.cotizaciones.costo_despacho', 0) }}" class="mt-1 block border p-2">
                             </label>
                         @endif
-                        <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">{{ $ultimaVersion ? 'Crear nueva versión' : 'Crear cotización' }}</button>
+                        <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">{{ $ultimaVersion ? 'Crear nueva versión' : 'Crear cotización' }}</button>
                     </form>
                 @endif
 
@@ -151,14 +151,14 @@
                             </select>
                         </label>
                         <label class="block text-sm font-bold">Comentarios<textarea name="comentarios" maxlength="2000" rows="3" class="mt-1 block w-full border p-2">{{ old('comentarios') }}</textarea></label>
-                        <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Registrar respuesta</button>
+                        <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Registrar respuesta</button>
                     </form>
                 @endif
                 @if($ultimaVersion?->estado === 'aceptada' && ! $ventaCompleta)
                     <form method="POST" action="{{ route('cotizaciones.convertir-venta', $ultimaVersion->id_version) }}" class="mt-6 border-t pt-5" data-confirm-message="¿Confirmas que se registre la venta y se descuente el stock?">
                         @csrf
                         <p class="mb-3 text-sm">Puedes convertir la cotización aceptada en venta sin adjuntar una orden de compra.</p>
-                        <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Convertir en venta y descontar stock</button>
+                        <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Registrar venta</button>
                     </form>
                 @endif
 
@@ -168,35 +168,64 @@
                         @foreach($ordenesCompra as $ordenCompra)
                             <p class="mt-2 text-sm">OC {{ $ordenCompra->numero ?: 'sin número' }}
                                 @if($ordenCompra->archivo_path)
-                                    · <a href="{{ route('cotizaciones.orden-compra.ver', $ordenCompra->id_orden_compra) }}" class="font-bold text-[#9f2f25] underline">Ver</a>
+                                    · <a href="{{ route('cotizaciones.orden-compra.ver', $ordenCompra->id_orden_compra) }}" class="inline-block rounded-md border border-[#d9aaa3] px-3 py-1 font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Ver</a>
                                 @endif
                             </p>
                         @endforeach
                     </div>
                 @endif
                 @if($ventaCompleta)
-                    <form method="POST" action="{{ route('ventas.generar-resumen', $venta->id_venta) }}" class="mt-6 space-y-3 border-t pt-5">
+                    <form id="form-resumen" method="POST" action="{{ route('ventas.generar-resumen', $venta->id_venta) }}" class="mt-6 space-y-4 border-t pt-5">
                         @csrf
                         <h3 class="text-lg font-black">Generar resumen interno · Venta #{{ $venta->id_venta }}</h3>
                         <p class="text-sm text-amber-800">Este documento no es una factura ni un DTE tributario.</p>
-                        <div class="grid gap-3 sm:grid-cols-2">
-                            @foreach([
-                                'nombre' => ['Razón social o nombre', $cliente->razon_social ?: $cliente->nombre],
-                                'rut' => ['RUT', $cliente->rut_formateado],
-                                'giro' => ['Giro', $cliente->giro],
-                                'direccion' => ['Dirección', $cliente->direccion],
-                                'comuna' => ['Comuna', $cliente->comuna],
-                                'correo' => ['Correo', $cliente->correo],
-                                'contacto' => ['Contacto', $solicitud->contacto ?: $cliente->contacto],
-                                'numero_oc' => ['Número real de OC', ''],
-                            ] as $campo => [$etiqueta, $valor])
-                                <label class="text-sm font-bold">{{ $etiqueta }}
-                                    <input name="{{ $campo }}" type="{{ $campo === 'correo' ? 'email' : 'text' }}" value="{{ old($campo, $datosResumen[$campo] ?? $valor) }}" required maxlength="255" class="mt-1 block w-full border p-2">
+                        <fieldset class="space-y-3 rounded-md border border-[#ead8d5] bg-[#fffaf9] p-4">
+                            <legend class="px-1 font-black">Datos del emisor</legend>
+                            <p class="text-sm">RESMAP · RUT 76.991.966-K<br>Los Huillines 1041, Los Ángeles · resmap.la@gmail.com</p>
+                            <label class="block text-sm font-bold">Giro y ACTECO de prueba
+                                <select name="acteco_emisor" required class="mt-1 block w-full rounded-md border p-2">
+                                    <option value="">Selecciona un giro</option>
+                                    @foreach(config('services.cotizaciones.actividades_emisor_prueba') as $codigo => $actividad)
+                                        <option value="{{ $codigo }}" @selected(old('acteco_emisor', $datosResumen['acteco_emisor'] ?? '') === $codigo)>{{ $actividad }} · {{ $codigo }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <p class="text-xs text-amber-800">Códigos ficticios para pruebas; no son códigos tributarios reales.</p>
+                            <label class="block text-sm font-bold">Tipo de venta
+                                <select name="tipo_venta" required class="mt-1 block w-full rounded-md border p-2">
+                                    <option value="del_giro" @selected(old('tipo_venta', $datosResumen['tipo_venta'] ?? 'del_giro') === 'del_giro')>Del giro</option>
+                                </select>
+                            </label>
+                        </fieldset>
+                        <fieldset class="rounded-md border border-[#ead8d5] p-4">
+                            <legend class="px-1 font-black">Datos del receptor</legend>
+                            <div class="grid gap-3 sm:grid-cols-2">
+                                @foreach([
+                                    'rut' => ['RUT', $cliente->rut_formateado, 20],
+                                    'nombre' => ['Razón social', $cliente->razon_social ?: $cliente->nombre, 255],
+                                    'giro' => ['Giro', $cliente->giro, 255],
+                                    'direccion' => ['Dirección', $cliente->direccion, 255],
+                                    'comuna' => ['Comuna', $cliente->comuna, 100],
+                                    'ciudad' => ['Ciudad', $cliente->ciudad, 100],
+                                    'contacto' => ['Contacto', $solicitud->contacto ?: $cliente->contacto, 255],
+                                    'correo' => ['Correo', $cliente->correo, 255],
+                                ] as $campo => [$etiqueta, $valor, $maximo])
+                                    <label class="text-sm font-bold">{{ $etiqueta }}
+                                        <input name="{{ $campo }}" type="{{ $campo === 'correo' ? 'email' : 'text' }}" value="{{ old($campo, $datosResumen[$campo] ?? $valor) }}" required maxlength="{{ $maximo }}" @if($campo === 'rut') data-rut autocomplete="off" @endif class="mt-1 block w-full rounded-md border p-2">
+                                    </label>
+                                @endforeach
+                                <label class="text-sm font-bold">Tipo de compra
+                                    <select name="tipo_compra" required class="mt-1 block w-full rounded-md border p-2">
+                                        <option value="del_giro" @selected(old('tipo_compra', $datosResumen['tipo_compra'] ?? 'del_giro') === 'del_giro')>Del giro</option>
+                                    </select>
                                 </label>
-                            @endforeach
-                        </div>
-                        <button class="bg-[#b52f25] px-4 py-2 font-bold text-white">Generar resumen interno</button>
-                        <a href="{{ route('solicitudes.pdf', $solicitud->id_solicitud) }}" class="ml-3 font-bold text-[#9f2f25] underline">Descargar resumen</a>
+                            </div>
+                            <p id="receptor-mensaje" role="status" class="mt-2 text-xs text-gray-600">Los datos se pueden editar para este resumen.</p>
+                        </fieldset>
+                        <label class="block text-sm font-bold">Número de orden de compra
+                            <input name="numero_oc" type="text" value="{{ old('numero_oc', $datosResumen['numero_oc'] ?? '') }}" required maxlength="100" class="mt-1 block w-full rounded-md border p-2">
+                        </label>
+                        <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Generar resumen interno</button>
                     </form>
                 @endif
             @endif
@@ -204,6 +233,7 @@
     </div>
 </div>
 @unless($esServicio)
+<script src="{{ asset('js/rut.js') }}"></script>
 <script>
     const itemsCotizacion = document.getElementById('items-cotizacion');
     const botonAgregar = document.getElementById('agregar-item');
@@ -215,6 +245,69 @@
         });
         itemsCotizacion.addEventListener('click', event => {
             if (event.target.closest('[data-quitar]')) event.target.closest('[data-item]').remove();
+        });
+    }
+
+    const formResumen = document.getElementById('form-resumen');
+    if (formResumen) {
+        const rutReceptor = formResumen.elements.rut;
+        const mensajeReceptor = document.getElementById('receptor-mensaje');
+        const camposReceptor = ['nombre', 'giro', 'direccion', 'comuna', 'ciudad', 'contacto', 'correo'];
+        let rutAnterior = window.ResmapRut.normalizar(rutReceptor.value);
+        let temporizador;
+        let controlador;
+        const camposEditados = new Set();
+
+        camposReceptor.forEach(campo => {
+            formResumen.elements[campo].addEventListener('input', () => camposEditados.add(campo));
+        });
+
+        async function buscarReceptor() {
+            const rut = window.ResmapRut.normalizar(rutReceptor.value);
+            if (!/^\d{7,8}-[\dK]$/.test(rut)) return;
+
+            controlador?.abort();
+            controlador = new AbortController();
+            mensajeReceptor.textContent = 'Buscando datos del receptor...';
+            try {
+                const parametros = new URLSearchParams({ rut });
+                const respuesta = await fetch('{{ route('pos.cliente.rut') }}?' + parametros, {
+                    headers: { Accept: 'application/json' },
+                    signal: controlador.signal,
+                });
+                if (!respuesta.ok) throw new Error('No fue posible buscar el receptor.');
+                const resultado = await respuesta.json();
+                if (rut !== window.ResmapRut.normalizar(rutReceptor.value)) return;
+
+                if (resultado.encontrado) {
+                    const cliente = resultado.cliente;
+                    camposReceptor.forEach(campo => {
+                        if (camposEditados.has(campo)) return;
+                        formResumen.elements[campo].value = campo === 'nombre'
+                            ? (cliente.razon_social || cliente.nombre || '')
+                            : (cliente[campo] || '');
+                    });
+                    mensajeReceptor.textContent = 'Datos encontrados. Revísalos y modifícalos si es necesario.';
+                } else {
+                    mensajeReceptor.textContent = 'RUT no encontrado. Ingresa los datos del receptor.';
+                }
+            } catch (error) {
+                if (error.name !== 'AbortError') {
+                    mensajeReceptor.textContent = 'No fue posible buscar el receptor. Ingresa los datos manualmente.';
+                }
+            }
+        }
+
+        rutReceptor.addEventListener('input', () => {
+            const rut = window.ResmapRut.normalizar(rutReceptor.value);
+            if (rut === rutAnterior) return;
+            rutAnterior = rut;
+            clearTimeout(temporizador);
+            controlador?.abort();
+            camposEditados.clear();
+            camposReceptor.forEach(campo => { formResumen.elements[campo].value = ''; });
+            mensajeReceptor.textContent = 'Ingresa un RUT completo para buscar los datos del receptor.';
+            if (/^\d{7,8}-[\dK]$/.test(rut)) temporizador = setTimeout(buscarReceptor, 600);
         });
     }
 </script>

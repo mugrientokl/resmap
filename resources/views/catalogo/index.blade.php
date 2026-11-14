@@ -222,16 +222,16 @@
             </div>
 
             <input name="nombre" value="{{ old('nombre') }}" required
-                placeholder="Nombre o razón social"
+                placeholder="Razón social o nombre"
                 class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
 
-            <label class="block text-sm font-bold" for="contacto_solicitud">Contacto <span class="text-[#b52f25]" aria-hidden="true">*</span>
+            <label class="block text-sm font-bold" for="contacto_solicitud">Atención / contacto <span class="text-[#b52f25]" aria-hidden="true">*</span>
                 <input id="contacto_solicitud" name="contacto" value="{{ old('contacto') }}" required maxlength="255"
-                    placeholder="Persona o responsable" class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
+                    placeholder="Nombre de la persona responsable" class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
             </label>
             <label class="block text-sm font-bold" for="cargo_solicitud">Cargo <span class="font-normal text-gray-500">(opcional)</span>
                 <input id="cargo_solicitud" name="cargo" value="{{ old('cargo') }}" maxlength="255"
-                    placeholder="Ej.: OT, equipo o patente" class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
+                    placeholder="Ej.: jefe de compras, OT o equipo" class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
             </label>
 
             <input name="correo" type="email" value="{{ old('correo') }}" required
@@ -871,7 +871,7 @@ if (solicitudForm) {
     const nombreWrapper = document.createElement('div');
     nombre.before(nombreWrapper);
     nombreWrapper.append(
-        obligatorioLabel(nombre.id, 'Nombre o razón social'),
+        obligatorioLabel(nombre.id, 'Razón social'),
         nombre
     );
 

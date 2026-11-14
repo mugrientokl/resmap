@@ -13,7 +13,7 @@
         .company strong { color: #292524; font-size: 12px; }
         .document { margin-top: 24px; width: 100%; }
         .document td { vertical-align: top; }
-        h1 { color: #9f2f25; font-size: 21px; margin: 0 0 8px; }
+        h1 { color: #9f2f25; font-size: 21px; margin: 0 0 4px; }
         .muted { color: #78716c; }
         .number { color: #9f2f25; font-size: 12px; font-weight: bold; text-align: right; }
         .client { background: #faf7f6; border-left: 3px solid #9f2f25; line-height: 1.7; margin: 20px 0; padding: 12px 14px; }
@@ -23,10 +23,12 @@
         .items td { border-bottom: 1px solid #e7e5e4; padding: 9px 7px; }
         .right { text-align: right !important; }
         .center { text-align: center !important; }
-        .totals { border-collapse: collapse; margin: 14px 0 0 auto; width: 250px; }
+        .totals-layout { margin-top: 14px; table-layout: fixed; width: 100%; }
+        .totals-layout td { vertical-align: top; }
+        .totals-column { width: 250px; }
+        .totals { border-collapse: collapse; width: 250px; }
         .totals td { border-bottom: 1px solid #e7e5e4; padding: 7px 4px; }
         .grand-total td { border-top: 2px solid #292524; color: #9f2f25; font-size: 12px; font-weight: bold; }
-        .note { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; line-height: 1.6; margin-top: 22px; padding: 10px 12px; text-align: center; }
         .footer { border-top: 1px solid #d6d3d1; color: #57534e; font-size: 9px; line-height: 1.6; margin-top: 30px; padding-top: 12px; text-align: center; }
     </style>
 </head>
@@ -45,24 +47,22 @@
     <table class="document">
         <tr>
             <td>
-                <h1>COTIZACIÓN</h1>
                 <div class="muted">Fecha de emisión: {{ $version->created_at->format('d/m/Y') }}</div>
                 <div class="muted">Válida hasta: {{ $version->vigente_hasta?->format('d/m/Y H:i') ?? 'No especificada' }}</div>
             </td>
-            <td class="number">N.º {{ $version->cotizacion_id }}<br><span class="muted">Versión {{ $version->numero_version }}</span></td>
+            <td class="number"><h1>COTIZACIÓN</h1>N.º {{ $version->cotizacion_id }}<br><span class="muted">Versión {{ $version->numero_version }}</span></td>
         </tr>
     </table>
     <div class="client">
         <strong>CLIENTE</strong><br>
-        {{ $cliente->nombre }}<br>
+        Razón social: {{ $cliente->nombre }}<br>
         RUT: {{ $cliente->rut_formateado }}<br>
-        @if($cliente->contacto)Contacto: {{ $cliente->contacto }}<br>@endif
+        @if(filled($cliente->contacto))Atención / contacto: {{ $cliente->contacto }}<br>@endif
+        @if(filled($version->cotizacion->solicitud->cargo))Cargo: {{ $version->cotizacion->solicitud->cargo }}<br>@endif
         @if($cliente->correo)Correo: {{ $cliente->correo }}<br>@endif
-        Entrega: {{ match ($version->metodo_entrega) { 'despacho' => 'Despacho a domicilio', 'retiro' => 'Retiro en tienda', default => 'Por coordinar con RESMAP' } }}
-        @if($version->metodo_entrega === 'despacho')
-            <br>Dirección: {{ $version->calle }} {{ $version->numero }}, {{ $version->comuna }}, {{ $version->ciudad }}, {{ $version->region }}
-            @if($version->referencias)<br>Referencias: {{ $version->referencias }}@endif
-        @endif
+        Teléfono: {{ $cliente->telefono ?: 'No informado' }}<br>
+        Región: {{ $cliente->region ?: 'No informada' }}<br>
+        Ciudad: {{ $cliente->ciudad ?: 'No informada' }}<br>
     </div>
     <p class="section-title">DETALLE DE PRODUCTOS</p>
     <table class="items">
@@ -81,15 +81,22 @@
             @endforeach
         </tbody>
     </table>
-    <table class="totals">
-        <tr><td>Neto</td><td class="right">$ {{ number_format($version->neto, 0, ',', '.') }}</td></tr>
-        <tr><td>IVA</td><td class="right">$ {{ number_format($version->iva, 0, ',', '.') }}</td></tr>
-        <tr><td>Despacho</td><td class="right">$ {{ number_format($version->costo_despacho, 0, ',', '.') }}</td></tr>
-        <tr class="grand-total"><td>TOTAL</td><td class="right">$ {{ number_format($version->total, 0, ',', '.') }}</td></tr>
+    <table class="totals-layout">
+        <tr>
+            <td></td>
+            <td class="totals-column">
+                <table class="totals">
+                    <tr><td>Neto</td><td class="right">$ {{ number_format($version->neto, 0, ',', '.') }}</td></tr>
+                    <tr><td>IVA</td><td class="right">$ {{ number_format($version->iva, 0, ',', '.') }}</td></tr>
+                    <tr><td>Despacho</td><td class="right">$ {{ number_format($version->costo_despacho, 0, ',', '.') }}</td></tr>
+                    <tr class="grand-total"><td>TOTAL</td><td class="right">$ {{ number_format($version->total, 0, ',', '.') }}</td></tr>
+                </table>
+            </td>
+        </tr>
     </table>
-    <div class="note"><strong>Documento comercial</strong><br>Esta cotización no es una factura ni un documento tributario electrónico.</div>
     <div class="footer">
-        <strong>Contacto RESMAP</strong><br>
+        Esperando tener una buena acogida por parte de ustedes<br>
+        Atte.<br>
         John Sanzana Aravena · +56976477124 · +56951523990<br>
         resmap.la@gmail.com · Los Huillines 1041 – Los Ángeles
     </div>

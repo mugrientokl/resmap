@@ -45,7 +45,7 @@
             default => 'Histórico',
         };
         $direccionCliente = collect([$cliente?->direccion, $cliente?->comuna, $cliente?->region])->filter()->implode(', ');
-        $datosResumen = $venta->datos_resumen;
+        $datosResumen = $venta->datos_resumen ?? [];
     @endphp
     <table class="header">
         <tr>
@@ -71,7 +71,17 @@
     <table class="info">
         <tr>
             <td>
-                <strong>CLIENTE</strong><br>
+                <strong>EMISOR</strong><br>
+                RESMAP<br>
+                RUT: 76.991.966-K<br>
+                Dirección: Los Huillines 1041, Los Ángeles<br>
+                Correo: resmap.la@gmail.com<br>
+                @if(!empty($datosResumen['giro_emisor']))Giro: {{ $datosResumen['giro_emisor'] }}<br>@endif
+                @if(!empty($datosResumen['acteco_emisor']))ACTECO de prueba: {{ $datosResumen['acteco_emisor'] }}<br>@endif
+                @if(!empty($datosResumen['tipo_venta']))Tipo de venta: Del giro<br>@endif
+            </td>
+            <td>
+                <strong>RECEPTOR</strong><br>
                 {{ $datosResumen['nombre'] ?? $cliente?->nombre ?? 'Sin cliente' }}<br>
                 RUT: {{ $datosResumen['rut'] ?? $cliente?->rut_formateado ?? 'N/A' }}<br>
                 @if($datosResumen['contacto'] ?? $venta->contacto ?? $cliente?->contacto)
@@ -80,8 +90,16 @@
                 @if(!empty($datosResumen['giro']))Giro: {{ $datosResumen['giro'] }}<br>@endif
                 @if(!empty($datosResumen['correo']) || $cliente?->correo)Correo: {{ $datosResumen['correo'] ?? $cliente->correo }}<br>@endif
                 @if($cliente?->telefono)Teléfono: {{ $cliente->telefono }}<br>@endif
-                @if(!empty($datosResumen['direccion']))Dirección: {{ $datosResumen['direccion'] }}, {{ $datosResumen['comuna'] }}@elseif($direccionCliente)Dirección: {{ $direccionCliente }}@endif
+                @if(!empty($datosResumen['direccion']))Dirección: {{ $datosResumen['direccion'] }}<br>
+                Comuna: {{ $datosResumen['comuna'] ?? 'No informada' }}<br>
+                @elseif($direccionCliente)Dirección: {{ $direccionCliente }}<br>@endif
+                @if(!empty($datosResumen['ciudad']))Ciudad: {{ $datosResumen['ciudad'] }}<br>@elseif($cliente?->ciudad)Ciudad: {{ $cliente->ciudad }}<br>@endif
+                @if(!empty($datosResumen['tipo_compra']))Tipo de compra: Del giro<br>@endif
             </td>
+        </tr>
+    </table>
+    <table class="info">
+        <tr>
             <td>
                 <strong>DETALLE DE LA VENTA</strong><br>
                 Vendedor: {{ $venta->user?->name ?? 'N/A' }}<br>

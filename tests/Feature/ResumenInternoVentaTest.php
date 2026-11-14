@@ -78,7 +78,9 @@ class ResumenInternoVentaTest extends TestCase
         $venta->update(['stock_descontado_at' => now()]);
 
         $this->get(route('solicitudes.show', $solicitud->id_solicitud))
-            ->assertSee(route('solicitudes.pdf', $solicitud->id_solicitud), false);
+            ->assertSee(route('ventas.generar-resumen', $venta->id_venta), false)
+            ->assertSee('Generar resumen interno')
+            ->assertDontSee(route('solicitudes.pdf', $solicitud->id_solicitud), false);
 
         $respuesta = $this->get(route('solicitudes.pdf', $solicitud->id_solicitud));
         $respuesta->assertOk();

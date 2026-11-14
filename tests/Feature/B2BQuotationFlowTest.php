@@ -3,7 +3,10 @@
 namespace Tests\Feature;
 
 use App\Mail\CotizacionCliente;
+use App\Models\Cliente;
+use App\Models\CotizacionVersion;
 use App\Models\User;
+use App\Models\Venta;
 use App\Notifications\SolicitudWebRecibida;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +19,46 @@ use Tests\TestCase;
 class B2BQuotationFlowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_quote_pdf_shows_the_request_contact_and_optional_cargo_with_historical_customer_data(): void
+    {
+        Notification::fake();
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $this->actingAs(User::factory()->create(['rol' => 'Vendedor']))
+            ->post(route('solicitudes.cotizacion.crear', $solicitudId))
+            ->assertSessionHasNoErrors();
+        $version = CotizacionVersion::with(['cotizacion.solicitud', 'detalles'])->firstOrFail();
+        Cliente::where('rut', '12345678-5')->firstOrFail()->update([
+            'nombre' => 'Empresa nueva',
+            'contacto' => 'Contacto nuevo',
+            'telefono' => '+56987654321',
+        ]);
+
+        $datos = [
+            'version' => $version,
+            'cliente' => Cliente::desdeSnapshot($version->snapshotDatosCliente()),
+            'logoDataUri' => '',
+        ];
+        $this->view('cotizaciones.pdf', $datos)
+            ->assertSee('Razón social: Cliente de prueba')
+            ->assertSee('Atención / contacto: Contacto B2B')
+            ->assertSee('Cargo: OT-123')
+            ->assertSee('Teléfono: +56912345678')
+            ->assertSee('Región: Metropolitana')
+            ->assertSee('Ciudad: Santiago')
+            ->assertSee('Esperando tener una buena acogida por parte de ustedes')
+            ->assertDontSee('Empresa nueva')
+            ->assertDontSee('Contacto nuevo')
+            ->assertDontSee('Entrega:')
+            ->assertDontSee('Esta cotización no es una factura');
+
+        $this->get(route('cotizaciones.pdf', $version->id_version))
+            ->assertOk()->assertHeader('content-type', 'application/pdf');
+
+        $version->cotizacion->solicitud->cargo = null;
+        $this->view('cotizaciones.pdf', $datos)->assertDontSee('Cargo:');
+    }
 
     public function test_team_records_acceptance_and_converts_quote_to_sale_once(): void
     {
@@ -247,18 +290,67 @@ class B2BQuotationFlowTest extends TestCase
         $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
         $this->post(route('cotizaciones.convertir-venta', $versionId));
         $ventaId = (int) DB::table('ventas')->value('id_venta');
-        $response = $this->post(route('ventas.generar-resumen', $ventaId), [
+        $this->get(route('solicitudes.show', $solicitudId))
+            ->assertOk()
+            ->assertSee('Datos del emisor')
+            ->assertSee('Datos del receptor')
+            ->assertSee('Número de orden de compra')
+            ->assertSee('Cliente de prueba');
+        $datos = [
+            'acteco_emisor' => 'PRUEBA-002',
+            'tipo_venta' => 'del_giro',
             'nombre' => 'Empresa de prueba',
             'rut' => '12.345.678-5',
             'giro' => 'Comercio',
             'direccion' => 'Calle 123',
             'comuna' => 'Santiago',
+            'ciudad' => 'Santiago',
+            'contacto' => 'Responsable receptor',
+            'tipo_compra' => 'del_giro',
             'correo' => 'cliente@example.test',
             'numero_oc' => 'OC-123',
-        ]);
+        ];
+        $this->post(route('ventas.generar-resumen', $ventaId), [
+            ...$datos,
+            'acteco_emisor' => 'CODIGO-REAL',
+            'contacto' => '',
+            'ciudad' => '',
+            'tipo_venta' => 'otro',
+            'tipo_compra' => 'otro',
+        ])->assertSessionHasErrors(['acteco_emisor', 'contacto', 'ciudad', 'tipo_venta', 'tipo_compra']);
+        $this->assertNull(DB::table('ventas')->value('datos_resumen'));
+
+        $response = $this->post(route('ventas.generar-resumen', $ventaId), $datos);
         $response->assertOk()->assertHeader('content-type', 'application/pdf');
         $this->assertStringStartsWith('%PDF', $response->getContent());
-        $this->assertSame('OC-123', json_decode(DB::table('ventas')->value('datos_resumen'), true)['numero_oc']);
+        $guardados = json_decode(DB::table('ventas')->value('datos_resumen'), true);
+        $this->assertSame('OC-123', $guardados['numero_oc']);
+        $this->assertSame('Responsable receptor', $guardados['contacto']);
+        $this->assertSame('PRUEBA-002', $guardados['acteco_emisor']);
+        $this->assertSame('Venta de partes y piezas de vehículos automotores', $guardados['giro_emisor']);
+        $this->assertSame('del_giro', $guardados['tipo_venta']);
+        $this->assertSame('del_giro', $guardados['tipo_compra']);
+        $venta = Venta::findOrFail($ventaId);
+        $this->view('reportes.venta-pdf', [
+            'venta' => $venta,
+            'cliente' => Cliente::desdeSnapshot($venta->snapshotDatosCliente()),
+            'despacho' => 0,
+            'logoDataUri' => '',
+        ])->assertSee('EMISOR')
+            ->assertSee('RECEPTOR')
+            ->assertSee('PRUEBA-002')
+            ->assertSee('Responsable receptor')
+            ->assertSee('Ciudad: Santiago')
+            ->assertSee('Tipo de venta: Del giro')
+            ->assertSee('Tipo de compra: Del giro')
+            ->assertDontSee('OT-123');
+        $this->get(route('solicitudes.show', $solicitudId))
+            ->assertOk()
+            ->assertSee('Responsable receptor')
+            ->assertSee('PRUEBA-002');
+        $this->getJson(route('pos.cliente.rut', ['rut' => '12.345.678-5']))
+            ->assertOk()->assertJsonPath('cliente.contacto', 'Contacto B2B')
+            ->assertJsonStructure(['cliente' => ['razon_social', 'ciudad']]);
         $this->assertDatabaseCount('eventos_facturacion', 0);
         $this->actingAs(User::factory()->create(['rol' => 'Administrador']))
             ->get(route('reportes.ventas.resumen', $ventaId))->assertOk();

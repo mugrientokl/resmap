@@ -323,15 +323,22 @@ class CotizacionController extends Controller
         abort_unless($venta->cotizacion_version_id !== null
             && $venta->estado_venta === 'confirmada'
             && $venta->stock_descontado_at !== null, 403);
+        $actividades = config('services.cotizaciones.actividades_emisor_prueba');
         $datos = $request->validate([
+            'acteco_emisor' => ['required', Rule::in(array_keys($actividades))],
+            'tipo_venta' => ['required', Rule::in(['del_giro'])],
             'nombre' => ['required', 'string', 'max:255'],
             'rut' => ['required', 'string', 'max:20', new RutChileno],
             'giro' => ['required', 'string', 'max:255'],
             'direccion' => ['required', 'string', 'max:255'],
             'comuna' => ['required', 'string', 'max:100'],
+            'ciudad' => ['required', 'string', 'max:100'],
+            'contacto' => ['required', 'string', 'max:255'],
+            'tipo_compra' => ['required', Rule::in(['del_giro'])],
             'correo' => ['required', 'email', 'max:255'],
             'numero_oc' => ['required', 'string', 'max:100'],
         ]);
+        $datos['giro_emisor'] = $actividades[$datos['acteco_emisor']];
         $venta->update(['datos_resumen' => $datos]);
 
         return $resumen->descargar($venta);
@@ -1146,6 +1153,7 @@ class CotizacionController extends Controller
 
     private function generarPdf(CotizacionVersion $version): string
     {
+        $version->loadMissing(['cotizacion.solicitud', 'detalles']);
         $logo = file_get_contents(public_path('images/resmap sin fondo.png'));
         if ($logo === false) {
             throw new RuntimeException('No fue posible leer el logo de RESMAP para generar la cotización.');

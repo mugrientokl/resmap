@@ -104,6 +104,7 @@ class ClienteController extends Controller
             'encontrado' => true,
             'cliente' => [
                 'nombre' => $cliente->nombre,
+                'razon_social' => $cliente->razon_social,
                 'contacto' => $cliente->contacto,
                 'giro' => $cliente->giro,
                 'correo' => $cliente->correo,
