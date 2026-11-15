@@ -140,6 +140,34 @@ Route::middleware([
         ->middleware('auth')
         ->name('notificaciones.read');
 
+    Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'readAll'])
+        ->middleware('auth')
+        ->name('notificaciones.read-all');
+
+    Route::post('/notificaciones/papelera/leidos', [NotificacionController::class, 'moveReadToTrash'])
+        ->middleware('auth')
+        ->name('notificaciones.move-read-to-trash');
+
+    Route::get('/notificaciones/papelera', [NotificacionController::class, 'trash'])
+        ->middleware('auth')
+        ->name('notificaciones.trash');
+
+    Route::post('/notificaciones/papelera/restaurar', [NotificacionController::class, 'restoreAll'])
+        ->middleware('auth')
+        ->name('notificaciones.restore-all');
+
+    Route::post('/notificaciones/{id}/papelera', [NotificacionController::class, 'moveToTrash'])
+        ->middleware('auth')
+        ->name('notificaciones.move-to-trash');
+
+    Route::post('/notificaciones/{id}/restaurar', [NotificacionController::class, 'restore'])
+        ->middleware('auth')
+        ->name('notificaciones.restore');
+
+    Route::delete('/notificaciones/{id}', [NotificacionController::class, 'destroy'])
+        ->middleware('auth')
+        ->name('notificaciones.destroy');
+
     Route::get('/categorias', [CategoriaController::class, 'index'])
         ->middleware(['auth', 'role:Administrador'])
         ->name('categorias.index');
