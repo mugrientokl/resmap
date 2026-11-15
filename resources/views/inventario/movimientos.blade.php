@@ -30,14 +30,12 @@
                 </div>
             </div>
             <div>
-                <label for="movement-filter-type" class="mb-1 block text-sm font-medium text-gray-700">Tipo de movimiento</label>
-                <select id="movement-filter-type" name="tipo" class="w-full rounded-md border border-gray-300 p-2 text-sm">
-                    <option value="">Todos los tipos</option>
-                    <option value="ingreso" @selected(request('tipo') === 'ingreso')>Ingreso</option>
-                    <option value="egreso" @selected(request('tipo') === 'egreso')>Egreso</option>
-                    <option value="ajuste" @selected(request('tipo') === 'ajuste')>Ajuste</option>
-                    <option value="adquisicion" @selected(request('tipo') === 'adquisicion')>Adquisición</option>
-                    <option value="merma" @selected(request('tipo') === 'merma')>Merma</option>
+                <label for="movement-filter-reason" class="mb-1 block text-sm font-medium text-gray-700">Motivo</label>
+                <select id="movement-filter-reason" name="motivo" class="w-full rounded-md border border-gray-300 p-2 text-sm">
+                    <option value="">Todos los motivos</option>
+                    @foreach($motivos as $motivo)
+                        <option value="{{ $motivo }}" @selected(request('motivo') === $motivo)>{{ $motivo }}</option>
+                    @endforeach
                 </select>
             </div>
             <div>
@@ -69,6 +67,7 @@
                     <th class="px-4 py-3 text-xs font-medium uppercase text-gray-500">Motivo</th>
                     <th class="px-4 py-3 text-xs font-medium uppercase text-gray-500">Proveedor</th>
                     <th class="px-4 py-3 text-xs font-medium uppercase text-gray-500">Usuario</th>
+                    <th class="px-4 py-3 text-xs font-medium uppercase text-gray-500">Detalle</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -96,10 +95,11 @@
                             @if($mov->contacto_proveedor)<div class="text-xs text-gray-500">{{ $mov->contacto_proveedor }}</div>@endif
                         </td>
                         <td class="px-4 py-3 text-gray-500">{{ $mov->usuario->name ?? 'Sistema' }}</td>
+                        <td class="px-4 py-3"><button type="button" class="movement-detail-button font-medium text-[#8f241d] underline" data-url="{{ route('inventario.movimientos.show', $mov) }}">Ver detalle</button></td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="9" class="px-4 py-8 text-center text-gray-500">
+                        <td colspan="10" class="px-4 py-8 text-center text-gray-500">
                             No hay movimientos de inventario registrados aún.
                         </td>
                     </tr>
@@ -110,6 +110,15 @@
 
     <div class="mt-4">
         {{ $movimientos->links() }}
+    </div>
+</div>
+<div id="movement-detail-modal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="movement-detail-title">
+    <div class="mx-auto my-6 w-full max-w-2xl rounded-lg bg-white p-5 shadow-2xl">
+        <div class="flex items-center justify-between border-b pb-3">
+            <h3 id="movement-detail-title" class="text-xl font-bold text-[#8f241d]">Detalle del movimiento</h3>
+            <button type="button" id="close-movement-detail" class="text-2xl text-gray-500" aria-label="Cerrar detalle">&times;</button>
+        </div>
+        <dl id="movement-detail-content" class="mt-4 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2" aria-live="polite"></dl>
     </div>
 </div>
 <div id="movement-modal" class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="movement-modal-title" @if($errors->any() && old('_form_context') === 'movement') data-open-on-load="true" @endif>
@@ -131,21 +140,6 @@
             @csrf
             <input type="hidden" name="_form_context" value="movement">
 
-            <div class="product-picker relative md:col-span-2" data-picker-required="true">
-                <label for="movement-product-search" class="mb-1 block text-sm font-medium text-gray-700">Buscar / Seleccionar Producto</label>
-                <input id="movement-product-search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="movement-product-options" autocomplete="off" required placeholder="Escribe el nombre o código del repuesto..." class="w-full rounded-md border border-gray-300 p-2 text-sm focus:border-[#b52f25] focus:outline-none">
-                <input type="hidden" id="movement-product-value" name="id_producto" value="{{ old('id_producto') }}" required>
-                <div id="movement-product-options" role="listbox" class="absolute left-0 top-full z-30 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                    <p class="picker-no-results hidden px-3 py-2 text-sm text-gray-500">No hay repuestos que coincidan con la búsqueda.</p>
-                </div>
-                <label for="movement-product-category" class="mb-1 mt-3 block text-sm font-medium text-gray-700">Filtrar por categoría</label>
-                <select id="movement-product-category" class="w-full rounded-md border border-gray-300 p-2 text-sm">
-                    <option value="">Todas las categorías</option>
-                    @foreach($categorias as $categoria)
-                        <option value="{{ $categoria->id_categoria }}" @selected((string) old('categoria') === (string) $categoria->id_categoria)>{{ $categoria->nombre_categoria }}</option>
-                    @endforeach
-                </select>
-            </div>
             <div>
                 <label for="movement-type" class="mb-1 block text-sm font-medium text-gray-700">Tipo de movimiento</label>
                 <select id="movement-type" name="tipo" class="w-full rounded-md border border-gray-300 p-2 text-sm" required>
@@ -155,18 +149,14 @@
                 </select>
             </div>
             <div>
-                <label for="movement-quantity" class="mb-1 block text-sm font-medium text-gray-700">Cantidad</label>
-                <input id="movement-quantity" type="number" name="cantidad" value="{{ old('cantidad', old('stock_nuevo')) }}" min="1" class="w-full rounded-md border border-gray-300 p-2 text-sm" required>
-            </div>
-            <div>
                 <label for="movement-reason" class="mb-1 block text-sm font-medium text-gray-700">Motivo</label>
                 <select id="movement-reason" name="motivo" class="w-full rounded-md border border-gray-300 p-2 text-sm" required>
                     <option value="">Seleccione motivo</option>
-                    <option value="Compra / Adquisición" @selected(old('motivo') === 'Compra / Adquisición')>Compra / Adquisición</option>
-                    <option value="Merma / Daño" @selected(old('motivo') === 'Merma / Daño')>Merma / Daño</option>
-                    <option value="Devolución" @selected(old('motivo') === 'Devolución')>Devolución</option>
-                    <option value="Ajuste de inventario" @selected(old('motivo') === 'Ajuste de inventario')>Ajuste de inventario</option>
-                    <option value="Uso interno" @selected(old('motivo') === 'Uso interno')>Uso interno</option>
+                    <option data-types="ingreso" value="Compra / Adquisición" @selected(old('motivo') === 'Compra / Adquisición')>Compra / Adquisición</option>
+                    <option data-types="egreso" value="Merma / Daño" @selected(old('motivo') === 'Merma / Daño')>Merma / Daño</option>
+                    <option data-types="egreso" value="Devolución" @selected(old('motivo') === 'Devolución')>Devolución al proveedor</option>
+                    <option data-types="ajuste" value="Ajuste de inventario" @selected(old('motivo') === 'Ajuste de inventario')>Ajuste de inventario</option>
+                    <option data-types="ajuste" value="Uso interno" @selected(old('motivo') === 'Uso interno')>Uso interno</option>
                 </select>
             </div>
             <div id="movement-provider-field" class="hidden">
@@ -183,6 +173,48 @@
                 <label for="movement-event-date" class="mb-1 block text-sm font-medium text-gray-700">Fecha del evento</label>
                 <input id="movement-event-date" type="date" name="fecha_evento" value="{{ old('fecha_evento', now()->toDateString()) }}" class="w-full rounded-md border border-gray-300 p-2 text-sm" required>
             </div>
+            <div id="movement-document-field" class="hidden">
+                <label for="movement-document" class="mb-1 block text-sm font-medium text-gray-700">Número de folio / documento</label>
+                <input id="movement-document" name="documento_proveedor" value="{{ old('documento_proveedor') }}" maxlength="100" class="w-full rounded-md border border-gray-300 p-2 text-sm">
+            </div>
+            <div class="md:col-span-2">
+                <label for="movement-observations" class="mb-1 block text-sm font-medium text-gray-700">Observaciones</label>
+                <textarea id="movement-observations" name="observaciones" maxlength="2000" rows="2" class="w-full rounded-md border border-gray-300 p-2 text-sm">{{ old('observaciones') }}</textarea>
+            </div>
+            <div id="movement-lines" class="space-y-4 md:col-span-2">
+                @foreach(old('productos', [['id_producto' => '', 'cantidad' => '', 'precio_entrada' => '']]) as $index => $linea)
+                    <div class="movement-line grid grid-cols-1 gap-3 border-t pt-4 sm:grid-cols-2" data-index="{{ $index }}">
+                        <div class="product-picker relative sm:col-span-2" data-picker-required="true">
+                            <label for="movement-product-{{ $index }}-search" class="mb-1 block text-sm font-medium text-gray-700">Buscar / Seleccionar Producto</label>
+                            <input id="movement-product-{{ $index }}-search" type="text" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="movement-product-{{ $index }}-options" autocomplete="off" placeholder="Escribe el nombre o código del repuesto..." class="w-full rounded-md border border-gray-300 p-2 text-sm focus:border-[#b52f25] focus:outline-none">
+                            <input type="hidden" name="productos[{{ $index }}][id_producto]" value="{{ $linea['id_producto'] ?? '' }}">
+                            <div id="movement-product-{{ $index }}-options" role="listbox" class="absolute left-0 top-full z-30 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                                <p class="picker-no-results hidden px-3 py-2 text-sm text-gray-500">No hay repuestos que coincidan con la búsqueda.</p>
+                            </div>
+                            <label for="movement-product-{{ $index }}-category" class="mb-1 mt-3 block text-sm font-medium text-gray-700">Filtrar por categoría</label>
+                            <select id="movement-product-{{ $index }}-category" class="w-full rounded-md border border-gray-300 p-2 text-sm">
+                                <option value="">Todas las categorías</option>
+                                @foreach($categorias as $categoria)
+                                    <option value="{{ $categoria->id_categoria }}">{{ $categoria->nombre_categoria }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label for="movement-product-{{ $index }}-quantity" class="movement-quantity-label mb-1 block text-sm font-medium text-gray-700">Cantidad</label>
+                            <input id="movement-product-{{ $index }}-quantity" type="number" name="productos[{{ $index }}][cantidad]" value="{{ $linea['cantidad'] ?? '' }}" min="1" max="2147483647" class="movement-quantity w-full rounded-md border border-gray-300 p-2 text-sm">
+                        </div>
+                        <div class="movement-price-field hidden">
+                            <label for="movement-product-{{ $index }}-price" class="mb-1 block text-sm font-medium text-gray-700">Costo neto total de adquisición</label>
+                            <input id="movement-product-{{ $index }}-price" type="number" name="productos[{{ $index }}][precio_entrada]" value="{{ $linea['precio_entrada'] ?? '' }}" min="0" max="99999999.99" step="0.01" class="movement-price w-full rounded-md border border-gray-300 p-2 text-sm">
+                            <p class="movement-last-purchase mt-1 text-xs text-gray-600" aria-live="polite"></p>
+                        </div>
+                        <button type="button" class="remove-movement-line justify-self-start text-sm font-medium text-red-700 underline">Quitar producto</button>
+                    </div>
+                @endforeach
+            </div>
+            <div class="md:col-span-2">
+                <button type="button" id="add-movement-line" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50">+ Agregar otro producto</button>
+            </div>
             <div class="flex items-end justify-end gap-2 md:col-span-2">
                 <button type="button" id="cancel-movement-modal" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Cancelar</button>
                 <button type="submit" class="rounded-md bg-[#b52f25] px-4 py-2 text-sm font-medium text-white hover:bg-[#8f241d]">Registrar Movimiento</button>
@@ -193,6 +225,52 @@
 <script type="application/json" id="movement-products-data">@json($catalogoProductos)</script>
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        const detailModal = document.getElementById('movement-detail-modal');
+        const detailContent = document.getElementById('movement-detail-content');
+        const closeDetail = () => {
+            detailModal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        };
+        document.getElementById('close-movement-detail').addEventListener('click', closeDetail);
+        detailModal.addEventListener('click', (event) => { if (event.target === detailModal) closeDetail(); });
+        document.addEventListener('keydown', (event) => { if (event.key === 'Escape' && !detailModal.classList.contains('hidden')) closeDetail(); });
+        document.querySelectorAll('.movement-detail-button').forEach((button) => button.addEventListener('click', async () => {
+            detailModal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+            detailContent.textContent = 'Cargando detalle...';
+            try {
+                const response = await fetch(button.dataset.url, { headers: { Accept: 'application/json' } });
+                if (!response.ok) throw new Error('No se pudo cargar el detalle.');
+                const detail = await response.json();
+                detailContent.replaceChildren();
+                const fields = {
+                    'Producto': detail.producto, 'Tipo': detail.tipo, 'Motivo': detail.motivo,
+                    'Fecha del evento': detail.fecha_evento, 'Fecha de registro': detail.fecha,
+                    'Cantidad': detail.cantidad, 'Stock anterior': detail.stock_anterior, 'Stock resultante': detail.stock_nuevo,
+                    'Usuario': detail.usuario, 'Proveedor': detail.proveedor, 'Contacto': detail.contacto_proveedor,
+                    'Folio / documento': detail.documento_proveedor, 'Precio total de adquisición': detail.precio_entrada,
+                    'Cantidad adquirida': detail.cantidad_adquirida, 'Precio unitario neto': detail.precio_unitario_adquisicion,
+                    'Precio unitario con IVA': detail.precio_venta_recomendado, 'Observaciones': detail.observaciones,
+                    'Venta': detail.venta ? `#${detail.venta.id_venta} - ${detail.venta.cliente} - ${detail.venta.tipo_documento}` : null,
+                    'Total de venta': detail.venta?.total,
+                    'Productos de la venta': detail.venta?.detalles.map((item) => `${item.producto}: ${item.cantidad} x subtotal ${item.subtotal}`).join('; '),
+                };
+                Object.entries(fields).forEach(([label, value]) => {
+                    if (value === null || value === undefined || value === '') return;
+                    const item = document.createElement('div');
+                    const term = document.createElement('dt');
+                    const description = document.createElement('dd');
+                    term.className = 'font-medium text-gray-500';
+                    term.textContent = label;
+                    description.className = 'text-gray-900';
+                    description.textContent = value;
+                    item.append(term, description);
+                    detailContent.appendChild(item);
+                });
+            } catch (error) {
+                detailContent.textContent = 'No se pudo cargar el detalle del movimiento.';
+            }
+        }));
         const normalize = (value) => value
             .normalize('NFD')
             .replace(/[\u0300-\u036f]/g, '')
@@ -225,7 +303,7 @@
             suggestions.prepend(fragment);
         };
 
-        document.querySelectorAll('.product-picker').forEach((picker) => {
+        const initializePicker = (picker) => {
             const searchInput = picker.querySelector('[role="combobox"]');
             const selectedProductInput = picker.querySelector('input[type="hidden"]');
             const suggestions = picker.querySelector('[role="listbox"]');
@@ -288,6 +366,7 @@
                 searchInput.value = selectedLabel;
                 searchInput.setCustomValidity('');
                 setSuggestionsOpen(false);
+                picker.dispatchEvent(new Event('productchange'));
             };
 
             const initiallySelectedProduct = productOptions.find((option) => option.dataset.productId === selectedProductInput.value);
@@ -298,7 +377,7 @@
                 selectedLabel = initiallySelectedProduct.dataset.label;
                 searchInput.value = selectedLabel;
                 searchInput.setCustomValidity('');
-            } else if (picker.dataset.pickerRequired === 'true') {
+            } else if (searchInput.required) {
                 selectedProductInput.value = '';
                 searchInput.setCustomValidity('Selecciona un repuesto de la lista de sugerencias.');
             }
@@ -314,9 +393,12 @@
                 if (searchInput.value !== selectedLabel) {
                     selectedProductInput.value = '';
                     selectedLabel = '';
-                    if (picker.dataset.pickerRequired === 'true') {
+                    if (searchInput.required || searchInput.value.trim()) {
                         searchInput.setCustomValidity('Selecciona un repuesto de la lista de sugerencias.');
+                    } else {
+                        searchInput.setCustomValidity('');
                     }
+                    picker.dispatchEvent(new Event('productchange'));
                 }
 
                 filterProducts();
@@ -362,6 +444,7 @@
                     selectedLabel = '';
                     searchInput.value = '';
                     searchInput.setCustomValidity('Selecciona un repuesto de la lista de sugerencias.');
+                    picker.dispatchEvent(new Event('productchange'));
                 }
 
                 filterProducts();
@@ -373,7 +456,7 @@
                     setSuggestionsOpen(false);
                 }
             });
-        });
+        };
 
         const movementModal = document.getElementById('movement-modal');
         const movementForm = document.getElementById('movement-form');
@@ -381,9 +464,9 @@
         const movementReason = document.getElementById('movement-reason');
         const providerField = document.getElementById('movement-provider-field');
         const providerSelect = document.getElementById('movement-provider');
-        const movementQuantity = document.getElementById('movement-quantity');
-        const selectedProductId = document.getElementById('movement-product-value');
-        const movementQuantityLabel = document.querySelector('label[for="movement-quantity"]');
+        const movementLines = document.getElementById('movement-lines');
+        const addMovementLineButton = document.getElementById('add-movement-line');
+        let nextLineIndex = Math.max(...Array.from(movementLines.querySelectorAll('.movement-line'), (line) => Number(line.dataset.index)), -1) + 1;
         const openModalButton = document.getElementById('open-movement-modal');
         const closeModalButtons = [
             document.getElementById('close-movement-modal'),
@@ -391,15 +474,84 @@
         ];
         let previousFocus = null;
 
-        const updateMovementQuantityField = () => {
-            if (!movementType || !movementQuantity || !movementQuantityLabel) {
-                return;
-            }
+        const updateMovementLines = () => {
+            const lines = Array.from(movementLines.querySelectorAll('.movement-line'));
+            const isPurchase = movementReason.value === 'Compra / Adquisición';
+            lines.forEach((line, index) => {
+                const search = line.querySelector('[role="combobox"]');
+                const product = line.querySelector('input[type="hidden"]');
+                const quantity = line.querySelector('.movement-quantity');
+                const price = line.querySelector('.movement-price');
+                const selected = Boolean(product.value);
+                search.required = true;
+                if (!selected) search.setCustomValidity(search.required || search.value.trim() ? 'Selecciona un repuesto de la lista de sugerencias.' : '');
+                product.disabled = !selected;
+                quantity.disabled = !selected;
+                quantity.required = selected;
+                quantity.min = movementType.value === 'ajuste' ? '0' : '1';
+                line.querySelector('.movement-quantity-label').textContent = movementType.value === 'ajuste' ? 'Nuevo stock' : 'Cantidad';
+                line.querySelector('.movement-price-field').classList.toggle('hidden', !isPurchase || !selected);
+                price.disabled = !selected || !isPurchase;
+                price.required = selected && isPurchase;
+                const lastPurchase = productCatalog.find((item) => String(item.id) === product.value)?.ultima_adquisicion;
+                const lastPurchaseMessage = line.querySelector('.movement-last-purchase');
+                if (!selected) {
+                    lastPurchaseMessage.textContent = '';
+                } else if (!lastPurchase) {
+                    lastPurchaseMessage.textContent = 'Sin adquisiciones anteriores registradas.';
+                } else {
+                    const money = (amount) => `$${new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(amount)}`;
+                    const details = [lastPurchase.fecha ? `Fecha: ${lastPurchase.fecha}` : null];
+                    if (lastPurchase.cantidad !== null) details.push(`Cantidad: ${lastPurchase.cantidad}`);
+                    if (lastPurchase.costo_total !== null) {
+                        details.push(`Costo neto total: ${money(lastPurchase.costo_total)}`);
+                        if (lastPurchase.cantidad > 0) details.push(`Unitario: ${money(lastPurchase.costo_total / lastPurchase.cantidad)}`);
+                    } else {
+                        details.push('Costo no registrado');
+                    }
+                    if (lastPurchase.proveedor) details.push(`Proveedor: ${lastPurchase.proveedor}`);
+                    lastPurchaseMessage.textContent = `Última adquisición registrada: ${details.filter(Boolean).join(' · ')}`;
+                }
+                line.querySelector('.remove-movement-line').classList.toggle('hidden', lines.length === 1);
+            });
+            addMovementLineButton.disabled = lines.length >= 100 || lines.some((line) => !line.querySelector('input[type="hidden"]').value);
+        };
 
-            const isStockAdjustment = movementType.value === 'ajuste';
-            movementQuantity.name = isStockAdjustment ? 'stock_nuevo' : 'cantidad';
-            movementQuantity.min = isStockAdjustment ? '0' : '1';
-            movementQuantityLabel.textContent = isStockAdjustment ? 'Nuevo stock' : 'Cantidad';
+        const addMovementLine = () => {
+            const source = movementLines.querySelector('.movement-line');
+            const oldIndex = source.dataset.index;
+            const newIndex = nextLineIndex++;
+            const line = source.cloneNode(true);
+            line.dataset.index = newIndex;
+            line.querySelectorAll('[data-product-id]').forEach((option) => option.remove());
+            line.querySelectorAll('[id], [for], [aria-controls], [name]').forEach((element) => {
+                ['id', 'for', 'aria-controls', 'name'].forEach((attribute) => {
+                    if (element.hasAttribute(attribute)) {
+                        element.setAttribute(attribute, element.getAttribute(attribute)
+                            .replace(`movement-product-${oldIndex}-`, `movement-product-${newIndex}-`)
+                            .replace(`productos[${oldIndex}]`, `productos[${newIndex}]`));
+                    }
+                });
+            });
+            line.querySelectorAll('input').forEach((input) => { input.value = ''; input.setCustomValidity(''); });
+            line.querySelector('select').value = '';
+            line.querySelector('[role="listbox"]').classList.add('hidden');
+            line.querySelector('[role="combobox"]').setAttribute('aria-expanded', 'false');
+            line.querySelector('[role="combobox"]').removeAttribute('aria-activedescendant');
+            movementLines.appendChild(line);
+            setupMovementLine(line);
+            updateMovementLines();
+            line.querySelector('[role="combobox"]').focus();
+        };
+
+        const setupMovementLine = (line) => {
+            const picker = line.querySelector('.product-picker');
+            picker.addEventListener('productchange', updateMovementLines);
+            line.querySelector('.remove-movement-line').addEventListener('click', () => {
+                line.remove();
+                updateMovementLines();
+            });
+            initializePicker(picker);
         };
 
         const updateProviderField = () => {
@@ -409,11 +561,21 @@
             providerField.classList.toggle('hidden', !required);
             providerSelect.disabled = !required;
             providerSelect.required = required;
-            movementReason.setCustomValidity(
-                isPurchase && movementType.value !== 'ingreso'
-                    ? 'Una adquisición debe registrarse como ingreso.'
-                    : (isReturn && movementType.value !== 'egreso' ? 'Una devolución al proveedor debe registrarse como egreso.' : '')
-            );
+            const documentField = document.getElementById('movement-document-field');
+            documentField.classList.toggle('hidden', !required);
+            document.getElementById('movement-document').disabled = !required;
+            updateMovementLines();
+        };
+
+        const updateReasons = () => {
+            Array.from(movementReason.options).forEach((option) => {
+                if (!option.value) return;
+                const allowed = option.dataset.types === movementType.value;
+                option.hidden = !allowed;
+                option.disabled = !allowed;
+                if (!allowed && option.selected) movementReason.value = '';
+            });
+            updateProviderField();
         };
 
         const openMovementModal = () => {
@@ -424,7 +586,7 @@
             previousFocus = document.activeElement;
             movementModal.classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
-            movementModal.querySelector('#movement-product-search')?.focus();
+            movementModal.querySelector('[role="combobox"]')?.focus();
         };
 
         const closeMovementModal = () => {
@@ -438,32 +600,21 @@
         };
 
         openModalButton?.addEventListener('click', openMovementModal);
+        addMovementLineButton.addEventListener('click', addMovementLine);
         closeModalButtons.forEach((button) => button?.addEventListener('click', closeMovementModal));
         movementType?.addEventListener('change', () => {
-            updateMovementQuantityField();
-            updateProviderField();
+            updateReasons();
         });
-        movementReason?.addEventListener('change', () => {
-            if (movementReason.value === 'Compra / Adquisición') {
-                movementType.value = 'ingreso';
-                updateMovementQuantityField();
-            } else if (movementReason.value === 'Devolución') {
-                movementType.value = 'egreso';
-                updateMovementQuantityField();
-            }
-            updateProviderField();
-        });
+        movementReason?.addEventListener('change', updateProviderField);
         movementForm?.addEventListener('submit', () => {
-            const selectedProduct = document.getElementById(`movement-product-option-${selectedProductId.value}`);
-            const currentStock = Number(selectedProduct?.dataset.currentStock);
-            const enteredQuantity = Number(movementQuantity.value);
-            const movement = movementType.value;
-            const resultingStock = movement === 'ajuste'
-                ? enteredQuantity
-                : currentStock + (movement === 'egreso' ? -enteredQuantity : enteredQuantity);
-            const movementLabel = movementType.selectedOptions[0].textContent.trim();
-
-            movementForm.dataset.confirmMessage = `Producto: ${selectedProduct?.dataset.label || 'No seleccionado'}\nMovimiento: ${movementLabel}\nStock actual: ${currentStock}\nStock resultante: ${resultingStock}\nMotivo: ${document.getElementById('movement-reason').selectedOptions[0].textContent.trim()}\n\n¿Deseas registrar este cambio de inventario?`;
+            const summary = Array.from(movementLines.querySelectorAll('.movement-line')).filter((line) => line.querySelector('input[type="hidden"]').value).map((line) => {
+                const productId = line.querySelector('input[type="hidden"]').value;
+                const product = productCatalog.find((item) => String(item.id) === productId);
+                const quantity = Number(line.querySelector('.movement-quantity').value);
+                const result = movementType.value === 'ajuste' ? quantity : product.stock + (movementType.value === 'egreso' ? -quantity : quantity);
+                return `${product.etiqueta} → ${result}`;
+            }).join('\n');
+            movementForm.dataset.confirmMessage = `Movimiento: ${movementType.selectedOptions[0].textContent.trim()}\nMotivo: ${movementReason.selectedOptions[0].textContent.trim()}\n\n${summary}\n\n¿Deseas registrar estos cambios?`;
         });
         movementModal?.addEventListener('click', (event) => {
             if (event.target === movementModal) {
@@ -479,8 +630,9 @@
         if (movementModal?.dataset.openOnLoad === 'true') {
             openMovementModal();
         }
-        updateMovementQuantityField();
-        updateProviderField();
+        initializePicker(document.querySelector('#movement-filter-product-search').closest('.product-picker'));
+        movementLines.querySelectorAll('.movement-line').forEach(setupMovementLine);
+        updateReasons();
     });
 </script>
 @endsection

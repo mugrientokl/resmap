@@ -27,11 +27,46 @@ class InventoryMovementTest extends TestCase
             ->assertSee('Todas las categorías')
             ->assertSee('Registrar Movimiento')
             ->assertSee('role="dialog"', false)
+            ->assertSee('id="movement-detail-modal"', false)
+            ->assertSee('Costo neto total de adquisición')
             ->assertSee('id="movement-products-data"', false)
             ->assertSee('"id":'.$productId, false)
             ->assertSee('"stock":3', false)
             ->assertSee('data-confirm-title="Confirmar movimiento de inventario"', false)
             ->assertSee('Producto de prueba');
+    }
+
+    public function test_catalog_includes_the_last_recorded_acquisition_for_each_product(): void
+    {
+        [$admin, $productId] = $this->createInventoryFixture(3);
+        [, $productWithoutPurchaseId] = $this->createInventoryFixture(3);
+
+        InventarioMovimiento::create([
+            'id_producto' => $productId, 'tipo' => 'adquisicion', 'cantidad' => 2,
+            'stock_anterior' => 0, 'stock_nuevo' => 2, 'motivo' => 'Compra anterior',
+            'fecha_evento' => '2026-10-20', 'cantidad_adquirida' => 2, 'precio_entrada' => 1000,
+        ]);
+        InventarioMovimiento::create([
+            'id_producto' => $productId, 'tipo' => 'ingreso', 'cantidad' => 3,
+            'stock_anterior' => 2, 'stock_nuevo' => 5, 'motivo' => 'Compra / Adquisición',
+            'fecha_evento' => '2026-10-10', 'cantidad_adquirida' => 3, 'precio_entrada' => 0,
+            'proveedor' => 'Proveedor registrado',
+        ]);
+        InventarioMovimiento::create([
+            'id_producto' => $productId, 'tipo' => 'egreso', 'cantidad' => -1,
+            'stock_anterior' => 5, 'stock_nuevo' => 4, 'motivo' => 'Merma / Daño',
+            'fecha_evento' => '2026-10-25',
+        ]);
+
+        $this->actingAs($admin)->get(route('inventario.movimientos'))
+            ->assertOk()
+            ->assertViewHas('catalogoProductos', function (array $products) use ($productId, $productWithoutPurchaseId): bool {
+                $catalog = collect($products)->keyBy('id');
+
+                return $catalog[$productId]['ultima_adquisicion'] === [
+                    'fecha' => '10/10/2026', 'cantidad' => 3, 'costo_total' => 0.0, 'proveedor' => 'Proveedor registrado',
+                ] && $catalog[$productWithoutPurchaseId]['ultima_adquisicion'] === null;
+            });
     }
 
     public function test_admin_can_adjust_stock_and_the_movement_records_the_actor(): void
@@ -203,6 +238,105 @@ class InventoryMovementTest extends TestCase
             ->assertJsonPath('precio_venta_recomendado', 595);
     }
 
+    public function test_multiple_purchases_update_stock_prices_and_keep_supplier_details(): void
+    {
+        [$admin, $firstProductId] = $this->createInventoryFixture(3);
+        [, $secondProductId] = $this->createInventoryFixture(7);
+        $proveedor = Proveedor::factory()->create();
+
+        $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
+            'tipo' => 'ingreso', 'motivo' => 'Compra / Adquisición', 'fecha_evento' => '2026-10-15',
+            'proveedor_id' => $proveedor->id, 'documento_proveedor' => 'F-123',
+            'productos' => [
+                ['id_producto' => $firstProductId, 'cantidad' => 2, 'precio_entrada' => 1000],
+                ['id_producto' => $secondProductId, 'cantidad' => 4, 'precio_entrada' => 8000],
+            ],
+        ])->assertSessionHasNoErrors()->assertRedirect(route('inventario.movimientos'));
+
+        $this->assertDatabaseHas('productos', ['id_producto' => $firstProductId, 'stock' => 5, 'precio' => 595]);
+        $this->assertDatabaseHas('productos', ['id_producto' => $secondProductId, 'stock' => 11, 'precio' => 2380]);
+        $this->assertDatabaseHas('inventario_movimientos', [
+            'id_producto' => $firstProductId, 'cantidad' => 2, 'precio_entrada' => 1000,
+            'cantidad_adquirida' => 2, 'proveedor_id' => $proveedor->id, 'documento_proveedor' => 'F-123',
+        ]);
+        $this->assertDatabaseCount('inventario_movimientos', 2);
+        $this->get(route('catalogo.index'))->assertOk()->assertSee('595')->assertSee('2.380');
+    }
+
+    public function test_multiple_movements_are_rolled_back_when_a_product_has_insufficient_stock(): void
+    {
+        [$admin, $firstProductId] = $this->createInventoryFixture(5);
+        [, $secondProductId] = $this->createInventoryFixture(1);
+
+        $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
+            'tipo' => 'egreso', 'motivo' => 'Merma / Daño', 'fecha_evento' => '2026-10-15',
+            'productos' => [
+                ['id_producto' => $firstProductId, 'cantidad' => 2],
+                ['id_producto' => $secondProductId, 'cantidad' => 2],
+            ],
+        ])->assertSessionHasErrors('cantidad');
+
+        $this->assertDatabaseHas('productos', ['id_producto' => $firstProductId, 'stock' => 5]);
+        $this->assertDatabaseHas('productos', ['id_producto' => $secondProductId, 'stock' => 1]);
+        $this->assertDatabaseCount('inventario_movimientos', 0);
+    }
+
+    public function test_multiple_movement_rejects_duplicate_products_invalid_reasons_and_missing_purchase_cost(): void
+    {
+        [$admin, $productId] = $this->createInventoryFixture(3);
+        $proveedor = Proveedor::factory()->create();
+        $datos = [
+            'tipo' => 'ingreso', 'motivo' => 'Compra / Adquisición', 'fecha_evento' => '2026-10-15',
+            'proveedor_id' => $proveedor->id,
+            'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 1000]],
+        ];
+        $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
+            ...$datos, 'productos' => [$datos['productos'][0], $datos['productos'][0]],
+        ])->assertSessionHasErrors('productos.0.id_producto');
+        $this->post(route('inventario.movimientos.store'), [...$datos, 'tipo' => 'ajuste'])
+            ->assertSessionHasErrors('motivo');
+        $this->post(route('inventario.movimientos.store'), [
+            ...$datos, 'productos' => [['id_producto' => $productId, 'cantidad' => 2]],
+        ])->assertSessionHasErrors('productos.0.precio_entrada');
+        $this->assertDatabaseCount('inventario_movimientos', 0);
+    }
+
+    public function test_multiple_stock_adjustments_can_set_zero_and_preserve_prices(): void
+    {
+        [$admin, $firstProductId] = $this->createInventoryFixture(3);
+        [, $secondProductId] = $this->createInventoryFixture(7);
+
+        $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
+            'tipo' => 'ajuste', 'motivo' => 'Uso interno', 'fecha_evento' => '2026-10-15',
+            'productos' => [
+                ['id_producto' => $firstProductId, 'cantidad' => 0],
+                ['id_producto' => $secondProductId, 'cantidad' => 4],
+            ],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('productos', ['id_producto' => $firstProductId, 'stock' => 0, 'precio' => 1190]);
+        $this->assertDatabaseHas('productos', ['id_producto' => $secondProductId, 'stock' => 4, 'precio' => 1190]);
+        $this->assertDatabaseCount('inventario_movimientos', 2);
+    }
+
+    public function test_free_acquisition_keeps_zero_cost_in_the_detail_and_catalog(): void
+    {
+        [$admin, $productId] = $this->createInventoryFixture(3);
+        $proveedor = Proveedor::factory()->create();
+
+        $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
+            'tipo' => 'ingreso', 'motivo' => 'Compra / Adquisición', 'fecha_evento' => '2026-10-15',
+            'proveedor_id' => $proveedor->id,
+            'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 0]],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5, 'precio' => 0]);
+        $movement = InventarioMovimiento::query()->latest('id_movimiento')->firstOrFail();
+        $this->getJson(route('inventario.movimientos.show', $movement))
+            ->assertOk()->assertJsonPath('precio_entrada', 0)->assertJsonPath('precio_unitario_adquisicion', 0)
+            ->assertJsonPath('precio_venta_recomendado', 0);
+    }
+
     public function test_admin_can_create_and_edit_suppliers_with_initial_examples_available(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
@@ -261,7 +395,7 @@ class InventoryMovementTest extends TestCase
         $this->get(route('inventario.movimientos'))
             ->assertOk()->assertSee('Proveedor retorno')->assertSee('Contacto retorno');
         $this->post(route('inventario.movimientos.store'), [
-            ...$datos, 'proveedor_id' => $proveedor->id,
+            ...$datos, 'proveedor_id' => $proveedor->id, 'precio_entrada' => 1000,
         ])->assertRedirect(route('inventario.movimientos'));
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
         $this->assertDatabaseHas('inventario_movimientos', [
@@ -321,15 +455,18 @@ class InventoryMovementTest extends TestCase
                 'fecha_hasta' => '2026-10-15',
             ]))
             ->assertOk()
-            ->assertSee('Movimiento que coincide')
-            ->assertDontSee('Movimiento fuera del filtro')
+            ->assertViewHas('movimientos', fn ($movimientos): bool => $movimientos->count() === 1 && $movimientos->first()->motivo === 'Movimiento que coincide')
             ->assertSee('name="producto" value="'.$matchingProductId.'"', false);
 
         $this->actingAs($admin)
             ->get(route('inventario.movimientos', ['fecha_hasta' => '2026-10-14']))
             ->assertOk()
-            ->assertSee('Movimiento fuera del filtro')
-            ->assertDontSee('Movimiento que coincide');
+            ->assertViewHas('movimientos', fn ($movimientos): bool => $movimientos->count() === 1 && $movimientos->first()->motivo === 'Movimiento fuera del filtro');
+
+        $this->get(route('inventario.movimientos', ['motivo' => 'Movimiento que coincide']))
+            ->assertOk()
+            ->assertViewHas('movimientos', fn ($movimientos): bool => $movimientos->count() === 1 && $movimientos->first()->motivo === 'Movimiento que coincide')
+            ->assertSee('name="motivo"', false);
     }
 
     private function createInventoryFixture(int $stock): array
