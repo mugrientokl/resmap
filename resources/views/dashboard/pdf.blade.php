@@ -151,6 +151,6 @@
         @endif
     </div>
 
-    <div class="footer">RESMAP · Los Huillines 1041, Los Ángeles · resmap.la@gmail.com</div>
+    <div class="footer">RESMAP · Av. Gabriela Mistral 1255, Bodega 48, Los Ángeles · resmap.la@gmail.com</div>
 </body>
 </html>

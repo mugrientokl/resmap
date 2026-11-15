@@ -30,7 +30,7 @@
     <table class="header">
         <tr>
             <td><img class="logo" src="{{ $logoDataUri }}" alt="RESMAP"></td>
-            <td class="company"><strong>RESMAP</strong><br>RUT 76.991.966-K<br>Los Huillines 1041 – Los Ángeles<br>resmap.la@gmail.com</td>
+            <td class="company"><strong>RESMAP</strong><br>RUT 76.991.966-K<br>Av. Gabriela Mistral 1255, Bodega 48 – Los Ángeles<br>resmap.la@gmail.com</td>
         </tr>
     </table>
     <h1>ORDEN DE COMPRA</h1>
@@ -57,6 +57,6 @@
         <tr class="total"><td>TOTAL</td><td class="right">$ {{ number_format($version->total, 0, ',', '.') }}</td></tr>
     </table>
     <div class="notice"><strong>Autorización registrada:</strong> el cliente autorizó expresamente la generación de este documento al aceptar la cotización. Esta constancia comercial no reemplaza un documento de compra emitido por el cliente ni es un documento tributario.</div>
-    <div class="footer">RESMAP · RUT 76.991.966-K · resmap.la@gmail.com<br>Los Huillines 1041 – Los Ángeles</div>
+    <div class="footer">RESMAP · RUT 76.991.966-K · resmap.la@gmail.com<br>Av. Gabriela Mistral 1255, Bodega 48 – Los Ángeles</div>
 </body>
 </html>

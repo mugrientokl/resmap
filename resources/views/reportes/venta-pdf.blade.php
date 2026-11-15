@@ -53,7 +53,7 @@
             <td class="company">
                 <strong>RESMAP</strong><br>
                 RUT 76.991.966-K<br>
-                Los Huillines 1041 – Los Ángeles<br>
+                Av. Gabriela Mistral 1255, Bodega 48 – Los Ángeles<br>
                 resmap.la@gmail.com
             </td>
         </tr>
@@ -74,7 +74,7 @@
                 <strong>EMISOR</strong><br>
                 RESMAP<br>
                 RUT: 76.991.966-K<br>
-                Dirección: Los Huillines 1041, Los Ángeles<br>
+                Dirección: Av. Gabriela Mistral 1255, Bodega 48, Los Ángeles<br>
                 Correo: resmap.la@gmail.com<br>
                 @if(!empty($datosResumen['giro_emisor']))Giro: {{ $datosResumen['giro_emisor'] }}<br>@endif
                 @if(!empty($datosResumen['acteco_emisor']))ACTECO de prueba: {{ $datosResumen['acteco_emisor'] }}<br>@endif
@@ -164,7 +164,7 @@
     <div class="footer">
         <strong>Contacto RESMAP</strong><br>
         John Sanzana Aravena · +56976477124 · +56951523990<br>
-        resmap.la@gmail.com · Los Huillines 1041 – Los Ángeles
+        resmap.la@gmail.com · Av. Gabriela Mistral 1255, Bodega 48 – Los Ángeles
     </div>
 </body>
 </html>

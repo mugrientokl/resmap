@@ -236,7 +236,7 @@
                         <p class="text-sm text-amber-800">Este documento no es una factura ni un DTE tributario.</p>
                         <fieldset class="space-y-3 rounded-md border border-[#ead8d5] bg-[#fffaf9] p-4">
                             <legend class="px-1 font-black">Datos del emisor</legend>
-                            <p class="text-sm">RESMAP · RUT 76.991.966-K<br>Los Huillines 1041, Los Ángeles · resmap.la@gmail.com</p>
+                            <p class="text-sm">RESMAP · RUT 76.991.966-K<br>Av. Gabriela Mistral 1255, Bodega 48, Los Ángeles · resmap.la@gmail.com</p>
                             <label class="block text-sm font-bold">Giro y ACTECO de prueba
                                 <select name="acteco_emisor" required class="mt-1 block w-full rounded-md border p-2">
                                     <option value="">Selecciona un giro</option>

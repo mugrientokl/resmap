@@ -8,7 +8,7 @@
         @page { margin: 25px 30px; }
         body {
             font-family: DejaVu Sans, sans-serif;
-            font-size: 10px;
+            font-size: 8px;
             color: #241817;
         }
         h1 {
@@ -31,7 +31,7 @@
         }
         th, td {
             border: 1px solid #d9aaa3;
-            padding: 6px;
+            padding: 3px;
             text-align: left;
         }
         .filtros {
@@ -45,6 +45,20 @@
         .datos th {
             background: #8f241d;
             color: white;
+        }
+        .datos {
+            table-layout: fixed;
+        }
+        .datos th:nth-child(1) { width: 12%; }
+        .datos th:nth-child(2) { width: 28%; }
+        .datos th:nth-child(3) { width: 18%; }
+        .datos th:nth-child(4) { width: 8%; }
+        .datos th:nth-child(5) { width: 10%; }
+        .datos th:nth-child(6) { width: 10%; }
+        .datos th:nth-child(7) { width: 7%; }
+        .datos th:nth-child(8) { width: 7%; }
+        .datos td {
+            overflow-wrap: break-word;
         }
         .vacio {
             text-align: center;

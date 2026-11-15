@@ -87,7 +87,17 @@ class ProductoController extends Controller
 
     public function exportarPdf(Request $request)
     {
-        $productos = $this->consultaProductos($request)->get();
+        $productos = $this->consultaProductos($request, false)->get([
+            'id_producto',
+            'id_categoria',
+            'codigo_barra',
+            'nombre',
+            'unidad',
+            'activo',
+            'precio',
+            'stock',
+            'stock_critico',
+        ]);
         $filtros = $this->filtrosInventario($request);
         $fechaGeneracion = now();
 
@@ -97,13 +107,20 @@ class ProductoController extends Controller
             'productos',
             'filtros',
             'fechaGeneracion'
-        ))->download('inventario-'.now()->format('Y-m-d').'.pdf');
+        ))
+            ->setPaper('a4', 'landscape')
+            ->download('inventario-'.now()->format('Y-m-d').'.pdf');
     }
 
-    private function consultaProductos(Request $request)
+    private function consultaProductos(Request $request, bool $incluirStockReservado = true)
     {
-        return Producto::with('categoria')
-            ->withSum('reservasActivas as stock_reservado', 'cantidad')
+        $query = Producto::with('categoria');
+
+        if ($incluirStockReservado) {
+            $query->withSum('reservasActivas as stock_reservado', 'cantidad');
+        }
+
+        return $query
             ->when($request->filled('nombre'), function ($query) use ($request): void {
                 $query->buscarCoincidencias($request->string('nombre')->trim()->toString());
             })

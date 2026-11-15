@@ -53,7 +53,7 @@
                 </td></tr>
                 <tr><td style="border-top:1px solid #ead8d5;background:#faf7f6;padding:20px 30px;color:#57534e;font-size:12px;line-height:1.7;">
                     <strong style="color:#241817;">RESMAP</strong> · RUT 76.991.966-K<br>
-                    Los Huillines 1041, Los Ángeles · resmap.la@gmail.com<br>
+                    Av. Gabriela Mistral 1255, Bodega 48, Los Ángeles · resmap.la@gmail.com<br>
                     John Sanzana Aravena · +56976477124 · +56951523990
                 </td></tr>
             </table>
