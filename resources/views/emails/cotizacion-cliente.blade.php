@@ -11,7 +11,7 @@
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:700px;background:#fff;border:1px solid #ead8d5;">
                 <tr><td style="background:#8f241d;padding:22px 30px;"><img src="{{ $logoUrl }}" alt="RESMAP" width="180" style="display:block;width:180px;max-width:100%;height:auto;"></td></tr>
                 <tr><td style="padding:30px;">
-                    <p style="margin:0;color:#9f2f25;font-size:12px;font-weight:bold;letter-spacing:2px;">PROPUESTA COMERCIAL · RESMAP</p>
+                    <p style="margin:0;color:#9f2f25;font-size:12px;font-weight:bold;letter-spacing:2px;">COTIZACIÓN · RESMAP</p>
                     <h1 style="margin:12px 0 8px;color:#241817;font-size:26px;">Hola {{ $cliente->nombre }}</h1>
                     <p style="margin:0;color:#57534e;font-size:14px;line-height:1.6;">Te enviamos la cotización <strong>#{{ $version->cotizacion_id }} · versión {{ $version->numero_version }}</strong>. Revísala y contáctanos por WhatsApp para responder o solicitar cambios.</p>
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0;border-collapse:collapse;">
@@ -26,7 +26,7 @@
                             </td>
                         </tr>
                     </table>
-                    <h2 style="margin:0 0 10px;color:#241817;font-size:16px;">Resumen de la propuesta</h2>
+                    <h2 style="margin:0 0 10px;color:#241817;font-size:16px;">Resumen de la cotización</h2>
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;font-size:13px;">
                         <thead><tr style="background:#292524;color:#fff;"><th align="left" style="padding:10px;">Producto</th><th align="center" style="padding:10px;">Cant.</th><th align="right" style="padding:10px;">Subtotal</th></tr></thead>
                         <tbody>
@@ -49,7 +49,6 @@
                     </table>
                     <p style="margin:0 0 18px;font-size:13px;line-height:1.6;color:#57534e;">La cotización incluye los productos, valores, condiciones de entrega y vigencia indicados en el PDF adjunto. Comunícate con RESMAP para aceptar, rechazar o solicitar cambios.</p>
                     <p style="margin:0;"><a href="{{ $urlPdf }}" style="display:inline-block;background:#b52f25;color:#fff;padding:14px 22px;text-decoration:none;font-weight:bold;">Ver cotización PDF</a></p>
-                    <p style="margin:20px 0 0;padding:14px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:12px;line-height:1.6;"><strong>Importante:</strong> este documento es una cotización comercial, no una factura ni un documento tributario.</p>
                 </td></tr>
                 <tr><td style="border-top:1px solid #ead8d5;background:#faf7f6;padding:20px 30px;color:#57534e;font-size:12px;line-height:1.7;">
                     <strong style="color:#241817;">RESMAP</strong> · RUT 76.991.966-K<br>

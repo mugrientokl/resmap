@@ -37,13 +37,6 @@
         $montoPagado = (float) ($venta->monto_pagado ?? 0);
         $saldo = max(0, (float) $venta->total - $montoPagado);
         $esCredito = in_array($venta->estado_pago, ['credito_autorizado', 'credito_parcial'], true);
-        $etiquetaPago = match ($venta->estado_pago) {
-            'credito_autorizado' => 'Crédito autorizado',
-            'credito_parcial' => 'Crédito con abonos',
-            'pagado' => 'Pagado',
-            'registrado' => 'Pagado en caja',
-            default => 'Histórico',
-        };
         $direccionCliente = collect([$cliente?->direccion, $cliente?->comuna, $cliente?->region])->filter()->implode(', ');
         $datosResumen = $venta->datos_resumen ?? [];
     @endphp
@@ -105,8 +98,6 @@
                 Vendedor: {{ $venta->user?->name ?? 'N/A' }}<br>
                 Documento de referencia: {{ $venta->tipo_documento }}<br>
                 Medio de pago: {{ $venta->medio_pago }}<br>
-                Estado de pago: {{ $etiquetaPago }}<br>
-                @if($venta->estado_entrega)Entrega: {{ ucfirst(str_replace('_', ' ', $venta->estado_entrega)) }}@endif
             </td>
         </tr>
     </table>
