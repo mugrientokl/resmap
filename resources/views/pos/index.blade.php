@@ -1,6 +1,36 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    .pos-resumen label {
+        color: #382723;
+        font-size: .9375rem;
+        font-weight: 600;
+        line-height: 1.4;
+    }
+
+    .pos-resumen input:not([type="hidden"]),
+    .pos-resumen select {
+        min-height: 2.75rem;
+        font-size: 1rem;
+        color: #241817;
+    }
+
+    .pos-resumen select:not(.sr-only) {
+        border: 1px solid #d5c3bf;
+    }
+
+    .pos-resumen input:focus-visible,
+    .pos-resumen select:focus-visible {
+        outline: 2px solid #b52f25;
+        outline-offset: 1px;
+    }
+
+    .pos-resumen p.text-xs {
+        font-size: .875rem;
+        line-height: 1.4;
+    }
+</style>
 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
     <div class="lg:col-span-2 bg-white shadow-md rounded-lg p-6">
         <h2 class="text-xl font-bold text-gray-800 mb-4">
@@ -134,13 +164,13 @@
         <div class="mt-4">{{ $productos->links() }}</div>
     </div>
 
-    <div class="bg-white shadow-md rounded-lg p-6 flex flex-col justify-between">
+    <div class="pos-resumen flex min-w-0 flex-col justify-between rounded-xl border border-[#ead8d5] bg-white p-5 shadow-md sm:p-6">
         <div>
-            <h3 class="text-lg font-bold text-gray-800 mb-4">
+            <h3 class="mb-5 text-xl font-black text-[#721d18]">
                 Datos del cliente y receptor
             </h3>
 
-            <div class="space-y-3 mb-6">
+            <div class="mb-6 space-y-4">
                 <div>
                     <label for="rut" class="block text-xs font-medium text-gray-700">
                         RUT Empresa / Cliente
@@ -169,7 +199,7 @@
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 gap-4 min-[1800px]:grid-cols-2">
                     <div>
                         <label for="contacto_cliente" class="block text-xs font-medium text-gray-700">Contacto *</label>
                         <input type="text" id="contacto_cliente" maxlength="255" required placeholder="Persona o responsable"
@@ -182,7 +212,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 gap-4">
                     <div>
                         <label for="correo_cliente" class="block text-xs font-medium text-gray-700">
                             Correo *
@@ -214,7 +244,7 @@
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 gap-4 min-[1800px]:grid-cols-2">
                     <div>
                         <label for="region_cliente" class="block text-xs font-medium text-gray-700">
                             Región *
@@ -245,8 +275,8 @@
                 </div>
             </div>
 
-            <fieldset class="mb-6 space-y-3 rounded-md border border-[#ead8d5] bg-[#fffaf9] p-4">
-                <legend class="px-1 text-sm font-bold text-gray-800">Datos para el resumen interno</legend>
+            <fieldset class="mb-6 space-y-4 rounded-lg border border-[#ead8d5] bg-[#fffaf9] p-4">
+                <legend class="px-1 text-base font-bold text-[#721d18]">Datos para el resumen interno</legend>
                 <p class="text-xs text-gray-600">El resumen no es una factura ni un documento tributario electrónico.</p>
                 <div>
                     <label for="acteco_emisor" class="block text-xs font-medium text-gray-700">
@@ -260,7 +290,7 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-1 gap-4 min-[1800px]:grid-cols-2">
                     <div>
                         <label for="tipo_venta" class="block text-xs font-medium text-gray-700">Tipo de venta</label>
                         <select id="tipo_venta" required
@@ -285,9 +315,9 @@
                 </div>
             </fieldset>
 
-            <h3 class="text-lg font-bold text-gray-800 mb-2">Documento y Pago</h3>
+            <h3 class="mb-3 text-xl font-black text-[#721d18]">Documento y Pago</h3>
 
-            <div class="grid grid-cols-2 gap-2 mb-4">
+            <div class="mb-6 grid grid-cols-1 gap-4 min-[1800px]:grid-cols-2">
                 <div>
                     <label for="tipo_documento" class="block text-xs font-medium text-gray-700">
                         Documento SII
@@ -313,41 +343,41 @@
                 </div>
             </div>
 
-            <h3 class="font-bold text-gray-800 mb-2">Ítems Seleccionados</h3>
+            <h3 class="mb-3 text-lg font-black text-[#721d18]">Ítems Seleccionados</h3>
 
-            <div class="max-h-40 overflow-y-auto mb-4 border rounded p-2 bg-gray-50">
-                <table class="min-w-full text-xs" id="tabla-carro">
-                    <thead>
-                        <tr class="border-b">
-                            <th class="text-left pb-1">Repuesto</th>
-                            <th class="text-center pb-1">Cant</th>
-                            <th class="text-right pb-1">Subtotal</th>
-                            <th class="text-center pb-1"></th>
+            <div class="mb-5 max-h-80 overflow-y-auto rounded-lg border border-[#ead8d5] bg-[#fffaf9] p-3">
+                <table class="block w-full text-sm" id="tabla-carro">
+                    <thead class="sr-only">
+                        <tr>
+                            <th>Repuesto</th>
+                            <th>Cantidad</th>
+                            <th>Subtotal</th>
+                            <th>Quitar</th>
                         </tr>
                     </thead>
-                    <tbody id="carro-items"></tbody>
+                    <tbody id="carro-items" class="block space-y-3"></tbody>
                 </table>
             </div>
         </div>
 
         <div>
-            <div class="border-t pt-3 mb-4 space-y-1 text-sm">
-                <div class="flex justify-between text-gray-600">
+            <div class="mb-5 space-y-2 border-t border-[#ead8d5] pt-4 text-base">
+                <div class="flex justify-between text-gray-700">
                     <span>Neto:</span>
                     <span id="label-neto">$ 0</span>
                 </div>
-                <div class="flex justify-between text-gray-600">
+                <div class="flex justify-between text-gray-700">
                     <span>IVA (19%):</span>
                     <span id="label-iva">$ 0</span>
                 </div>
-                <div class="flex justify-between font-bold text-gray-900 text-base">
+                <div class="flex justify-between pt-1 text-xl font-black text-[#721d18]">
                     <span>Total:</span>
                     <span id="label-total">$ 0</span>
                 </div>
             </div>
 
             <button type="button" id="registrar-venta" onclick="procesarVenta()"
-                class="w-full bg-[#8f241d] text-white py-2 rounded-md hover:bg-[#721d18] font-bold disabled:opacity-50">
+                class="w-full rounded-md bg-[#8f241d] px-4 py-3 text-base font-bold text-white shadow-sm hover:bg-[#721d18] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d] disabled:opacity-50">
                 Registrar venta
             </button>
 
@@ -700,12 +730,12 @@ function renderCarro() {
         total += subtotal;
 
         const fila = document.createElement('tr');
-        fila.className = 'border-b';
+        fila.className = 'grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-md border border-[#ead8d5] bg-white p-3';
         fila.innerHTML =
-            '<td class="py-1"></td>' +
-            '<td class="py-1 text-center"></td>' +
-            '<td class="py-1 text-right"></td>' +
-            '<td class="py-1 text-center"></td>';
+            '<td class="col-start-1 row-start-1 min-w-0 break-words text-base font-bold leading-snug text-[#241817]"></td>' +
+            '<td class="col-start-1 row-start-2 flex items-center gap-1"></td>' +
+            '<td class="col-start-2 row-start-2 whitespace-nowrap text-right text-base font-bold text-[#721d18]"></td>' +
+            '<td class="col-start-2 row-start-1 justify-self-end"></td>';
 
         fila.children[0].textContent = item.nombre;
         fila.children[2].textContent =
@@ -713,26 +743,29 @@ function renderCarro() {
 
         const menos = document.createElement('button');
         menos.type = 'button';
-        menos.className = 'px-1 bg-gray-200 rounded';
+        menos.className = 'h-9 w-9 rounded-md bg-[#f7e8e6] text-lg font-bold text-[#8f241d] hover:bg-[#efd2cc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]';
         menos.textContent = '-';
+        menos.setAttribute('aria-label', `Disminuir cantidad de ${item.nombre}`);
         menos.onclick = () => cambiarCantidad(item.id_producto, -1);
 
         const cantidad = document.createElement('span');
-        cantidad.className = 'mx-1';
+        cantidad.className = 'min-w-6 text-center text-base font-bold text-[#241817]';
         cantidad.textContent = item.cantidad;
 
         const mas = document.createElement('button');
         mas.type = 'button';
-        mas.className = 'px-1 bg-gray-200 rounded';
+        mas.className = 'h-9 w-9 rounded-md bg-[#f7e8e6] text-lg font-bold text-[#8f241d] hover:bg-[#efd2cc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]';
         mas.textContent = '+';
+        mas.setAttribute('aria-label', `Aumentar cantidad de ${item.nombre}`);
         mas.onclick = () => cambiarCantidad(item.id_producto, 1);
 
         fila.children[1].append(menos, cantidad, mas);
 
         const quitar = document.createElement('button');
         quitar.type = 'button';
-        quitar.className = 'text-red-500 font-bold';
+        quitar.className = 'h-9 w-9 rounded-md text-xl font-bold text-[#a12b24] hover:bg-[#f7e8e6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]';
         quitar.textContent = '×';
+        quitar.setAttribute('aria-label', `Quitar ${item.nombre} de la venta`);
         quitar.onclick = () => cambiarCantidad(
             item.id_producto,
             -item.cantidad

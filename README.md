@@ -35,7 +35,7 @@ Las cuentas de prueba del `UserSeeder` son `admin` y `vendedor1`, ambas con cont
 
 ## Funciones
 
-- `/`: catálogo público y acceso a solicitudes.
+- `/`: catálogo público y acceso a solicitudes, con navegación fija a la izquierda; en móviles se muestra una barra compacta.
 - `/catalogo`: búsqueda de productos y creación de solicitudes web.
 - `/login`: inicio de sesión por usuario o correo.
 - `/password/forgot`: recuperación de contraseña.
@@ -45,6 +45,7 @@ Las cuentas de prueba del `UserSeeder` son `admin` y `vendedor1`, ambas con cont
 - `/inventario/movimientos`: ajustes y trazabilidad del stock para administradores.
 - `/reportes`: ventas por período, total, IVA, stock crítico y productos más vendidos.
 - `/auditoria`: altas, modificaciones y eliminaciones con usuario, IP y fecha.
+- `/administracion`: acceso desde «Administración» en la navegación para administrar categorías, proveedores, usuarios y backups; permite elegir la navegación superior o lateral para todos los usuarios autenticados. En móviles se mantiene el menú superior.
 - `/backups`: listado y descarga de respaldos para administradores.
 - `/usuarios`: creación de usuarios por administradores.
 - `/categorias`: gestión de categorías mediante modales.

@@ -12,6 +12,23 @@ class CatalogoStockTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_public_pages_show_the_public_navigation_and_mark_the_current_page(): void
+    {
+        foreach (['home', 'catalogo.index', 'servicios.index'] as $page) {
+            $response = $this->get(route($page))->assertOk()
+                ->assertSee('navegacion-izquierda public-navigation')
+                ->assertSee('id="public-menu"', false)
+                ->assertSee('id="public-navigation-position"', false)
+                ->assertSee('Cambiar menú a la parte superior')
+                ->assertSee(route('login'));
+
+            $this->assertMatchesRegularExpression(
+                '/<a href="'.preg_quote(route($page), '/').'"[^>]*aria-current="page"/',
+                $response->getContent(),
+            );
+        }
+    }
+
     public function test_request_is_rejected_when_requested_quantity_exceeds_available_stock(): void
     {
         $productId = $this->createProductWithStock(3);
@@ -67,6 +84,40 @@ class CatalogoStockTest extends TestCase
             'telefono_whatsapp' => '+56912345678',
             'consentimiento_whatsapp_origen' => 'catalogo',
         ]);
+    }
+
+    public function test_catalog_request_success_shows_a_dedicated_confirmation_without_a_duplicate_notification(): void
+    {
+        $this->withSession(['success' => 'El equipo de RESMAP se pondrá en contacto contigo.'])
+            ->get(route('catalogo.index'))
+            ->assertOk()
+            ->assertSee('¡Tu cotización ha sido enviada con éxito!')
+            ->assertSee('El equipo de RESMAP se pondrá en contacto contigo.')
+            ->assertSee('border-green-300 bg-green-50', false)
+            ->assertSee('Cerrar confirmación')
+            ->assertDontSee('<p class="text-base font-black">Operación completada</p>', false);
+
+        $this->withSession(['success' => 'Operación de prueba'])
+            ->get(route('servicios.index'))
+            ->assertOk()
+            ->assertSee('Operación completada')
+            ->assertSee('Operación de prueba');
+    }
+
+    public function test_system_notifications_distinguish_success_and_rejection(): void
+    {
+        $this->withSession([
+            'success' => 'Acción aprobada.',
+            'rejected' => 'Acción rechazada.',
+            'error' => 'No se pudo completar.',
+        ])->get(route('servicios.index'))
+            ->assertOk()
+            ->assertSee('border-green-600 bg-green-50', false)
+            ->assertSee('Acción aprobada.')
+            ->assertSee('Cotización rechazada')
+            ->assertSee('border-red-600 bg-red-50', false)
+            ->assertSee('Acción rechazada.')
+            ->assertSee('data-auto-dismiss', false);
     }
 
     public function test_legacy_alternate_number_is_ignored_in_favour_of_contact_number(): void
@@ -200,6 +251,51 @@ class CatalogoStockTest extends TestCase
         $this->assertSame(
             [$availableProductId],
             $response->viewData('productosBuscador')->pluck('id_producto')->all()
+        );
+    }
+
+    public function test_home_and_catalog_only_offer_kits_with_available_stock_after_reservations(): void
+    {
+        $availableId = $this->createProductWithStock(3);
+        $reservedId = $this->createProductWithStock(1);
+        $emptyId = $this->createProductWithStock(0);
+        $categoryId = DB::table('categorias')->where('nombre_categoria', 'KITS Y SETS')->value('id_categoria');
+
+        foreach ([
+            $availableId => 'Kit disponible',
+            $reservedId => 'Kit reservado',
+            $emptyId => 'Kit agotado',
+        ] as $id => $nombre) {
+            DB::table('productos')->where('id_producto', $id)->update([
+                'id_categoria' => $categoryId,
+                'nombre' => $nombre,
+            ]);
+        }
+
+        foreach ([$availableId, $reservedId] as $id) {
+            $this->post(route('catalogo.solicitudes.store'), [
+                ...$this->validCustomerData(),
+                'detalles_productos' => [['id_producto' => $id, 'cantidad' => 1]],
+            ])->assertSessionHasNoErrors();
+        }
+
+        $home = $this->get(route('home'))->assertOk()
+            ->assertSee('Kit disponible')
+            ->assertDontSee('Kit reservado')
+            ->assertDontSee('Kit agotado');
+        $this->assertSame([$availableId], $home->viewData('kitsYSets')->pluck('id_producto')->all());
+        $category = $home->viewData('categorias')->firstWhere('id_categoria', $categoryId);
+        $this->assertSame(1, $category->productos_count);
+
+        $catalog = $this->get(route('catalogo.index'))->assertOk()
+            ->assertSee('Kit disponible')
+            ->assertDontSee('Kit reservado')
+            ->assertDontSee('Kit agotado');
+        $product = $catalog->viewData('productosBuscador')->firstWhere('id_producto', $availableId);
+        $this->assertSame(2, $product->stock_disponible);
+        $this->assertMatchesRegularExpression(
+            '/\["Kit disponible","[^"]+",'.$categoryId.','.$availableId.',2\]/',
+            $catalog->getContent(),
         );
     }
 

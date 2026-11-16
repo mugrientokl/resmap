@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\ActividadController;
+use App\Http\Controllers\AdministracionController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CatalogoController;
@@ -167,6 +168,14 @@ Route::middleware([
     Route::delete('/notificaciones/{id}', [NotificacionController::class, 'destroy'])
         ->middleware('auth')
         ->name('notificaciones.destroy');
+
+    Route::get('/administracion', [AdministracionController::class, 'index'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('administracion.index');
+
+    Route::put('/administracion/navegacion', [AdministracionController::class, 'actualizarNavegacion'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('administracion.navegacion');
 
     Route::get('/categorias', [CategoriaController::class, 'index'])
         ->middleware(['auth', 'role:Administrador'])

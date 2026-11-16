@@ -11,8 +11,19 @@
         .kits-track { scrollbar-width: none; }
         .kits-track::-webkit-scrollbar { display: none; }
 
+        body.public-navigation .hero-bleed,
+        body.public-navigation .hero-content { min-height: max(100svh, 42rem); }
+
+        @media (max-width: 1023px) {
+            body.public-navigation .hero-content { padding-top: 4rem; }
+            body.public-navigation .hero-content h1,
+            body.public-navigation .hero-content h2 { font-size: clamp(1.75rem, 4vw, 2.25rem); }
+        }
+
         @media (max-width: 639px) {
             .hero-bleed, .hero-content { min-height: max(100svh, 48rem); }
+            body.public-navigation .hero-bleed,
+            body.public-navigation .hero-content { min-height: max(100svh, 48rem); }
         }
     </style>
     <main class="-mt-6">

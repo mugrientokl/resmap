@@ -299,7 +299,11 @@ class CotizacionController extends Controller
             }
         });
 
-        return back()->with('success', 'Se registró la respuesta informada por el cliente.');
+        return match ($datos['decision']) {
+            'aceptada' => back()->with('success', 'Se registró la aceptación de la cotización.'),
+            'rechazada' => back()->with('rejected', 'Se registró el rechazo de la cotización.'),
+            'cambios_solicitados' => back()->with('warning', 'Se registraron los cambios solicitados para la cotización.'),
+        };
     }
 
     public function convertirEnVenta(Request $request, CotizacionVersion $version, VentaCotizacionService $servicio): RedirectResponse

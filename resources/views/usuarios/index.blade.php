@@ -8,12 +8,6 @@
         <p class="mt-2 text-gray-500">Cada persona usa su propia cuenta. Nunca compartas contraseñas: enviaremos un enlace al correo para que cada usuario cree la suya.</p>
     </div>
 
-    @if(session('success'))
-        <div class="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-green-700" role="status">{{ session('success') }}</div>
-    @endif
-    @if(session('warning'))
-        <div class="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-amber-800" role="alert">{{ session('warning') }}</div>
-    @endif
     @if($errors->any())
         <div class="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-red-700">
             <ul class="list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>

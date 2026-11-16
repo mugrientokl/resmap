@@ -31,7 +31,7 @@ class CatalogoController extends Controller
 
         return view('welcome', [
             'categorias' => Categoria::withCount([
-                'productos' => fn ($query) => $query->where('activo', true),
+                'productos' => fn ($query) => $query->where('activo', true)->conStockDisponible(),
             ])
                 ->orderByDesc('productos_count')
                 ->limit(6)
@@ -43,6 +43,7 @@ class CatalogoController extends Controller
                 ? Producto::with('categoria')
                     ->withSum('reservasActivas as stock_reservado', 'cantidad')
                     ->where('activo', true)
+                    ->conStockDisponible()
                     ->where('id_categoria', $kitsSetsCategory->id_categoria)
                     ->orderByDesc('precio')
                     ->limit(8)
@@ -54,7 +55,7 @@ class CatalogoController extends Controller
     public function index(Request $request)
     {
         $categorias = Categoria::withCount([
-            'productos' => fn ($query) => $query->where('activo', true),
+            'productos' => fn ($query) => $query->where('activo', true)->conStockDisponible(),
         ])
             ->orderBy('nombre_categoria')
             ->get();
@@ -62,7 +63,8 @@ class CatalogoController extends Controller
         $productosBuscador = Producto::query()
             ->where('activo', true)
             ->conStockDisponible()
-            ->select('id_producto', 'nombre', 'codigo_barra', 'codigo_origen', 'id_categoria')
+            ->select('id_producto', 'nombre', 'codigo_barra', 'codigo_origen', 'id_categoria', 'stock')
+            ->withSum('reservasActivas as stock_reservado', 'cantidad')
             ->orderBy('nombre')
             ->get();
 

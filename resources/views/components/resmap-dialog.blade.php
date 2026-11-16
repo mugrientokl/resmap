@@ -1,6 +1,6 @@
 <div id="resmap-dialog" class="fixed inset-0 hidden items-center justify-center bg-[#241817]/60 p-4" style="z-index: 100" role="dialog" aria-modal="true" aria-labelledby="resmap-dialog-title" aria-describedby="resmap-dialog-message" aria-hidden="true">
     <section class="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-xl bg-white shadow-2xl">
-        <header class="flex items-center gap-3 bg-[#8f241d] px-6 py-5 text-white">
+        <header id="resmap-dialog-header" class="flex items-center gap-3 bg-[#8f241d] px-6 py-5 text-white">
             <span id="resmap-dialog-icon" class="flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-lg font-black" aria-hidden="true">!</span>
             <h2 id="resmap-dialog-title" class="text-lg font-black">RESMAP</h2>
         </header>
@@ -15,6 +15,7 @@
 </div>
 <script>
     const resmapDialog = document.getElementById('resmap-dialog');
+    const resmapDialogHeader = document.getElementById('resmap-dialog-header');
     const resmapDialogTitle = document.getElementById('resmap-dialog-title');
     const resmapDialogMessage = document.getElementById('resmap-dialog-message');
     const resmapDialogConfirm = document.getElementById('resmap-dialog-confirm');
@@ -32,6 +33,19 @@
         resmapDialogCancel.textContent = cancelText ?? 'Cancelar';
         resmapDialogCancel.classList.toggle('hidden', cancelText === null);
         document.getElementById('resmap-dialog-icon').textContent = type === 'success' ? '✓' : type === 'error' ? '!' : type === 'warning' ? '!' : 'i';
+        const colores = {
+            success: ['bg-green-700', 'bg-green-700', 'hover:bg-green-800'],
+            error: ['bg-red-700', 'bg-red-700', 'hover:bg-red-800'],
+            warning: ['bg-amber-800', 'bg-amber-800', 'hover:bg-amber-900'],
+            info: ['bg-[#8f241d]', 'bg-[#b52f25]', 'hover:bg-[#8f241d]'],
+        };
+        const clases = colores[type] || colores.info;
+        Object.values(colores).forEach(([header, button, hover]) => {
+            resmapDialogHeader.classList.remove(header);
+            resmapDialogConfirm.classList.remove(button, hover);
+        });
+        resmapDialogHeader.classList.add(clases[0]);
+        resmapDialogConfirm.classList.add(clases[1], clases[2]);
 
         resmapDialog.classList.remove('hidden');
         resmapDialog.classList.add('flex');
@@ -39,7 +53,9 @@
         (cancelText !== null ? resmapDialogCancel : resmapDialogConfirm).focus();
 
         return new Promise(resolve => {
+            let timer;
             const finish = result => {
+                window.clearTimeout(timer);
                 resmapDialog.classList.add('hidden');
                 resmapDialog.classList.remove('flex');
                 resmapDialog.setAttribute('aria-hidden', 'true');
@@ -83,6 +99,9 @@
             resmapDialogCancel.addEventListener('click', cancel);
             resmapDialog.addEventListener('click', clickOutside);
             document.addEventListener('keydown', keydown);
+            if (cancelText === null) {
+                timer = window.setTimeout(accept, 10000);
+            }
         });
     }
 

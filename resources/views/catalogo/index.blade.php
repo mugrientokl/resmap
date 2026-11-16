@@ -12,13 +12,24 @@
     </div>
 
     @if(session('success'))
-        <span id="success-toast" hidden></span>
+        <div id="success-toast"
+            class="fixed inset-x-4 top-4 z-[60] mx-auto flex max-w-2xl items-start gap-4 rounded-2xl border border-green-300 bg-green-50 p-5 text-green-950 shadow-[0_20px_60px_rgba(36,24,23,0.25)] sm:top-8 sm:gap-5 sm:p-7"
+            role="status" aria-live="polite" data-auto-dismiss>
+            <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e5f5e9] text-[#21713e] sm:h-14 sm:w-14" aria-hidden="true">
+                <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 4 4L19 6"/></svg>
+            </span>
+            <div class="min-w-0 flex-1">
+                <p class="text-xl font-black leading-tight text-green-950 sm:text-2xl">¡Tu cotización ha sido enviada con éxito!</p>
+                <p class="mt-2 text-base leading-relaxed text-green-900">{{ session('success') }}</p>
+            </div>
+            <button type="button" class="-mr-2 -mt-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-2xl text-green-800 hover:bg-green-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-800" aria-label="Cerrar confirmación" data-dismiss-notification>&times;</button>
+        </div>
     @endif
 
     @if($errors->any())
         <div id="error-toast"
-            class="fixed right-5 top-24 z-60 max-w-sm border-l-4 border-red-700 bg-white p-5 text-red-800 shadow-xl"
-            role="alert">
+            class="fixed right-5 top-24 z-60 max-w-sm border-l-4 border-red-700 bg-red-50 p-5 text-red-800 shadow-xl"
+            role="alert" data-auto-dismiss>
             <p class="font-black">No se pudo enviar la cotización</p>
             <p class="mt-1 text-sm">{{ $errors->first() }}</p>
         </div>
@@ -40,7 +51,8 @@
                 class="absolute left-0 top-full z-50 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-[#d9aaa3] bg-white shadow-lg">
             </div>
 
-            <script type="application/json" id="catalogo-datos">@json($productosBuscador->map(fn ($p) => [$p->nombre, $p->codigo_origen ?: $p->codigo_barra, $p->id_categoria])->values())</script>
+            @php($datosBuscador = $productosBuscador->map(fn ($p) => [$p->nombre, $p->codigo_origen ?: $p->codigo_barra, $p->id_categoria, $p->id_producto, $p->stock_disponible])->values())
+            <script type="application/json" id="catalogo-datos">@json($datosBuscador)</script>
         </div>
 
         <select id="catalogo-categoria" name="categoria" aria-label="Categoría"
@@ -125,21 +137,27 @@
 </main>
 
 <div id="barra-carrito"
-    class="fixed inset-x-0 bottom-0 z-40 hidden border-t border-[#e8c8c3] bg-white shadow-lg">
-    <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:gap-6">
-        <div class="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:items-center sm:gap-4">
-            <div id="resumen-carrito"
-                class="flex min-w-0 flex-1 flex-col gap-1 sm:flex-row sm:gap-4"
-                aria-live="polite">
-            </div>
+    class="fixed inset-x-0 bottom-0 z-40 hidden border-t-4 border-[#b52f25] bg-[#fff7f5] shadow-[0_-8px_24px_rgba(80,24,18,0.18)]">
+    <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:gap-4">
+        <span class="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f7e1dc] text-[#9f2f25] sm:flex" aria-hidden="true">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l2 11h11l3-8H6m2 12h.01M17 19h.01"/></svg>
+        </span>
+        <div class="min-w-0 flex-1">
+            <p class="text-base font-black leading-snug text-[#8f241d]">Tu carrito</p>
+            <div class="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
+                <div id="resumen-carrito"
+                    class="flex w-full min-w-0 flex-1 flex-col gap-1 sm:w-auto sm:flex-row sm:gap-4"
+                    aria-live="polite">
+                </div>
 
-            <button id="ver-mas-carrito" type="button" onclick="abrirCarrito()"
-                class="hidden shrink-0 text-left text-sm font-bold text-[#9f2f25] underline">
-            </button>
+                <button id="ver-mas-carrito" type="button" onclick="abrirCarrito()"
+                    class="hidden shrink-0 whitespace-nowrap text-left text-xs font-bold text-[#9f2f25] underline sm:text-sm">
+                </button>
+            </div>
         </div>
 
         <button id="abrir-carrito-completo" type="button" onclick="abrirCarrito()"
-            class="inline-flex shrink-0 items-center gap-2 rounded-md bg-[#b52f25] px-4 py-3 font-bold text-white hover:bg-[#8f241d]">
+            class="inline-flex shrink-0 items-center gap-2 rounded-md bg-[#b52f25] px-2 py-3 text-xs font-bold text-white shadow-md transition hover:bg-[#8f241d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d] sm:px-4 sm:text-base">
             Ver carrito
             <span id="contador-carrito"
                 class="rounded-full bg-white px-2 py-0.5 text-xs text-[#b52f25]">
@@ -152,28 +170,37 @@
 <div id="carrito-modal"
     class="fixed inset-0 z-50 hidden bg-black/50 p-4"
     role="dialog" aria-modal="true" aria-labelledby="carrito-titulo">
-    <div class="ml-auto flex h-full w-full max-w-lg flex-col bg-white shadow-2xl">
-        <div class="flex items-center justify-between border-b border-[#e8c8c3] p-5">
-            <h2 id="carrito-titulo" class="text-2xl font-black text-[#8f241d]">
+    <div class="ml-auto flex h-full w-full max-w-lg flex-col bg-[#8f241d] text-white shadow-2xl">
+        <div class="flex items-center justify-between border-b border-white/25 p-5">
+            <h2 id="carrito-titulo" class="text-2xl font-black text-white">
                 Tu carrito
             </h2>
 
             <button type="button" onclick="cerrarCarrito()"
-                class="text-2xl text-[#8f241d]" aria-label="Cerrar carrito">
+                class="rounded-md px-2 text-2xl text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="Cerrar carrito">
                 &times;
             </button>
         </div>
 
         <div id="carrito-items" class="flex-1 space-y-3 overflow-y-auto p-5"></div>
 
-        <p id="stock-insuficiente"
-            class="hidden px-5 pb-4 text-sm font-bold text-red-700"
+        <div id="stock-insuficiente"
+            class="hidden mx-5 mb-4 rounded-lg border border-[#f0c7a6] bg-[#fff7ed] p-4 text-[#632a1e] shadow-sm"
             role="status" aria-live="polite">
-        </p>
+            <div class="flex items-start gap-3">
+                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f9e3ce] text-[#8f241d]" aria-hidden="true">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 4.9 2.8 18a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.9a2 2 0 0 0-3.4 0Z"/></svg>
+                </span>
+                <div>
+                    <p class="font-black">Revisa la disponibilidad</p>
+                    <p id="stock-mensaje" class="mt-1 text-sm font-medium leading-relaxed"></p>
+                </div>
+            </div>
+        </div>
 
-        <div class="border-t border-[#e8c8c3] p-5">
+        <div class="border-t border-white/25 p-5">
             <button type="button" onclick="abrirSolicitud()"
-                class="w-full rounded-md bg-[#b52f25] p-3 font-bold text-white hover:bg-[#8f241d]">
+                class="w-full rounded-md bg-[#fff7f5] p-3 font-bold text-[#8f241d] hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                 Continuar cotización
             </button>
         </div>
@@ -423,6 +450,14 @@ function leerCarrito() {
 }
 
 const seleccion = leerCarrito();
+const stockDisponible = new Map(
+    JSON.parse(document.getElementById('catalogo-datos').textContent)
+        .map(([, , , id, stock]) => [String(id), Number(stock)])
+);
+
+Object.entries(seleccion).forEach(([id, item]) => {
+    item.stock = stockDisponible.get(String(id)) ?? 0;
+});
 
 function guardarCarrito() {
     window.localStorage.setItem(
@@ -430,6 +465,8 @@ function guardarCarrito() {
         JSON.stringify(seleccion)
     );
 }
+
+guardarCarrito();
 
 function escaparHTML(valor) {
     const elemento = document.createElement('span');
@@ -441,15 +478,15 @@ function escaparHTML(valor) {
 }
 
 function mostrarErrorStock(mensaje) {
-    const elemento = document.getElementById('stock-insuficiente');
-    elemento.textContent = mensaje;
-    elemento.classList.remove('hidden');
     abrirCarrito();
+    const elemento = document.getElementById('stock-insuficiente');
+    document.getElementById('stock-mensaje').textContent = mensaje;
+    elemento.classList.remove('hidden');
 }
 
 function limpiarErrorStock() {
     const elemento = document.getElementById('stock-insuficiente');
-    elemento.textContent = '';
+    document.getElementById('stock-mensaje').textContent = '';
     elemento.classList.add('hidden');
 }
 
@@ -511,22 +548,19 @@ function establecerCantidad(id, valor) {
     const stock = Number(item.stock);
 
     if (stock <= 0) {
-        mostrarErrorStock(`Sin stock disponible para ${item.nombre}.`);
-        renderCarrito();
+        abrirCarrito();
         return;
-    }
-
-    if (cantidadSolicitada > stock) {
-        mostrarErrorStock(
-            `Stock insuficiente para ${item.nombre}: disponibles ${stock}.`
-        );
-    } else {
-        limpiarErrorStock();
     }
 
     item.cantidad = Math.max(1, Math.min(stock, 99, cantidadSolicitada));
     guardarCarrito();
     renderCarrito();
+
+    if (cantidadSolicitada > stock) {
+        mostrarErrorStock(
+            `Stock insuficiente para ${item.nombre}: disponibles ${stock}.`
+        );
+    }
 }
 
 function renderCarrito() {
@@ -547,8 +581,9 @@ function renderCarrito() {
 
     if (productoSinStock) {
         const mensaje = document.getElementById('stock-insuficiente');
-        mensaje.textContent =
-            `Stock insuficiente para ${productoSinStock.nombre}: solicitas ${productoSinStock.cantidad} y quedan ${productoSinStock.stock}.`;
+        document.getElementById('stock-mensaje').textContent = Number(productoSinStock.stock) === 0
+            ? `${productoSinStock.nombre} ya no tiene stock. Elimínalo con el ícono del basurero para continuar.`
+            : `De ${productoSinStock.nombre} quedan ${productoSinStock.stock} ${Number(productoSinStock.stock) === 1 ? 'unidad disponible' : 'unidades disponibles'}. Ajusta la cantidad para continuar.`;
         mensaje.classList.remove('hidden');
     }
 
@@ -562,7 +597,7 @@ function renderCarrito() {
         ...items.slice(0, 2).map(item => {
             const resumen = document.createElement('span');
             resumen.className =
-                'truncate text-sm font-semibold text-[#241817]';
+                'truncate text-base font-semibold leading-snug text-[#241817]';
             resumen.textContent = `${item.cantidad} × ${item.nombre}`;
             return resumen;
         })
@@ -581,26 +616,33 @@ function renderCarrito() {
             const cantidad = Number(item.cantidad);
 
             return `
-                <div class="flex items-center justify-between gap-3 border-b border-[#f0d7d3] pb-3">
-                    <span class="font-semibold text-[#241817]">
+                <div class="flex items-center gap-3 border-b border-white/25 pb-3">
+                    <span class="min-w-0 flex-1 break-words font-semibold text-white">
                         ${escaparHTML(item.nombre)}
                     </span>
-                    <div class="flex items-center gap-2">
+                    <div class="flex shrink-0 items-center gap-2">
                         <button type="button"
                             onclick="cambiarCantidad(${id}, -1)"
-                            class="h-8 w-8 rounded-full bg-[#f7e8e6] font-bold text-[#8f241d]">−</button>
-                        <input type="number" min="1" max="${Math.min(stock, 99)}"
+                            class="h-8 w-8 rounded-full bg-[#f7e8e6] font-bold text-[#8f241d] hover:bg-white">−</button>
+                        <input type="number" min="1" max="${Math.max(1, Math.min(stock, 99))}"
                             value="${cantidad}" aria-label="Cantidad"
                             onchange="establecerCantidad(${id}, this.value)"
-                            class="h-8 w-12 border border-[#d9aaa3] text-center font-bold text-[#8f241d]">
+                            class="h-8 w-12 border border-[#d9aaa3] bg-white text-center font-bold text-[#8f241d]">
                         <button type="button"
                             onclick="cambiarCantidad(${id}, 1)"
-                            class="h-8 w-8 rounded-full bg-[#b52f25] font-bold text-white">+</button>
+                            class="h-8 w-8 rounded-full bg-[#f7e8e6] font-bold text-[#8f241d] hover:bg-white">+</button>
+                        <button type="button"
+                            onclick="cambiarCantidad(${id}, -${cantidad})"
+                            aria-label="Quitar ${escaparHTML(item.nombre)} del carrito"
+                            title="Quitar del carrito"
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                            <svg aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
+                        </button>
                     </div>
                 </div>
             `;
         }).join('')
-        : '<p class="py-8 text-center text-gray-500">Tu carrito está vacío.</p>';
+        : '<p class="py-8 text-center text-white/80">Tu carrito está vacío.</p>';
 
     document.querySelectorAll('[id^="selector-"]').forEach(selector => {
         const id = Number(selector.id.replace('selector-', ''));
@@ -677,9 +719,7 @@ function abrirSolicitud() {
     );
 
     if (faltante) {
-        mostrarErrorStock(
-            `Stock insuficiente para ${faltante.nombre}. Ajusta la cantidad.`
-        );
+        abrirCarrito();
         return;
     }
 
@@ -940,13 +980,13 @@ if (urlParams.get('open_cart') === 'true') {
     );
 }
 
-if (document.getElementById('success-toast')) {
+const confirmacionEnviada = document.getElementById('success-toast');
+
+if (confirmacionEnviada) {
     window.localStorage.removeItem(carritoStorageKey);
     Object.keys(seleccion).forEach(id => delete seleccion[id]);
     renderCarrito();
 }
-
-setTimeout(() => document.getElementById('error-toast')?.remove(), 7000);
 
 @if($errors->any())
     abrirSolicitud();

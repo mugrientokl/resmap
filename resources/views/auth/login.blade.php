@@ -1,11 +1,27 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Acceso interno | RESMAP</title>@vite(['resources/css/app.css', 'resources/js/face-recognition.js'])<link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"></head>
-<body class="flex min-h-screen items-center justify-center bg-[#8f241d] px-6 text-[#241817]">
-    <main class="grid w-full max-w-4xl overflow-hidden bg-white shadow-2xl md:grid-cols-2">
-        <div class="hidden min-h-130 bg-[linear-gradient(135deg,rgba(143,36,29,.9),rgba(55,16,13,.78)),url('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center p-10 text-white md:flex md:flex-col md:justify-between"><span class="text-xl font-black tracking-[.2em]">RESMAP</span><div><p class="text-sm font-bold uppercase tracking-[.25em] text-[#ffd5c9]">Centro de operaciones</p><h1 class="mt-3 text-4xl font-black leading-tight">Todo el trabajo, en un solo lugar.</h1></div></div>
-        <div class="p-8 sm:p-12"><a href="{{ route('home') }}" class="text-sm font-bold text-[#9f2f25]">← Volver al sitio</a><h2 class="mt-12 text-3xl font-black">Acceso interno</h2><p class="mt-2 text-gray-500">Ingresa con tu usuario o correo.</p>
-        @if(session('status'))<div class="mt-6 border-l-4 border-green-600 bg-green-50 p-4 text-sm text-green-900" role="status">{{ session('status') }}</div>@endif
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Acceso interno | RESMAP</title>@vite(['resources/css/app.css', 'resources/js/face-recognition.js'])<link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"><script defer src="{{ asset('js/notifications.js') }}"></script></head>
+<body class="flex min-h-screen justify-center bg-[linear-gradient(135deg,#f7f3f0_0%,#f2ded9_100%)] px-4 py-8 font-sans text-[#241817] sm:px-6">
+    <main class="my-auto grid w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-[0_24px_70px_rgba(80,24,18,0.18)] md:grid-cols-2">
+        <div class="hidden min-h-150 bg-[linear-gradient(160deg,rgba(75,21,18,.86),rgba(143,36,29,.82)),url('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center p-10 text-white md:flex md:flex-col md:justify-between lg:p-12">
+            <div class="w-fit rounded-2xl bg-[#fff8f4] px-5 py-3 shadow-lg">
+                <img src="{{ asset('images/resmap sin fondo.png') }}" alt="RESMAP" class="h-20 w-auto object-contain">
+            </div>
+            <div>
+                <p class="text-xs font-bold uppercase tracking-[.25em] text-[#ffd5c9]">Centro de operaciones</p>
+                <p class="mt-4 text-4xl font-black leading-tight">Todo el trabajo,<br>en un solo lugar.</p>
+                <p class="mt-4 max-w-xs text-base leading-relaxed text-[#ffe9e2]">Gestiona tu trabajo diario desde un espacio pensado para tu equipo.</p>
+            </div>
+        </div>
+        <div class="p-6 sm:p-10 lg:p-12">
+            <div class="mb-8 flex items-center justify-between gap-4">
+                <a href="{{ route('home') }}" class="inline-flex items-center gap-2 text-sm font-bold text-[#9f2f25] hover:text-[#721d18] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b52f25]">← Volver al sitio</a>
+                <img src="{{ asset('images/resmap sin fondo.png') }}" alt="RESMAP" class="h-14 w-auto object-contain md:hidden">
+            </div>
+            <p class="text-xs font-bold uppercase tracking-[.2em] text-[#9f2f25]">Bienvenido a RESMAP</p>
+            <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Acceso interno</h1>
+            <p class="mt-3 text-base leading-relaxed text-gray-600">Ingresa con tu usuario o correo.</p>
+        @if(session('status'))<div class="mt-6 border-l-4 border-green-600 bg-green-50 p-4 text-sm text-green-900" role="status" data-auto-dismiss>{{ session('status') }}</div>@endif
         @if($errors->any())
             <div class="mt-6 border-l-4 border-red-500 bg-red-50 p-4 text-sm text-red-800" role="alert" aria-live="assertive">
                 <p class="font-bold">No pudimos iniciar sesión.</p>
@@ -17,11 +33,11 @@
             </div>
         @endif
             <form method="POST" action="{{ route('login.store') }}" class="mt-8 space-y-5" data-face-mode="login" data-models-url="{{ asset('models') }}" data-face-login-url="{{ route('login.face') }}">@csrf
-                <div><label for="login" class="block text-sm font-bold">Usuario o correo</label><input id="login" name="login" value="{{ old('login') }}" required autofocus autocomplete="username" aria-invalid="{{ $errors->has('login') ? 'true' : 'false' }}" class="mt-2 w-full border border-gray-300 p-3 outline-none focus:border-[#b52f25]"></div>
+                <div><label for="login" class="block text-sm font-bold">Usuario o correo</label><input id="login" name="login" value="{{ old('login') }}" required autofocus autocomplete="username" aria-invalid="{{ $errors->has('login') ? 'true' : 'false' }}" class="mt-2 w-full border border-[#dccac6] bg-[#fffcfb] p-3 outline-none transition focus:border-[#b52f25] focus:ring-2 focus:ring-[#f3d4ce]"></div>
                 <div>
                     <label for="password" class="block text-sm font-bold">Contraseña</label>
                     <div class="relative mt-2">
-                        <input id="password" type="password" name="password" required autocomplete="current-password" aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}" class="w-full border border-gray-300 p-3 pr-20 outline-none focus:border-[#b52f25]">
+                        <input id="password" type="password" name="password" required autocomplete="current-password" aria-invalid="{{ $errors->has('password') ? 'true' : 'false' }}" class="w-full border border-[#dccac6] bg-[#fffcfb] p-3 pr-24 outline-none transition focus:border-[#b52f25] focus:ring-2 focus:ring-[#f3d4ce]">
                         <button
                             id="toggle-password"
                             type="button"
@@ -40,13 +56,13 @@
                         </button>
                     </div>
                 </div>
-                <button class="w-full bg-[#b52f25] p-3 font-bold text-white transition hover:bg-[#8f241d]">Ingresar</button>
-                <button type="button" data-face-open class="flex w-full items-center justify-center gap-2 border border-[#b52f25] p-3 font-bold text-[#8f241d] transition hover:bg-[#fff7f5] focus:outline-none focus:ring-2 focus:ring-[#b52f25]">
+                <button class="w-full bg-[#b52f25] p-3 font-bold text-white shadow-md transition hover:bg-[#8f241d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]">Ingresar</button>
+                <button type="button" data-face-open class="flex w-full items-center justify-center gap-2 border border-[#d6aaa3] bg-[#fff9f7] p-3 font-bold text-[#8f241d] transition hover:bg-[#f7e8e6] focus:outline-none focus:ring-2 focus:ring-[#b52f25]">
                     <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 7.5h3l1.5-2h7L17 7.5h3v11H4z"/><circle cx="12" cy="13" r="3.5" stroke-width="1.8"/></svg>
                     Ingresar con reconocimiento facial
                 </button>
-                <p data-face-status class="min-h-5 text-center text-xs leading-5 text-gray-600" role="status" aria-live="polite">También se verificará tu contraseña. El rostro no inicia sesión por sí solo.</p>
-                <a href="{{ route('password.request') }}" class="block text-center text-sm font-bold text-[#9f2f25]">¿Olvidaste tu contraseña?</a>
+                <p data-face-status class="min-h-5 text-center text-sm leading-5 text-gray-600" role="status" aria-live="polite">También se verificará tu contraseña. El rostro no inicia sesión por sí solo.</p>
+                <a href="{{ route('password.request') }}" class="block text-center text-sm font-bold text-[#9f2f25] hover:text-[#721d18] hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b52f25]">¿Olvidaste tu contraseña?</a>
             </form>
         </div>
     </main>

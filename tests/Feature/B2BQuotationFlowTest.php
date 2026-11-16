@@ -92,7 +92,8 @@ class B2BQuotationFlowTest extends TestCase
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
 
         $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada'])
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Se registró la aceptación de la cotización.');
         $this->assertDatabaseCount('ventas', 0);
         $this->get(route('solicitudes.show', $solicitudId))
             ->assertOk()
@@ -131,7 +132,8 @@ class B2BQuotationFlowTest extends TestCase
         $this->post(route('cotizaciones.respuesta-interna', $firstVersion), [
             'decision' => 'cambios_solicitados',
             'comentarios' => 'Cambiar cantidades',
-        ])->assertSessionHasNoErrors();
+        ])->assertSessionHasNoErrors()
+            ->assertSessionHas('warning', 'Se registraron los cambios solicitados para la cotización.');
         $this->post(route('solicitudes.cotizacion.crear', $solicitudId), [
             'items_edicion' => '1',
             'items' => [
@@ -145,7 +147,9 @@ class B2BQuotationFlowTest extends TestCase
         $this->assertSame(2, (int) DB::table('reservas_inventario')->where('producto_id', $second)->where('estado', 'activa')->sum('cantidad'));
         $this->assertDatabaseHas('productos', ['id_producto' => $first, 'stock' => 5]);
         $this->post(route('cotizaciones.enviar', $secondVersion))->assertRedirect();
-        $this->post(route('cotizaciones.respuesta-interna', $secondVersion), ['decision' => 'rechazada'])->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.respuesta-interna', $secondVersion), ['decision' => 'rechazada'])
+            ->assertSessionHasNoErrors()
+            ->assertSessionHas('rejected', 'Se registró el rechazo de la cotización.');
         $this->assertSame(0, DB::table('reservas_inventario')->where('estado', 'activa')->count());
     }
 
