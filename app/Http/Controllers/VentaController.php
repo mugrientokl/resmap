@@ -17,6 +17,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class VentaController extends Controller
 {
@@ -24,7 +25,7 @@ class VentaController extends Controller
     {
         $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
 
-        $request->validate([
+        $datos = $request->validate([
             'tipo_documento' => 'required|string|in:Boleta Electrónica,Factura Electrónica',
             'medio_pago' => 'required|string|in:Efectivo,Transferencia,Tarjeta',
             'rut' => ['required', 'string', 'max:20', new RutChileno],
@@ -32,52 +33,65 @@ class VentaController extends Controller
             'contacto' => 'required|string|max:255',
             'cargo' => 'nullable|string|max:255',
             'razon_social_cliente' => 'nullable|string|max:255',
-            'giro_cliente' => 'nullable|string|max:255',
-            'correo_cliente' => 'nullable|email|max:255',
+            'giro_cliente' => [
+                Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'correo_cliente' => 'required|email|max:255',
             'telefono_cliente' => 'nullable|string|max:50',
-            'direccion_cliente' => 'nullable|string|max:255',
-            'region_cliente' => 'nullable|string|max:100',
-            'comuna_cliente' => 'nullable|string|max:100',
+            'direccion_cliente' => 'required|string|max:255',
+            'region_cliente' => 'required|string|max:100',
+            'comuna_cliente' => 'required|string|max:100',
+            'ciudad_cliente' => 'required|string|max:100',
+            'acteco_emisor' => ['required', Rule::in(array_keys(config('services.cotizaciones.actividades_emisor_prueba')))],
+            'tipo_venta' => ['required', Rule::in(['del_giro'])],
+            'tipo_compra' => ['required', Rule::in(['del_giro'])],
+            'numero_oc' => 'nullable|string|max:100',
             'detalles' => 'required|array|min:1',
             'detalles.*.id_producto' => 'required|exists:productos,id_producto',
             'detalles.*.cantidad' => 'required|integer|min:1|max:2147483647',
         ]);
 
         try {
-            $resultado = DB::transaction(function () use ($request) {
+            $resultado = DB::transaction(function () use ($request, $datos) {
+                $actividades = config('services.cotizaciones.actividades_emisor_prueba');
                 $cliente = Cliente::query()->lockForUpdate()->firstOrCreate(
-                    ['rut' => $request->rut],
+                    ['rut' => $datos['rut']],
                     [
-                        'nombre' => $request->nombre_cliente,
-                        'contacto' => $request->contacto,
-                        'razon_social' => $request->razon_social_cliente,
-                        'giro' => $request->giro_cliente,
-                        'correo' => $request->correo_cliente,
-                        'telefono' => $request->telefono_cliente,
-                        'direccion' => $request->direccion_cliente,
-                        'region' => $request->region_cliente,
-                        'comuna' => $request->comuna_cliente,
-                        'ciudad' => $request->comuna_cliente,
+                        'nombre' => $datos['nombre_cliente'],
+                        'contacto' => $datos['contacto'],
+                        'razon_social' => $datos['razon_social_cliente'] ?? null,
+                        'giro' => $datos['giro_cliente'] ?? null,
+                        'correo' => $datos['correo_cliente'],
+                        'telefono' => $datos['telefono_cliente'] ?? null,
+                        'direccion' => $datos['direccion_cliente'],
+                        'region' => $datos['region_cliente'],
+                        'comuna' => $datos['comuna_cliente'],
+                        'ciudad' => $datos['ciudad_cliente'],
                     ]
                 );
 
+                $giroCliente = $datos['giro_cliente'] ?? $cliente->giro;
+
                 $cliente->update([
-                    'nombre' => $request->nombre_cliente,
-                    'contacto' => $request->contacto,
-                    'razon_social' => $request->razon_social_cliente ?? $cliente->razon_social,
-                    'giro' => $request->giro_cliente ?? $cliente->giro,
-                    'correo' => $request->correo_cliente ?? $cliente->correo,
-                    'telefono' => $request->telefono_cliente ?? $cliente->telefono,
-                    'direccion' => $request->direccion_cliente ?? $cliente->direccion,
-                    'region' => $request->region_cliente ?? $cliente->region,
-                    'comuna' => $request->comuna_cliente ?? $cliente->comuna,
-                    'ciudad' => $request->comuna_cliente ?? $cliente->ciudad,
+                    'nombre' => $datos['nombre_cliente'],
+                    'contacto' => $datos['contacto'],
+                    'razon_social' => $datos['razon_social_cliente'] ?? $cliente->razon_social,
+                    'giro' => $giroCliente,
+                    'correo' => $datos['correo_cliente'],
+                    'telefono' => $datos['telefono_cliente'] ?? $cliente->telefono,
+                    'direccion' => $datos['direccion_cliente'],
+                    'region' => $datos['region_cliente'],
+                    'comuna' => $datos['comuna_cliente'],
+                    'ciudad' => $datos['ciudad_cliente'],
                 ]);
 
                 $neto = 0;
                 $detallesCalculados = [];
 
-                $cantidades = collect($request->detalles)->groupBy('id_producto')->map(fn ($items): int => $items->sum('cantidad'));
+                $cantidades = collect($datos['detalles'])->groupBy('id_producto')->map(fn ($items): int => $items->sum('cantidad'));
                 foreach ($cantidades as $idProducto => $cantidad) {
                     $producto = Producto::query()->whereKey($idProducto)->lockForUpdate()->firstOrFail();
 
@@ -109,12 +123,12 @@ class VentaController extends Controller
 
                 $venta = Venta::create([
                     'fecha' => now(),
-                    'tipo_documento' => $request->tipo_documento,
+                    'tipo_documento' => $datos['tipo_documento'],
                     'folio_sii' => null,
                     'neto' => $montoNeto,
                     'iva' => $montoIva,
                     'total' => $totalBruto,
-                    'medio_pago' => $request->medio_pago,
+                    'medio_pago' => $datos['medio_pago'],
                     'estado_sii' => 'Pendiente',
                     'estado_venta' => 'confirmada',
                     'estado_pago' => 'registrado',
@@ -124,8 +138,23 @@ class VentaController extends Controller
                     'user_id' => $request->user()->id,
                     'id_cliente' => $cliente->id_cliente,
                     'datos_cliente' => $cliente->snapshotDatos(),
-                    'contacto' => $request->contacto,
-                    'cargo' => $request->cargo,
+                    'contacto' => $datos['contacto'],
+                    'cargo' => $datos['cargo'] ?? null,
+                    'datos_resumen' => [
+                        'acteco_emisor' => $datos['acteco_emisor'],
+                        'tipo_venta' => $datos['tipo_venta'],
+                        'nombre' => $datos['nombre_cliente'],
+                        'rut' => $datos['rut'],
+                        'giro' => $giroCliente,
+                        'direccion' => $datos['direccion_cliente'],
+                        'comuna' => $datos['comuna_cliente'],
+                        'ciudad' => $datos['ciudad_cliente'],
+                        'contacto' => $datos['contacto'],
+                        'tipo_compra' => $datos['tipo_compra'],
+                        'correo' => $datos['correo_cliente'],
+                        'numero_oc' => $datos['numero_oc'] ?? null,
+                        'giro_emisor' => $actividades[$datos['acteco_emisor']],
+                    ],
                 ]);
 
                 foreach ($detallesCalculados as $det) {

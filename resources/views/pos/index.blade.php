@@ -137,7 +137,7 @@
     <div class="bg-white shadow-md rounded-lg p-6 flex flex-col justify-between">
         <div>
             <h3 class="text-lg font-bold text-gray-800 mb-4">
-                Datos del Cliente (Defontana)
+                Datos del cliente y receptor
             </h3>
 
             <div class="space-y-3 mb-6">
@@ -157,15 +157,15 @@
                     <label for="nombre_cliente" class="block text-xs font-medium text-gray-700">
                         Razón Social / Nombre
                     </label>
-                    <input type="text" id="nombre_cliente" placeholder="Constructora SpA"
+                    <input type="text" id="nombre_cliente" required placeholder="Constructora SpA"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
 
                 <div>
                     <label for="giro_cliente" class="block text-xs font-medium text-gray-700">
-                        Giro
+                        <span id="etiqueta-giro-cliente">Giro (opcional para boleta)</span>
                     </label>
-                    <input type="text" id="giro_cliente" placeholder="Comercio de repuestos"
+                    <input type="text" id="giro_cliente" maxlength="255" placeholder="Comercio de repuestos"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
 
@@ -185,9 +185,9 @@
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label for="correo_cliente" class="block text-xs font-medium text-gray-700">
-                            Correo
+                            Correo *
                         </label>
-                        <input type="email" id="correo_cliente" placeholder="contacto@empresa.cl"
+                        <input type="email" id="correo_cliente" required maxlength="255" placeholder="contacto@empresa.cl"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                     </div>
 
@@ -208,16 +208,16 @@
 
                 <div>
                     <label for="direccion_cliente" class="block text-xs font-medium text-gray-700">
-                        Dirección
+                        Dirección *
                     </label>
-                    <input type="text" id="direccion_cliente" placeholder="Faena / Dirección"
+                    <input type="text" id="direccion_cliente" required maxlength="255" placeholder="Faena / Dirección"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
 
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label for="region_cliente" class="block text-xs font-medium text-gray-700">
-                            Región
+                            Región *
                         </label>
                         <select id="region_cliente" required
                             class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
@@ -227,7 +227,7 @@
 
                     <div>
                         <label for="comuna_cliente" class="block text-xs font-medium text-gray-700">
-                            Comuna
+                            Comuna *
                         </label>
                         <select id="comuna_cliente" required disabled
                             class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
@@ -235,7 +235,55 @@
                         </select>
                     </div>
                 </div>
+
+                <div>
+                    <label for="ciudad_cliente" class="block text-xs font-medium text-gray-700">
+                        Ciudad * <span class="font-normal text-gray-500">(se sugiere la comuna)</span>
+                    </label>
+                    <input type="text" id="ciudad_cliente" required maxlength="100" placeholder="Los Ángeles"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
+                </div>
             </div>
+
+            <fieldset class="mb-6 space-y-3 rounded-md border border-[#ead8d5] bg-[#fffaf9] p-4">
+                <legend class="px-1 text-sm font-bold text-gray-800">Datos para el resumen interno</legend>
+                <p class="text-xs text-gray-600">El resumen no es una factura ni un documento tributario electrónico.</p>
+                <div>
+                    <label for="acteco_emisor" class="block text-xs font-medium text-gray-700">
+                        Giro y ACTECO de prueba
+                    </label>
+                    <select id="acteco_emisor" required
+                        class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
+                        <option value="">Selecciona un giro</option>
+                        @foreach(config('services.cotizaciones.actividades_emisor_prueba') as $codigo => $actividad)
+                            <option value="{{ $codigo }}">{{ $actividad }} · {{ $codigo }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <label for="tipo_venta" class="block text-xs font-medium text-gray-700">Tipo de venta</label>
+                        <select id="tipo_venta" required
+                            class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
+                            <option value="del_giro">Del giro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="tipo_compra" class="block text-xs font-medium text-gray-700">Tipo de compra</label>
+                        <select id="tipo_compra" required
+                            class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
+                            <option value="del_giro">Del giro</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="numero_oc" class="block text-xs font-medium text-gray-700">
+                        Número de orden de compra (opcional)
+                    </label>
+                    <input type="text" id="numero_oc" maxlength="100"
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
+                </div>
+            </fieldset>
 
             <h3 class="text-lg font-bold text-gray-800 mb-2">Documento y Pago</h3>
 
@@ -336,12 +384,39 @@ const idsCamposCliente = [
     'direccion_cliente',
     'region_cliente',
     'comuna_cliente',
+    'ciudad_cliente',
+    'acteco_emisor',
+    'tipo_venta',
+    'tipo_compra',
+    'numero_oc',
     'tipo_documento',
     'medio_pago'
 ];
 
 inicializarUbicacionChile('region_cliente', 'comuna_cliente');
 inicializarSelectorTelefono('prefijo_telefono_cliente', 'telefono_cliente');
+
+const comunaCliente = document.getElementById('comuna_cliente');
+const ciudadCliente = document.getElementById('ciudad_cliente');
+const tipoDocumentoSelect = document.getElementById('tipo_documento');
+const giroClienteInput = document.getElementById('giro_cliente');
+const etiquetaGiroCliente = document.getElementById('etiqueta-giro-cliente');
+
+comunaCliente.addEventListener('change', () => {
+    if (!ciudadCliente.value.trim()) {
+        ciudadCliente.value = comunaCliente.value;
+    }
+});
+
+function actualizarRequisitoGiro() {
+    const requiereGiro = tipoDocumentoSelect.value === 'Factura Electrónica';
+    giroClienteInput.required = requiereGiro;
+    etiquetaGiroCliente.textContent = requiereGiro
+        ? 'Giro *'
+        : 'Giro (opcional para boleta)';
+}
+
+tipoDocumentoSelect.addEventListener('change', actualizarRequisitoGiro);
 
 function guardarBorrador() {
     if (!borradorHabilitado) return;
@@ -699,6 +774,9 @@ async function procesarVenta() {
     const telefono = document.getElementById('telefono_cliente').value;
     const region = document.getElementById('region_cliente').value;
     const comuna = document.getElementById('comuna_cliente').value;
+    const ciudad = document.getElementById('ciudad_cliente').value.trim();
+    const tipoDocumento = tipoDocumentoSelect.value;
+    const requiereGiro = tipoDocumento === 'Factura Electrónica';
 
     if (!rut || !nombre) {
         window.resmapAlert('Ingresa el RUT y el nombre del cliente.', 'warning');
@@ -710,6 +788,35 @@ async function procesarVenta() {
         return;
     }
 
+    const giro = giroClienteInput.value.trim();
+    const correo = document.getElementById('correo_cliente');
+    const direccion = document.getElementById('direccion_cliente').value.trim();
+    const actecoEmisor = document.getElementById('acteco_emisor').value;
+    const datosFaltantes = [];
+
+    if (requiereGiro && !giro) {
+        datosFaltantes.push('giro del cliente');
+    }
+
+    if (!correo.value.trim()) {
+        datosFaltantes.push('correo del cliente');
+    } else if (!correo.checkValidity()) {
+        datosFaltantes.push('un correo válido');
+    }
+
+    if (!direccion) {
+        datosFaltantes.push('dirección del cliente');
+    }
+
+    if (!actecoEmisor) {
+        datosFaltantes.push('actividad del emisor');
+    }
+
+    if (datosFaltantes.length > 0) {
+        window.resmapAlert(`Completa: ${datosFaltantes.join(', ')}.`, 'warning');
+        return;
+    }
+
     if (!/^\d{8}$/.test(telefono)) {
         window.resmapAlert(
             'El teléfono debe contener exactamente 8 dígitos.',
@@ -718,8 +825,8 @@ async function procesarVenta() {
         return;
     }
 
-    if (!region || !comuna) {
-        window.resmapAlert('Selecciona una región y una comuna.', 'warning');
+    if (!region || !comuna || !ciudad) {
+        window.resmapAlert('Completa la región, comuna y ciudad del cliente.', 'warning');
         return;
     }
 
@@ -731,7 +838,6 @@ async function procesarVenta() {
         return;
     }
 
-    const tipoDocumento = document.getElementById('tipo_documento').value;
     const medioPago = document.getElementById('medio_pago').value;
     const datos = {
         tipo_documento: tipoDocumento,
@@ -741,13 +847,18 @@ async function procesarVenta() {
         contacto,
         cargo: document.getElementById('cargo').value.trim(),
         razon_social_cliente: nombre,
-        giro_cliente: document.getElementById('giro_cliente').value,
-        correo_cliente: document.getElementById('correo_cliente').value,
+        giro_cliente: giro,
+        correo_cliente: correo.value.trim(),
         telefono_cliente:
             document.getElementById('prefijo_telefono_cliente').value + telefono,
-        direccion_cliente: document.getElementById('direccion_cliente').value,
+        direccion_cliente: direccion,
         region_cliente: region,
         comuna_cliente: comuna,
+        ciudad_cliente: ciudad,
+        acteco_emisor: document.getElementById('acteco_emisor').value,
+        tipo_venta: document.getElementById('tipo_venta').value,
+        tipo_compra: document.getElementById('tipo_compra').value,
+        numero_oc: document.getElementById('numero_oc').value.trim(),
         detalles: carro.map(item => ({
             id_producto: item.id_producto,
             cantidad: item.cantidad
@@ -874,6 +985,7 @@ async function buscarCodigo() {
 }
 
 restaurarBorrador();
+actualizarRequisitoGiro();
 renderCarro();
 
 (() => {
@@ -885,7 +997,8 @@ renderCarro();
         contacto: document.getElementById('contacto_cliente'),
         giro: document.getElementById('giro_cliente'),
         correo: document.getElementById('correo_cliente'),
-        direccion: document.getElementById('direccion_cliente')
+        direccion: document.getElementById('direccion_cliente'),
+        ciudad: document.getElementById('ciudad_cliente')
     };
 
     const telefono = document.getElementById('telefono_cliente');
@@ -972,7 +1085,10 @@ renderCarro();
             const cliente = datos.cliente;
 
             Object.entries(campos).forEach(([nombre, campo]) => {
-                campo.value = cliente[nombre] || '';
+                const valor = nombre === 'nombre'
+                    ? (cliente.razon_social || cliente.nombre)
+                    : cliente[nombre];
+                campo.value = valor || '';
             });
 
             const numero = String(cliente.telefono || '').replace(/\D/g, '');

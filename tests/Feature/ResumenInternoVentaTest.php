@@ -35,27 +35,116 @@ class ResumenInternoVentaTest extends TestCase
             'updated_at' => now(),
         ]);
 
-        $this->actingAs($vendedor)->postJson('/ventas', [
+        $datosVenta = [
             'tipo_documento' => 'Boleta Electrónica',
             'medio_pago' => 'Efectivo',
             'rut' => '12.345.678-5',
             'nombre_cliente' => 'Cliente POS',
             'contacto' => 'Contacto POS',
+            'giro_cliente' => 'Comercio de repuestos',
+            'correo_cliente' => 'cliente@example.test',
+            'direccion_cliente' => 'Av. Norte 123',
+            'region_cliente' => 'Biobío',
+            'comuna_cliente' => 'Los Ángeles',
+            'ciudad_cliente' => 'Concepción',
+            'acteco_emisor' => 'PRUEBA-002',
+            'tipo_venta' => 'del_giro',
+            'tipo_compra' => 'del_giro',
             'detalles' => [['id_producto' => $productoId, 'cantidad' => 1]],
-        ])->assertCreated();
+        ];
+        $datosIncompletos = $datosVenta;
+        unset($datosIncompletos['acteco_emisor']);
+
+        $this->actingAs($vendedor)
+            ->postJson('/ventas', $datosIncompletos)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('acteco_emisor');
+        $this->assertDatabaseCount('ventas', 0);
+
+        $this->actingAs($vendedor)->postJson('/ventas', $datosVenta)->assertCreated();
 
         $venta = Venta::firstOrFail();
+        $this->assertSame('Comercio de repuestos', $venta->datos_resumen['giro']);
+        $this->assertSame('Los Ángeles', $venta->datos_resumen['comuna']);
+        $this->assertSame('Contacto POS', $venta->datos_resumen['contacto']);
+        $this->assertSame('Concepción', $venta->datos_resumen['ciudad']);
+        $this->assertSame('Venta de partes y piezas de vehículos automotores', $venta->datos_resumen['giro_emisor']);
+        $this->assertDatabaseHas('clientes', [
+            'rut' => '12345678-5',
+            'comuna' => 'Los Ángeles',
+            'ciudad' => 'Concepción',
+        ]);
 
         $this->get('/pos')
             ->assertOk()
             ->assertSee('Registrar venta')
+            ->assertSee('Giro (opcional para boleta)')
             ->assertDontSee('Registrar venta e imprimir')
             ->assertSee(route('ventas.resumen-interno', $venta->id_venta), false);
+
+        $this->view('reportes.venta-pdf', [
+            'venta' => $venta->load(['user', 'detalles.producto']),
+            'cliente' => Cliente::desdeSnapshot($venta->snapshotDatosCliente()),
+            'despacho' => 0,
+            'logoDataUri' => '',
+        ])
+            ->assertSee('Giro: Comercio de repuestos')
+            ->assertSee('Comuna: Los Ángeles')
+            ->assertSee('Ciudad: Concepción')
+            ->assertSee('Contacto: Contacto POS')
+            ->assertSee('Tipo de compra: Del giro');
 
         $respuesta = $this->get(route('ventas.resumen-interno', $venta->id_venta));
         $respuesta->assertOk();
         $this->assertStringContainsString('application/pdf', $respuesta->headers->get('content-type'));
         $this->assertStringStartsWith('%PDF', $respuesta->getContent());
+    }
+
+    public function test_customer_giro_is_required_for_invoice_but_optional_for_boleta(): void
+    {
+        $vendedor = User::factory()->create(['rol' => 'Vendedor']);
+        $categoriaId = DB::table('categorias')->insertGetId([
+            'nombre_categoria' => 'Pruebas',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $productoId = DB::table('productos')->insertGetId([
+            'codigo_barra' => 'RES-002',
+            'nombre' => 'Producto resumen opcional',
+            'precio' => 1190,
+            'stock' => 5,
+            'stock_critico' => 1,
+            'id_categoria' => $categoriaId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $datos = [
+            'tipo_documento' => 'Boleta Electrónica',
+            'medio_pago' => 'Efectivo',
+            'rut' => '12.345.678-5',
+            'nombre_cliente' => 'Cliente POS',
+            'contacto' => 'Contacto POS',
+            'correo_cliente' => 'cliente@example.test',
+            'direccion_cliente' => 'Av. Norte 123',
+            'region_cliente' => 'Biobío',
+            'comuna_cliente' => 'Los Ángeles',
+            'ciudad_cliente' => 'Los Ángeles',
+            'acteco_emisor' => 'PRUEBA-001',
+            'tipo_venta' => 'del_giro',
+            'tipo_compra' => 'del_giro',
+            'detalles' => [['id_producto' => $productoId, 'cantidad' => 1]],
+        ];
+
+        $this->actingAs($vendedor)->postJson('/ventas', $datos)->assertCreated();
+        $this->assertNull(Venta::firstOrFail()->datos_resumen['giro']);
+
+        $datos['tipo_documento'] = 'Factura Electrónica';
+        $datos['rut'] = '11.111.111-1';
+        $this->actingAs($vendedor)
+            ->postJson('/ventas', $datos)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('giro_cliente');
+        $this->assertDatabaseCount('ventas', 1);
     }
 
     public function test_quote_summary_is_only_available_when_the_sale_is_completed(): void

@@ -101,11 +101,14 @@ class ActividadController extends Controller
             ]);
         }
 
+        $totalRegistros = $this->consulta($filtros)->count();
+
         return Pdf::loadView('actividad.pdf', [
             'registros' => $consulta->with('usuario')->get(),
             'filtros' => $filtros,
             'fechaGeneracion' => $fechaGeneracion,
             'limite' => $limite,
+            'totalRegistros' => $totalRegistros,
         ])->download('registro-actividad-'.$fechaGeneracion->format('Y-m-d').'.pdf');
     }
 

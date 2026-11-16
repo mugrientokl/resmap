@@ -61,6 +61,15 @@ class RutNormalizationTest extends TestCase
                 'rut' => $rut,
                 'nombre_cliente' => 'Cliente',
                 'contacto' => 'Contacto de prueba',
+                'giro_cliente' => 'Comercio',
+                'correo_cliente' => 'cliente@example.test',
+                'direccion_cliente' => 'Calle 123',
+                'region_cliente' => 'Metropolitana',
+                'comuna_cliente' => 'Santiago',
+                'ciudad_cliente' => 'Santiago',
+                'acteco_emisor' => 'PRUEBA-001',
+                'tipo_venta' => 'del_giro',
+                'tipo_compra' => 'del_giro',
                 'detalles' => [['id_producto' => $productoId, 'cantidad' => 1]],
             ])->assertCreated();
         }

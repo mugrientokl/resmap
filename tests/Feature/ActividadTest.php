@@ -130,6 +130,21 @@ class ActividadTest extends TestCase
         $respuesta->assertOk();
         $this->assertStringContainsString('Exportable', $respuesta->streamedContent());
         $this->assertDatabaseHas('auditorias', ['accion' => 'exportado', 'categoria' => 'exportacion']);
+
+        $registros = Auditoria::with('usuario')->get();
+        $this->view('actividad.pdf', [
+            'registros' => $registros,
+            'filtros' => [],
+            'fechaGeneracion' => now(),
+            'limite' => 500,
+            'totalRegistros' => $registros->count(),
+        ])
+            ->assertSee('Fecha / ID')
+            ->assertSee('Usuario / IP')
+            ->assertSee('Acción')
+            ->assertSee('Exportado')
+            ->assertSee('Registros exportados');
+
         $this->get('/actividad/exportar/pdf')->assertOk();
     }
 
