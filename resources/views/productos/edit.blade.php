@@ -62,6 +62,17 @@
             </div>
         </div>
 
+        <div id="motivo-desactivacion-container" class="{{ $producto->activo && !(bool) old('activo', $producto->activo) ? '' : 'hidden' }}">
+            <label for="motivo_desactivacion" class="block text-sm font-medium text-gray-700">Motivo de desactivación</label>
+            <textarea id="motivo_desactivacion" name="motivo_desactivacion" rows="3" maxlength="1000" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">{{ old('motivo_desactivacion') }}</textarea>
+        </div>
+
+        @if($producto->stock > 0)
+            <p id="aviso-stock-desactivacion" class="{{ $producto->activo && !(bool) old('activo', $producto->activo) ? '' : 'hidden' }} rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
+                El repuesto tiene {{ $producto->stock }} unidades. Al desactivarlo, el stock se conservará en inventario y dejará de estar disponible en el catálogo.
+            </p>
+        @endif
+
         <div>
             <label class="block text-sm font-medium text-gray-700">Descripción</label>
             <textarea name="descripcion" rows="2" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">{{ old('descripcion', $producto->descripcion) }}</textarea>
@@ -96,6 +107,25 @@
 </div>
 
 <script>
+    const activoProducto = document.getElementById('activo');
+    const motivoDesactivacionContainer = document.getElementById('motivo-desactivacion-container');
+    const motivoDesactivacion = document.getElementById('motivo_desactivacion');
+    const avisoStockDesactivacion = document.getElementById('aviso-stock-desactivacion');
+    const productoEstabaActivo = @json((bool) $producto->activo);
+
+    function actualizarAvisosDesactivacion() {
+        const seDesactiva = productoEstabaActivo && !activoProducto.checked;
+
+        motivoDesactivacionContainer.classList.toggle('hidden', !seDesactiva);
+        motivoDesactivacion.required = seDesactiva;
+        if (avisoStockDesactivacion) {
+            avisoStockDesactivacion.classList.toggle('hidden', !seDesactiva);
+        }
+    }
+
+    activoProducto.addEventListener('change', actualizarAvisosDesactivacion);
+    actualizarAvisosDesactivacion();
+
     function validateProductForm(form) {
         let errorBox = form.querySelector('.product-validation-error');
         let errorMessage = form.querySelector('.product-validation-message');

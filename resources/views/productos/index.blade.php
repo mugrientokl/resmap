@@ -41,7 +41,7 @@
 
     <form method="GET"
           action="{{ route('productos.index') }}"
-          class="mb-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+          class="mb-6 grid grid-cols-1 gap-3 md:grid-cols-4 lg:grid-cols-5">
 
         <input
             type="search"
@@ -69,6 +69,16 @@
 
             @endforeach
 
+        </select>
+
+        <select
+            name="activo"
+            aria-label="Estado del catálogo"
+            class="border-gray-300 rounded-md shadow-sm border p-2"
+        >
+            <option value="">Todos los estados</option>
+            <option value="1" @selected(request('activo') === '1')>Activo</option>
+            <option value="0" @selected(request('activo') === '0')>Inactivo</option>
         </select>
 
         <select
@@ -160,10 +170,15 @@
                             {{ ucfirst($producto->unidad) }}
                         </td>
 
-                        <td class="px-6 py-4 whitespace-nowrap text-sm">
+                        <td class="px-6 py-4 text-sm">
                             <span class="inline-flex rounded-full px-2 py-1 text-xs font-semibold {{ $producto->activo ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700' }}">
                                 {{ $producto->activo ? 'Activo' : 'Inactivo' }}
                             </span>
+                            @if(!$producto->activo)
+                                <p class="mt-1 max-w-xs whitespace-normal break-words text-xs text-gray-500">
+                                    Motivo: {{ $motivosDesactivacion[$producto->id_producto] ?? 'Sin motivo registrado' }}
+                                </p>
+                            @endif
                         </td>
 
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">

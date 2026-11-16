@@ -61,6 +61,42 @@ class ProductAndCustomerSearchTest extends TestCase
         );
     }
 
+    public function test_inventory_can_filter_products_by_catalog_status(): void
+    {
+        $categoryId = DB::table('categorias')->insertGetId([
+            'nombre_categoria' => 'Filtros',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $activeProductId = $this->createProduct($categoryId, [
+            'codigo_barra' => 'BAR-ACTIVE',
+            'codigo_origen' => 'ORG-ACTIVE',
+            'nombre' => 'Repuesto activo',
+            'stock' => 3,
+            'stock_critico' => 1,
+        ]);
+        $inactiveProductId = $this->createProduct($categoryId, [
+            'codigo_barra' => 'BAR-INACTIVE',
+            'codigo_origen' => 'ORG-INACTIVE',
+            'nombre' => 'Repuesto inactivo',
+            'stock' => 3,
+            'stock_critico' => 1,
+        ]);
+        DB::table('productos')->where('id_producto', $inactiveProductId)->update(['activo' => false]);
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+
+        $activos = $this->actingAs($admin)->get(route('productos.index', ['activo' => '1']));
+        $activos->assertOk()
+            ->assertSee('value="1" selected', false);
+        $this->assertSame([$activeProductId], $activos->viewData('productos')->pluck('id_producto')->all());
+
+        $inactivos = $this->get(route('productos.index', ['activo' => '0']));
+        $inactivos->assertOk()
+            ->assertSee('value="0" selected', false)
+            ->assertSee('Motivo: Sin motivo registrado');
+        $this->assertSame([$inactiveProductId], $inactivos->viewData('productos')->pluck('id_producto')->all());
+    }
+
     public function test_customer_search_matches_normalized_rut_and_suggests_rut_and_email(): void
     {
         $clienteId = DB::table('clientes')->insertGetId([

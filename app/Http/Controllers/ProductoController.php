@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Auditoria;
 use App\Models\Categoria;
 use App\Models\InventarioMovimiento;
 use App\Models\Producto;
@@ -12,6 +13,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class ProductoController extends Controller
 {
@@ -23,7 +25,22 @@ class ProductoController extends Controller
             ->paginate(20)
             ->withQueryString();
 
-        return view('productos.index', compact('productos', 'categorias'));
+        $productosInactivosIds = $productos->getCollection()
+            ->filter(fn (Producto $producto): bool => ! $producto->activo)
+            ->pluck('id_producto');
+
+        $motivosDesactivacion = Auditoria::query()
+            ->where('modelo', Producto::class)
+            ->where('accion', 'producto_desactivado')
+            ->whereIn('modelo_id', $productosInactivosIds)
+            ->orderByDesc('id_auditoria')
+            ->get(['modelo_id', 'datos_nuevos'])
+            ->unique('modelo_id')
+            ->mapWithKeys(fn (Auditoria $registro): array => [
+                $registro->modelo_id => $registro->datos_nuevos['motivo'] ?? null,
+            ]);
+
+        return view('productos.index', compact('productos', 'categorias', 'motivosDesactivacion'));
     }
 
     public function exportarExcel(Request $request)
@@ -127,6 +144,9 @@ class ProductoController extends Controller
             ->when($request->filled('categoria'), function ($query) use ($request): void {
                 $query->where('id_categoria', $request->integer('categoria'));
             })
+            ->when(in_array($request->input('activo'), ['1', '0'], true), function ($query) use ($request): void {
+                $query->where('activo', $request->input('activo') === '1');
+            })
             ->when($request->filled('stock'), function ($query) use ($request): void {
                 $tipoStock = $request->string('stock')->toString();
 
@@ -156,6 +176,11 @@ class ProductoController extends Controller
                 'agotado' => 'Sin stock',
                 'critico' => 'Stock crítico',
                 'disponible' => 'Stock disponible',
+                default => 'Todos',
+            },
+            'Estado del catálogo' => match ($request->input('activo')) {
+                '1' => 'Activo',
+                '0' => 'Inactivo',
                 default => 'Todos',
             },
         ];
@@ -294,6 +319,7 @@ class ProductoController extends Controller
     public function update(Request $request, $id)
     {
         $producto = Producto::findOrFail($id);
+        $seDesactiva = $producto->activo && ! $request->boolean('activo');
 
         $validator = Validator::make($request->all(), [
             'codigo_barra' => [
@@ -317,8 +343,14 @@ class ProductoController extends Controller
             'activo' => 'required|boolean',
             'id_categoria' => 'required|exists:categorias,id_categoria',
             'imagen' => 'nullable|image|max:4096',
+            'motivo_desactivacion' => [
+                $seDesactiva ? 'required' : 'nullable',
+                'string',
+                'max:1000',
+            ],
         ], [
             'nombre.not_regex' => 'El nombre del repuesto no puede contener únicamente números; debe incluir al menos una letra.',
+            'motivo_desactivacion.required' => 'Indica por qué se desactiva el repuesto.',
         ]);
 
         if ($validator->fails()) {
@@ -329,7 +361,8 @@ class ProductoController extends Controller
         }
 
         $datos = $validator->validated();
-        unset($datos['imagen']);
+        $motivoDesactivacion = trim((string) ($datos['motivo_desactivacion'] ?? ''));
+        unset($datos['imagen'], $datos['motivo_desactivacion']);
 
         $imagenNueva = $request->hasFile('imagen')
             ? $request->file('imagen')->store('productos', 'public')
@@ -339,8 +372,12 @@ class ProductoController extends Controller
         }
 
         $stockNuevo = (int) $datos['stock'];
+        $productoDesactivado = false;
+        $stockAnteriorAlDesactivar = 0;
+        $stockConservado = 0;
+
         try {
-            DB::transaction(function () use ($datos, $id, $request, $stockNuevo): void {
+            DB::transaction(function () use ($datos, $id, $request, $stockNuevo, $motivoDesactivacion, &$productoDesactivado, &$stockAnteriorAlDesactivar, &$stockConservado): void {
                 $producto = Producto::query()->whereKey($id)->lockForUpdate()->firstOrFail();
                 $stockAnterior = (int) $producto->stock;
                 $stockReservado = ReservaInventario::query()
@@ -353,7 +390,19 @@ class ProductoController extends Controller
                     throw new \RuntimeException('El stock no puede quedar por debajo de las reservas de cotizaciones vigentes.');
                 }
 
+                $productoDesactivado = $producto->activo && ! (bool) $datos['activo'];
+                if ($productoDesactivado && $motivoDesactivacion === '') {
+                    throw ValidationException::withMessages([
+                        'motivo_desactivacion' => 'Indica por qué se desactiva el repuesto.',
+                    ]);
+                }
+
                 $producto->update($datos);
+                if ($productoDesactivado) {
+                    $stockAnteriorAlDesactivar = $stockAnterior;
+                    $stockConservado = (int) $producto->stock;
+                }
+
                 if ($stockAnterior !== $stockNuevo) {
                     InventarioMovimiento::create([
                         'id_producto' => $producto->id_producto,
@@ -372,6 +421,28 @@ class ProductoController extends Controller
             }
 
             return redirect()->back()->withInput()->withErrors(['stock' => $exception->getMessage()]);
+        }
+
+        if ($productoDesactivado) {
+            app(RegistroActividad::class)->evento(
+                categoria: 'datos',
+                accion: 'producto_desactivado',
+                descripcion: 'Desactivó el repuesto '.$producto->nombre.': '.$motivoDesactivacion,
+                modelo: Producto::class,
+                modeloId: (int) $producto->id_producto,
+                anteriores: ['activo' => true, 'stock' => $stockAnteriorAlDesactivar],
+                nuevos: [
+                    'activo' => false,
+                    'motivo' => $motivoDesactivacion,
+                    'stock_conservado' => $stockConservado,
+                ],
+            );
+
+            if ($stockConservado > 0) {
+                return redirect()
+                    ->route('productos.index')
+                    ->with('warning', "El producto fue desactivado por: {$motivoDesactivacion}. Se conservaron {$stockConservado} unidades en inventario y no estará disponible en el catálogo.");
+            }
         }
 
         return redirect()

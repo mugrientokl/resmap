@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Auditoria;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -245,7 +246,13 @@ class CatalogoStockTest extends TestCase
         $admin = User::factory()->create(['rol' => 'Administrador']);
         $product = DB::table('productos')->where('id_producto', $productId)->first();
 
-        $this->actingAs($admin)->put(route('productos.update', $productId), [
+        $this->actingAs($admin)
+            ->get(route('productos.edit', $productId))
+            ->assertOk()
+            ->assertSee('Motivo de desactivación')
+            ->assertSee('3 unidades');
+
+        $this->put(route('productos.update', $productId), [
             'codigo_barra' => $product->codigo_barra,
             'nombre' => $product->nombre,
             'precio' => $product->precio,
@@ -254,17 +261,52 @@ class CatalogoStockTest extends TestCase
             'id_categoria' => $product->id_categoria,
             'unidad' => 'metro',
             'activo' => '0',
-        ])->assertRedirect(route('productos.index'));
+            'motivo_desactivacion' => 'Repuesto fuera de línea',
+        ])->assertRedirect(route('productos.index'))
+            ->assertSessionHas('warning', 'El producto fue desactivado por: Repuesto fuera de línea. Se conservaron 3 unidades en inventario y no estará disponible en el catálogo.');
 
         $this->assertDatabaseHas('productos', [
             'id_producto' => $productId,
+            'stock' => 3,
             'unidad' => 'metro',
             'activo' => false,
         ]);
+        $registro = Auditoria::query()->where('accion', 'producto_desactivado')->firstOrFail();
+        $this->assertSame('Repuesto fuera de línea', $registro->datos_nuevos['motivo']);
+        $this->assertSame(3, $registro->datos_nuevos['stock_conservado']);
+
+        $this->get(route('productos.index'))
+            ->assertOk()
+            ->assertSee('Motivo: Repuesto fuera de línea');
 
         $this->get(route('catalogo.index'))
             ->assertOk()
             ->assertDontSee($product->nombre);
+    }
+
+    public function test_deactivating_product_requires_a_reason_and_preserves_stock(): void
+    {
+        $productId = $this->createProductWithStock(3);
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $product = DB::table('productos')->where('id_producto', $productId)->first();
+
+        $this->actingAs($admin)->put(route('productos.update', $productId), [
+            'codigo_barra' => $product->codigo_barra,
+            'nombre' => $product->nombre,
+            'precio' => $product->precio,
+            'stock' => $product->stock,
+            'stock_critico' => $product->stock_critico,
+            'id_categoria' => $product->id_categoria,
+            'unidad' => $product->unidad,
+            'activo' => '0',
+        ])->assertSessionHasErrors('motivo_desactivacion');
+
+        $this->assertDatabaseHas('productos', [
+            'id_producto' => $productId,
+            'stock' => 3,
+            'activo' => true,
+        ]);
+        $this->assertDatabaseMissing('auditorias', ['accion' => 'producto_desactivado']);
     }
 
     private function createProductWithStock(int $stock): int
