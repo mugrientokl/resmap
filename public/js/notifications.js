@@ -11,5 +11,5 @@ document.querySelectorAll('[data-auto-dismiss]').forEach((notification) => {
     };
 
     notification.querySelector('[data-dismiss-notification]')?.addEventListener('click', dismiss);
-    timer = window.setTimeout(dismiss, 10000);
+    timer = window.setTimeout(dismiss, 3000);
 });

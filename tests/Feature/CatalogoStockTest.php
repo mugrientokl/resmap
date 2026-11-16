@@ -14,12 +14,16 @@ class CatalogoStockTest extends TestCase
 
     public function test_public_pages_show_the_public_navigation_and_mark_the_current_page(): void
     {
+        DB::table('configuraciones')->insert(['clave' => 'posicion_navegacion', 'valor' => 'izquierda']);
+
         foreach (['home', 'catalogo.index', 'servicios.index'] as $page) {
             $response = $this->get(route($page))->assertOk()
-                ->assertSee('navegacion-izquierda public-navigation')
+                ->assertSee('navegacion-superior public-navigation')
                 ->assertSee('id="public-menu"', false)
-                ->assertSee('id="public-navigation-position"', false)
-                ->assertSee('Cambiar menú a la parte superior')
+                ->assertDontSee('id="public-navigation-position"', false)
+                ->assertDontSee('resmap-menu-publico')
+                ->assertSee(route('catalogo.index'))
+                ->assertSee(route('servicios.index'))
                 ->assertSee(route('login'));
 
             $this->assertMatchesRegularExpression(

@@ -68,6 +68,8 @@ class ResumenInternoVentaTest extends TestCase
         $this->assertSame('Los Ángeles', $venta->datos_resumen['comuna']);
         $this->assertSame('Contacto POS', $venta->datos_resumen['contacto']);
         $this->assertSame('Concepción', $venta->datos_resumen['ciudad']);
+        $this->assertSame('del_giro', $venta->datos_resumen['tipo_venta']);
+        $this->assertSame('del_giro', $venta->datos_resumen['tipo_compra']);
         $this->assertSame('Venta de partes y piezas de vehículos automotores', $venta->datos_resumen['giro_emisor']);
         $this->assertDatabaseHas('clientes', [
             'rut' => '12345678-5',
@@ -79,6 +81,10 @@ class ResumenInternoVentaTest extends TestCase
             ->assertOk()
             ->assertSee('Registrar venta')
             ->assertSee('Giro (opcional para boleta)')
+            ->assertSee('Datos de venta y facturación')
+            ->assertDontSee('Datos para el resumen interno')
+            ->assertDontSee('id="tipo_venta"', false)
+            ->assertDontSee('id="tipo_compra"', false)
             ->assertDontSee('Registrar venta e imprimir')
             ->assertSee(route('ventas.resumen-interno', $venta->id_venta), false);
 

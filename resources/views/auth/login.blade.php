@@ -1,26 +1,10 @@
 <!doctype html>
 <html lang="es">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Acceso interno | RESMAP</title>@vite(['resources/css/app.css', 'resources/js/face-recognition.js'])<link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"><script defer src="{{ asset('js/notifications.js') }}"></script></head>
-<body class="flex min-h-screen justify-center bg-[linear-gradient(135deg,#f7f3f0_0%,#f2ded9_100%)] px-4 py-8 font-sans text-[#241817] sm:px-6">
-    <main class="my-auto grid w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-[0_24px_70px_rgba(80,24,18,0.18)] md:grid-cols-2">
-        <div class="hidden min-h-150 bg-[linear-gradient(160deg,rgba(75,21,18,.86),rgba(143,36,29,.82)),url('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center p-10 text-white md:flex md:flex-col md:justify-between lg:p-12">
-            <div class="w-fit rounded-2xl bg-[#fff8f4] px-5 py-3 shadow-lg">
-                <img src="{{ asset('images/resmap sin fondo.png') }}" alt="RESMAP" class="h-20 w-auto object-contain">
-            </div>
-            <div>
-                <p class="text-xs font-bold uppercase tracking-[.25em] text-[#ffd5c9]">Centro de operaciones</p>
-                <p class="mt-4 text-4xl font-black leading-tight">Todo el trabajo,<br>en un solo lugar.</p>
-                <p class="mt-4 max-w-xs text-base leading-relaxed text-[#ffe9e2]">Gestiona tu trabajo diario desde un espacio pensado para tu equipo.</p>
-            </div>
-        </div>
-        <div class="p-6 sm:p-10 lg:p-12">
-            <div class="mb-8 flex items-center justify-between gap-4">
-                <a href="{{ route('home') }}" class="inline-flex items-center gap-2 text-sm font-bold text-[#9f2f25] hover:text-[#721d18] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#b52f25]">← Volver al sitio</a>
-                <img src="{{ asset('images/resmap sin fondo.png') }}" alt="RESMAP" class="h-14 w-auto object-contain md:hidden">
-            </div>
-            <p class="text-xs font-bold uppercase tracking-[.2em] text-[#9f2f25]">Bienvenido a RESMAP</p>
-            <h1 class="mt-2 text-3xl font-black tracking-tight sm:text-4xl">Acceso interno</h1>
-            <p class="mt-3 text-base leading-relaxed text-gray-600">Ingresa con tu usuario o correo.</p>
+<body class="flex min-h-screen items-center justify-center bg-[#8f241d] px-6 py-8 text-[#241817]">
+    <main class="grid w-full max-w-4xl overflow-hidden bg-white shadow-2xl md:grid-cols-2">
+        <div class="hidden min-h-130 bg-[linear-gradient(135deg,rgba(143,36,29,.9),rgba(55,16,13,.78)),url('https://images.unsplash.com/photo-1581092160607-ee22621dd758?auto=format&fit=crop&w=1200&q=80')] bg-cover bg-center p-10 text-white md:flex md:flex-col md:justify-between"><span class="text-xl font-black tracking-[.2em]">RESMAP</span><div><p class="text-sm font-bold uppercase tracking-[.25em] text-[#ffd5c9]">Centro de operaciones</p><p class="mt-3 text-4xl font-black leading-tight">Todo el trabajo, en un solo lugar.</p></div></div>
+        <div class="p-8 sm:p-12"><a href="{{ route('home') }}" class="text-sm font-bold text-[#9f2f25]">← Volver al sitio</a><h1 class="mt-12 text-3xl font-black">Acceso interno</h1><p class="mt-2 text-gray-500">Ingresa con tu usuario o correo.</p>
         @if(session('status'))<div class="mt-6 border-l-4 border-green-600 bg-green-50 p-4 text-sm text-green-900" role="status" data-auto-dismiss>{{ session('status') }}</div>@endif
         @if($errors->any())
             <div class="mt-6 border-l-4 border-red-500 bg-red-50 p-4 text-sm text-red-800" role="alert" aria-live="assertive">

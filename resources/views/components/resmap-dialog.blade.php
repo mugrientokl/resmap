@@ -100,7 +100,7 @@
             resmapDialog.addEventListener('click', clickOutside);
             document.addEventListener('keydown', keydown);
             if (cancelText === null) {
-                timer = window.setTimeout(accept, 10000);
+                timer = window.setTimeout(accept, 3000);
             }
         });
     }

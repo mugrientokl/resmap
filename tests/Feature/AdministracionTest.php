@@ -86,6 +86,18 @@ class AdministracionTest extends TestCase
         }
     }
 
+    public function test_staff_navigation_omits_public_catalog_and_services_links(): void
+    {
+        foreach (['Administrador', 'Vendedor'] as $role) {
+            $user = User::factory()->create(['rol' => $role]);
+
+            $this->actingAs($user)->get(route('dashboard'))->assertOk()
+                ->assertDontSee('href="'.route('catalogo.index').'"', false)
+                ->assertDontSee('href="'.route('servicios.index').'"', false)
+                ->assertSee(route('solicitudes.index'));
+        }
+    }
+
     public function test_invalid_navigation_setting_is_rejected_without_changing_the_previous_value(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);

@@ -70,7 +70,7 @@
         #home-navigation.is-scrolled { background-color: #8f241d; box-shadow: 0 4px 16px rgba(36, 24, 23, .2); }
 
         body.navegacion-superior #main-navigation {
-            background: linear-gradient(110deg, #5c1c19, #8f241d);
+            background: #8f241d;
             box-shadow: 0 5px 18px rgba(55, 16, 13, .2);
         }
         body.navegacion-superior > nav > div {
@@ -81,17 +81,10 @@
         }
         body.navegacion-superior .brand-link {
             flex: none;
-            padding: .3rem .7rem;
-            border: 1px solid rgba(255, 242, 229, .6);
-            border-radius: .75rem;
-            background: linear-gradient(145deg, #fff8f1, #eadbd2);
-            box-shadow: 0 4px 12px rgba(49, 12, 9, .18);
         }
         body.navegacion-superior .brand-logo {
-            width: 7rem;
-            height: 2.6rem;
-            max-width: none;
-            filter: none;
+            width: auto;
+            height: 3rem;
         }
         body.navegacion-superior .nav-link {
             display: flex;
@@ -108,7 +101,7 @@
             transition: background-color .15s ease, border-color .15s ease;
         }
         body.navegacion-superior .nav-icon {
-            display: block;
+            display: none;
             width: 1.1rem;
             height: 1.1rem;
             flex: none;
@@ -152,7 +145,7 @@
             border-radius: .65rem;
             font-size: .9375rem;
         }
-        @media not all and (min-width: 1440px) {
+        @media (max-width: 1023px) {
             body.navegacion-superior #mobile-menu-button {
                 display: flex;
                 align-items: center;
@@ -190,7 +183,7 @@
             }
             body.navegacion-superior #profile-menu { position: static; margin-top: .35rem; }
         }
-        @media (min-width: 1440px) {
+        @media (min-width: 1024px) {
             body.navegacion-superior #main-menu { gap: .15rem; }
             body.navegacion-superior #main-menu > .nav-link { flex: none; white-space: nowrap; }
             body.navegacion-superior .profile-section { flex: none; margin-left: .35rem; }
@@ -198,64 +191,14 @@
 
         @media (max-width: 767px) {
             #main-menu { max-height: calc(100vh - 76px); overflow-y: auto; }
-            body.public-navigation.navegacion-izquierda { padding-top: 0; padding-left: 5rem; }
-            body.public-navigation.navegacion-izquierda > nav {
-                right: auto;
-                bottom: 0;
-                width: 5rem;
-                overflow-y: auto;
-                background-color: #8f241d;
-                box-shadow: 4px 0 16px rgba(36, 24, 23, .2);
-            }
-            body.public-navigation.navegacion-izquierda > nav > div {
-                max-width: none !important;
-                align-items: stretch;
-                flex-direction: column;
-                padding: .5rem;
-            }
-            body.public-navigation.navegacion-izquierda .brand-link {
-                justify-content: center;
-                padding: .3rem;
-                border-radius: .6rem;
-                background: #fff4f0;
-            }
-            body.public-navigation.navegacion-izquierda .brand-logo { width: 100%; height: auto; filter: none; }
-            body.public-navigation.navegacion-izquierda #public-menu {
-                align-items: stretch;
-                flex-direction: column;
-                gap: .35rem;
-                margin-top: .75rem;
-            }
-            body.public-navigation.navegacion-izquierda .nav-link {
-                display: flex;
-                min-height: 3.75rem;
-                align-items: center;
-                justify-content: center;
-                flex-direction: column;
-                gap: .2rem;
-                padding: .4rem .1rem;
-                border: 1px solid transparent;
-                border-radius: .6rem;
-                color: #fff7f5;
-                font-size: .625rem;
-                font-weight: 600;
-                line-height: 1.15;
-                text-align: center;
-            }
-            body.public-navigation.navegacion-izquierda .nav-icon { display: block; width: 1.25rem; height: 1.25rem; flex: none; }
-            body.public-navigation.navegacion-izquierda .nav-link:hover { background-color: rgba(255, 255, 255, .1); }
-            body.public-navigation.navegacion-izquierda .nav-link[aria-current="page"] { background-color: #fff4f0; color: #721d18; }
-            body.public-navigation.navegacion-izquierda .nav-link:focus-visible,
-            body.public-navigation.navegacion-izquierda .brand-link:focus-visible { outline: 3px solid #ffd5c9; outline-offset: 2px; }
-            body.public-navigation.navegacion-izquierda #barra-carrito { left: 5rem; }
         }
 
         @media (min-width: 768px) {
-            body.navegacion-izquierda { padding-top: 0; padding-left: 16rem; }
+            body.navegacion-izquierda { padding-top: 0; padding-left: 18rem; --content-gutter: clamp(1rem, 2vw, 2rem); }
             body.navegacion-izquierda > nav {
                 right: auto;
                 bottom: 0;
-                width: 16rem;
+                width: 18rem;
                 overflow-y: auto;
                 background-color: #8f241d;
                 box-shadow: 4px 0 16px rgba(36, 24, 23, .2);
@@ -270,10 +213,6 @@
                 flex-direction: column;
                 justify-content: center;
                 padding: .8rem 1rem .75rem;
-                border: 1px solid rgba(255, 255, 255, .7);
-                border-radius: .75rem;
-                background: linear-gradient(145deg, #fff, #f8ece8);
-                box-shadow: 0 6px 16px rgba(49, 12, 9, .18);
             }
             body.navegacion-izquierda .brand-link:focus-visible {
                 outline: 3px solid #ffd5c9;
@@ -282,13 +221,12 @@
             body.navegacion-izquierda .brand-logo {
                 width: 100%;
                 height: auto;
-                max-width: 190px;
-                filter: none;
+                max-width: 13.5rem;
             }
             body.navegacion-izquierda .brand-caption {
                 display: block;
                 margin-top: .2rem;
-                color: #8f241d;
+                color: #fff;
                 font-size: .6rem;
                 font-weight: 800;
                 letter-spacing: .14em;
@@ -360,18 +298,8 @@
                 margin-top: .25rem;
                 font-size: .9375rem;
             }
-            body.public-navigation.navegacion-izquierda #barra-carrito { left: 16rem; }
         }
 
-        body.public-navigation > nav {
-            background-image: linear-gradient(165deg, #5c1c19 0%, #75231f 55%, #8f3027 100%);
-            box-shadow: 4px 0 20px rgba(55, 16, 13, .15);
-        }
-        body.public-navigation .brand-link {
-            border-color: rgba(255, 242, 229, .45);
-            background: linear-gradient(145deg, #fff8f1, #eadbd2);
-            box-shadow: 0 6px 16px rgba(49, 12, 9, .12);
-        }
         body.public-navigation .nav-link[aria-current="page"] {
             border-color: rgba(246, 185, 65, .35);
             background-color: rgba(255, 244, 235, .13);
@@ -379,59 +307,12 @@
             box-shadow: inset 3px 0 #f6b941;
         }
         body.public-navigation .nav-link[aria-current="page"] .nav-icon { color: #f6b941; }
-        body.public-navigation.navegacion-izquierda .hero-bleed::after {
-            position: absolute;
-            inset: 0 auto 0 0;
-            z-index: 1;
-            width: clamp(5rem, 18vw, 18rem);
-            background: linear-gradient(90deg, rgba(92, 28, 25, .6), transparent);
-            content: "";
-            pointer-events: none;
-        }
-        @media (min-width: 768px) {
-            body.public-navigation.navegacion-izquierda #public-menu::before {
-                padding: .5rem .75rem .4rem;
-                color: #e8bbb0;
-                content: "EXPLORA RESMAP";
-                font-size: .65rem;
-                font-weight: 800;
-                letter-spacing: .14em;
-            }
-        }
         #public-menu-toggle { display: none; }
-        #public-navigation-position:not([hidden]) {
-            display: flex;
-            align-items: center;
-            gap: .6rem;
-            min-height: 2.75rem;
-            padding: .6rem .75rem;
-            border: 1px solid rgba(255, 255, 255, .3);
-            border-radius: .65rem;
-            background: rgba(255, 255, 255, .08);
-            color: #fff7f5;
-            font-size: .875rem;
-            font-weight: 700;
-            line-height: 1.2;
-        }
-        #public-navigation-position:hover,
         #public-menu-toggle:hover { background: rgba(255, 255, 255, .16); }
-        #public-navigation-position:focus-visible,
         #public-menu-toggle:focus-visible { outline: 3px solid #ffd5c9; outline-offset: 2px; }
-        #public-navigation-position svg { width: 1.2rem; height: 1.2rem; flex: none; color: #ffd5c9; }
-        body.public-navigation.navegacion-izquierda #public-navigation-position { margin-top: .75rem; }
-        body.public-navigation.navegacion-superior > nav { box-shadow: 0 5px 18px rgba(55, 16, 13, .2); }
         body.public-navigation.navegacion-superior #public-menu { gap: .25rem; }
         body.public-navigation.navegacion-superior #public-menu > * { white-space: nowrap; }
         @media (max-width: 767px) {
-            body.public-navigation.navegacion-izquierda #public-navigation-position:not([hidden]) {
-                justify-content: center;
-                flex-direction: column;
-                gap: .2rem;
-                min-height: 3.75rem;
-                padding: .4rem .1rem;
-                font-size: .625rem;
-                text-align: center;
-            }
             body.public-navigation.navegacion-superior #public-menu-toggle:not([hidden]) {
                 display: flex;
                 align-items: center;
@@ -457,22 +338,10 @@
                 box-shadow: 0 8px 18px rgba(36, 24, 23, .2);
             }
             body.public-navigation.navegacion-superior #public-menu.is-open { display: flex; }
-            body.public-navigation.navegacion-superior #public-navigation-position { margin-top: .5rem; }
         }
     </style>
 </head>
-<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ auth()->guest() ? 'navegacion-izquierda public-navigation' : ($posicionNavegacion === 'izquierda' ? 'navegacion-izquierda' : 'navegacion-superior') }}">
-    @guest
-        <script>
-            try {
-                if (window.localStorage.getItem('resmap-menu-publico') === 'superior') {
-                    document.body.classList.replace('navegacion-izquierda', 'navegacion-superior');
-                }
-            } catch (error) {
-                console.warn('No se pudo leer la posición del menú público.', error);
-            }
-        </script>
-    @endguest
+<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ auth()->guest() ? 'navegacion-superior public-navigation' : ($posicionNavegacion === 'izquierda' ? 'navegacion-izquierda' : 'navegacion-superior') }}">
     <nav id="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" class="fixed inset-x-0 top-0 z-40 text-white {{ $isHome ? 'bg-transparent' : 'bg-[#8f241d] shadow-lg' }}">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
             <a href="{{ route('home') }}" class="brand-link flex items-center" aria-label="Ir al inicio de Resmap">
@@ -491,8 +360,6 @@
                     <a href="{{ route('dashboard') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('dashboard', 'dashboard.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10Zm0 8h8v-5H3v5Zm11 0h7V11h-7v10Zm0-18v5h7V3h-7Z"/></svg><span>Dashboard</span></a>
                     <a href="{{ route('productos.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('productos.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="m3 7 9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7m-9 4v10"/></svg><span>Inventario</span></a>
                     <a href="{{ route('pos.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('pos.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l2 11h11l3-8H6m2 12h.01M17 19h.01"/></svg><span>POS</span></a>
-                    <a href="{{ route('catalogo.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('catalogo.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4V5Zm16 0h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6V5Z"/></svg><span>Catálogo</span></a>
-                    <a href="{{ route('servicios.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('servicios.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14.5 6.5a5 5 0 0 0-6.3 6.3l-5 5a2 2 0 0 0 2.8 2.8l5-5a5 5 0 0 0 6.3-6.3l-3.1 3.1-2.6-2.6 2.9-3.3Z"/></svg><span>Servicios</span></a>
                     <a href="{{ route('solicitudes.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('solicitudes.*', 'cotizaciones.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3h8l4 4v14H6V3Zm8 0v4h4M9 11h6M9 15h6"/></svg><span>Cotizaciones / Servicios</span> @if($pendingRequests)<span class="nav-badge ml-1 rounded-full bg-[#ffd5c9] px-2 py-0.5 text-xs text-[#8f241d]">{{ $pendingRequests }}</span>@endif</a>
                     @if(auth()->user()->rol === 'Administrador' || auth()->user()->rol === 'Vendedor')
                         <a href="{{ route('clientes.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('clientes.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-5a4 4 0 0 1 0 7m2 8v-2a4 4 0 0 0-2-3.46"/></svg><span>Clientes</span></a>
@@ -529,10 +396,6 @@
                     <a href="{{ route('catalogo.index') }}" class="nav-link" @if(request()->routeIs('catalogo.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4V5Zm16 0h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6V5Z"/></svg><span>Catálogo</span></a>
                     <a href="{{ route('servicios.index') }}" class="nav-link" @if(request()->routeIs('servicios.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14.5 6.5a5 5 0 0 0-6.3 6.3l-5 5a2 2 0 0 0 2.8 2.8l5-5a5 5 0 0 0 6.3-6.3l-3.1 3.1-2.6-2.6 2.9-3.3Z"/></svg><span>Servicios</span></a>
                     <a href="{{ route('login') }}" class="nav-link"><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14 4h5v16h-5M10 8l4 4-4 4m4-4H3"/></svg><span>Acceso interno</span></a>
-                    <button type="button" id="public-navigation-position" hidden aria-label="Cambiar menú a la parte superior">
-                        <svg aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4zM4 9h16M9 9v10" /></svg>
-                        <span>Menú arriba</span>
-                    </button>
                 </div>
             @endauth
         </div>
@@ -540,7 +403,7 @@
 
     <main class="mx-auto min-h-[calc(100vh-140px)] py-6">
         @if (filled(session('success')) || filled(session('status')) || filled(session('warning')) || filled(session('error')) || filled(session('rejected')))
-            <div id="flash-notifications" class="pointer-events-none fixed right-4 top-20 z-[60] flex w-[min(32rem,calc(100vw-2rem))] flex-col gap-3 sm:right-6" aria-live="polite" aria-relevant="additions">
+            <div id="flash-notifications" class="pointer-events-none fixed right-4 top-20 z-60 flex w-[min(32rem,calc(100vw-2rem))] flex-col gap-3 sm:right-6" aria-live="polite" aria-relevant="additions">
                 @foreach ([
                     'success' => ['Operación completada', 'border-green-600 bg-green-50 text-green-950 ring-green-200', 'status', '✓'],
                     'status' => ['Aviso', 'border-green-600 bg-green-50 text-green-950 ring-green-200', 'status', '✓'],
@@ -553,7 +416,7 @@
                             <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-2xl font-black shadow-sm" aria-hidden="true">{{ $flashIcon }}</span>
                             <div class="min-w-0 flex-1">
                                 <p class="text-base font-black">{{ $flashTitle }}</p>
-                                <p class="mt-1 break-words text-sm leading-6">{{ session($flashKey) }}</p>
+                                <p class="mt-1 wrap-break-word text-sm leading-6">{{ session($flashKey) }}</p>
                             </div>
                             <button type="button" class="-mr-2 -mt-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl font-bold opacity-70 transition hover:bg-black/5 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-current" aria-label="Cerrar notificación" data-dismiss-notification>×</button>
                         </div>
@@ -630,17 +493,7 @@
         const heroBanner = document.querySelector('.hero-bleed');
         const publicMenu = document.getElementById('public-menu');
         const publicMenuToggle = document.getElementById('public-menu-toggle');
-        const publicNavigationPosition = document.getElementById('public-navigation-position');
-
-        if (publicNavigationPosition && publicMenuToggle && publicMenu) {
-            const updatePublicNavigationControl = () => {
-                const isTop = document.body.classList.contains('navegacion-superior');
-                publicNavigationPosition.querySelector('span').textContent = isTop ? 'Menú lateral' : 'Menú arriba';
-                publicNavigationPosition.setAttribute('aria-label', isTop ? 'Cambiar menú al lado izquierdo' : 'Cambiar menú a la parte superior');
-            };
-
-            updatePublicNavigationControl();
-            publicNavigationPosition.hidden = false;
+        if (publicMenuToggle && publicMenu) {
             publicMenuToggle.hidden = false;
 
             publicMenuToggle.addEventListener('click', () => {
@@ -649,22 +502,6 @@
                 publicMenuToggle.setAttribute('aria-label', isOpen ? 'Cerrar menú' : 'Abrir menú');
             });
 
-            publicNavigationPosition.addEventListener('click', () => {
-                const isTop = document.body.classList.contains('navegacion-izquierda');
-                document.body.classList.toggle('navegacion-superior', isTop);
-                document.body.classList.toggle('navegacion-izquierda', !isTop);
-                publicMenu.classList.toggle('is-open', isTop);
-                publicMenuToggle.setAttribute('aria-expanded', String(isTop));
-                publicMenuToggle.setAttribute('aria-label', isTop ? 'Cerrar menú' : 'Abrir menú');
-                updatePublicNavigationControl();
-
-                try {
-                    window.localStorage.setItem('resmap-menu-publico', isTop ? 'superior' : 'izquierda');
-                } catch (error) {
-                    console.warn('No se pudo guardar la posición del menú público.', error);
-                    window.resmapAlert('No se pudo guardar tu preferencia. El cambio solo se mantendrá en esta página.', 'warning');
-                }
-            });
         }
 
         const updateHomeNavigation = () => {

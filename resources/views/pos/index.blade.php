@@ -167,8 +167,9 @@
     <div class="pos-resumen flex min-w-0 flex-col justify-between rounded-xl border border-[#ead8d5] bg-white p-5 shadow-md sm:p-6">
         <div>
             <h3 class="mb-5 text-xl font-black text-[#721d18]">
-                Datos del cliente y receptor
+                Datos de venta y facturación
             </h3>
+            <p class="mb-4 text-sm text-gray-600">Estos datos también se utilizan para el resumen interno, que no es un documento tributario electrónico.</p>
 
             <div class="mb-6 space-y-4">
                 <div>
@@ -273,11 +274,6 @@
                     <input type="text" id="ciudad_cliente" required maxlength="100" placeholder="Los Ángeles"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
-            </div>
-
-            <fieldset class="mb-6 space-y-4 rounded-lg border border-[#ead8d5] bg-[#fffaf9] p-4">
-                <legend class="px-1 text-base font-bold text-[#721d18]">Datos para el resumen interno</legend>
-                <p class="text-xs text-gray-600">El resumen no es una factura ni un documento tributario electrónico.</p>
                 <div>
                     <label for="acteco_emisor" class="block text-xs font-medium text-gray-700">
                         Giro y ACTECO de prueba
@@ -290,22 +286,6 @@
                         @endforeach
                     </select>
                 </div>
-                <div class="grid grid-cols-1 gap-4 min-[1800px]:grid-cols-2">
-                    <div>
-                        <label for="tipo_venta" class="block text-xs font-medium text-gray-700">Tipo de venta</label>
-                        <select id="tipo_venta" required
-                            class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
-                            <option value="del_giro">Del giro</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label for="tipo_compra" class="block text-xs font-medium text-gray-700">Tipo de compra</label>
-                        <select id="tipo_compra" required
-                            class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
-                            <option value="del_giro">Del giro</option>
-                        </select>
-                    </div>
-                </div>
                 <div>
                     <label for="numero_oc" class="block text-xs font-medium text-gray-700">
                         Número de orden de compra (opcional)
@@ -313,33 +293,30 @@
                     <input type="text" id="numero_oc" maxlength="100"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
-            </fieldset>
+                <div class="grid grid-cols-1 gap-4 min-[1800px]:grid-cols-2">
+                    <div>
+                        <label for="tipo_documento" class="block text-xs font-medium text-gray-700">
+                            Documento SII
+                        </label>
+                        <select id="tipo_documento"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
+                            <option value="Boleta Electrónica">Boleta (39)</option>
+                            <option value="Factura Electrónica">Factura (33)</option>
+                        </select>
+                        <p class="mt-1 text-xs text-gray-500">Solo referencia; no se emite al SII.</p>
+                    </div>
 
-            <h3 class="mb-3 text-xl font-black text-[#721d18]">Documento y Pago</h3>
-
-            <div class="mb-6 grid grid-cols-1 gap-4 min-[1800px]:grid-cols-2">
-                <div>
-                    <label for="tipo_documento" class="block text-xs font-medium text-gray-700">
-                        Documento SII
-                    </label>
-                    <select id="tipo_documento"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
-                        <option value="Boleta Electrónica">Boleta (39)</option>
-                        <option value="Factura Electrónica">Factura (33)</option>
-                    </select>
-                    <p class="mt-1 text-xs text-gray-500">Solo referencia; no se emite al SII.</p>
-                </div>
-
-                <div>
-                    <label for="medio_pago" class="block text-xs font-medium text-gray-700">
-                        Medio de Pago
-                    </label>
-                    <select id="medio_pago"
-                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
-                        <option value="Efectivo">Efectivo</option>
-                        <option value="Transferencia">Transferencia</option>
-                        <option value="Tarjeta">Tarjeta</option>
-                    </select>
+                    <div>
+                        <label for="medio_pago" class="block text-xs font-medium text-gray-700">
+                            Medio de Pago
+                        </label>
+                        <select id="medio_pago"
+                            class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
+                            <option value="Efectivo">Efectivo</option>
+                            <option value="Transferencia">Transferencia</option>
+                            <option value="Tarjeta">Tarjeta</option>
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -416,8 +393,6 @@ const idsCamposCliente = [
     'comuna_cliente',
     'ciudad_cliente',
     'acteco_emisor',
-    'tipo_venta',
-    'tipo_compra',
     'numero_oc',
     'tipo_documento',
     'medio_pago'
@@ -889,8 +864,8 @@ async function procesarVenta() {
         comuna_cliente: comuna,
         ciudad_cliente: ciudad,
         acteco_emisor: document.getElementById('acteco_emisor').value,
-        tipo_venta: document.getElementById('tipo_venta').value,
-        tipo_compra: document.getElementById('tipo_compra').value,
+        tipo_venta: 'del_giro',
+        tipo_compra: 'del_giro',
         numero_oc: document.getElementById('numero_oc').value.trim(),
         detalles: carro.map(item => ({
             id_producto: item.id_producto,
