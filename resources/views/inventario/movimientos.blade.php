@@ -33,9 +33,12 @@
                 <label for="movement-filter-reason" class="mb-1 block text-sm font-medium text-gray-700">Motivo</label>
                 <select id="movement-filter-reason" name="motivo" class="w-full rounded-md border border-gray-300 p-2 text-sm">
                     <option value="">Todos los motivos</option>
-                    @foreach($motivos as $motivo)
-                        <option value="{{ $motivo }}" @selected(request('motivo') === $motivo)>{{ $motivo }}</option>
+                    @foreach($motivos as $valor => $motivo)
+                        <option value="{{ $valor }}" @selected(request('motivo') === $valor)>{{ $motivo }}</option>
                     @endforeach
+                    @if(request('motivo') && ! array_key_exists(request('motivo'), $motivos))
+                        <option value="{{ request('motivo') }}" selected>{{ request('motivo') }}</option>
+                    @endif
                 </select>
             </div>
             <div>
@@ -83,11 +86,11 @@
                             {{ $mov->producto->nombre ?? 'Producto no encontrado' }}
                         </td>
                         <td class="px-4 py-3">
-                            <span class="px-2 py-1 text-xs rounded-full {{ in_array($mov->tipo, ['ingreso', 'adquisicion']) ? 'bg-green-100 text-green-800' : (in_array($mov->tipo, ['egreso', 'merma']) ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800') }}">
+                            <span class="px-2 py-1 text-xs rounded-full {{ in_array($mov->tipo, ['ingreso', 'entrada', 'adquisicion']) ? 'bg-green-100 text-green-800' : (in_array($mov->tipo, ['egreso', 'merma', 'venta']) ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800') }}">
                                 {{ ucfirst($mov->tipo) }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 font-bold">{{ abs($mov->cantidad) }}</td>
+                        <td class="px-4 py-3 font-bold">{{ $mov->cantidad > 0 ? '+' : '' }}{{ $mov->cantidad }}</td>
                         <td class="px-4 py-3">{{ $mov->stock_nuevo }}</td>
                         <td class="px-4 py-3 text-gray-700">{{ $mov->motivo }}</td>
                         <td class="px-4 py-3 text-gray-700">
@@ -206,6 +209,7 @@
                         <div class="movement-price-field hidden">
                             <label for="movement-product-{{ $index }}-price" class="mb-1 block text-sm font-medium text-gray-700">Costo neto total de adquisición</label>
                             <input id="movement-product-{{ $index }}-price" type="number" name="productos[{{ $index }}][precio_entrada]" value="{{ $linea['precio_entrada'] ?? '' }}" min="0" max="99999999.99" step="0.01" class="movement-price w-full rounded-md border border-gray-300 p-2 text-sm">
+                            <p class="mt-1 text-xs text-gray-600">El precio del producto se actualizará al costo neto unitario de esta adquisición más IVA (19 %).</p>
                             <p class="movement-last-purchase mt-1 text-xs text-gray-600" aria-live="polite"></p>
                         </div>
                         <button type="button" class="remove-movement-line justify-self-start text-sm font-medium text-red-700 underline">Quitar producto</button>

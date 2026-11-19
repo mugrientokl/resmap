@@ -14,6 +14,17 @@ use Illuminate\Validation\ValidationException;
 
 class InventarioMovimientoController extends Controller
 {
+    private const MOTIVOS_FILTRO = [
+        'grupo:compra' => 'Compra / Adquisición',
+        'grupo:merma' => 'Merma / Daño',
+        'grupo:devolucion' => 'Devolución al proveedor',
+        'grupo:ajuste' => 'Ajuste de inventario',
+        'grupo:uso_interno' => 'Uso interno',
+        'grupo:venta' => 'Venta',
+        'grupo:stock_inicial' => 'Stock inicial',
+        'grupo:otros' => 'Otros',
+    ];
+
     public function index(Request $request)
     {
         $filters = $request->validate([
@@ -32,7 +43,32 @@ class InventarioMovimientoController extends Controller
                 $query->where('tipo', $filters['tipo']);
             })
             ->when(isset($filters['motivo']), function ($query) use ($filters): void {
-                $query->where('motivo', $filters['motivo']);
+                if (array_key_exists($filters['motivo'], self::MOTIVOS_FILTRO)) {
+                    $query->whereRaw(
+                        '(case
+                            when tipo = ? then ?
+                            when tipo = ? or motivo = ? then ?
+                            when tipo = ? or motivo = ? then ?
+                            when motivo = ? then ?
+                            when motivo = ? then ?
+                            when tipo = ? then ?
+                            when motivo in (?, ?) then ?
+                            else ?
+                        end) = ?',
+                        [
+                            'venta', 'grupo:venta',
+                            'adquisicion', 'Compra / Adquisición', 'grupo:compra',
+                            'merma', 'Merma / Daño', 'grupo:merma',
+                            'Devolución', 'grupo:devolucion',
+                            'Uso interno', 'grupo:uso_interno',
+                            'ajuste', 'grupo:ajuste',
+                            'Producto creado', 'Stock inicial reconstruido para el historial de ventas', 'grupo:stock_inicial',
+                            'grupo:otros', $filters['motivo'],
+                        ],
+                    );
+                } else {
+                    $query->where('motivo', $filters['motivo']);
+                }
             })
             ->when(isset($filters['fecha_desde']), function ($query) use ($filters): void {
                 $query->whereDate('fecha_evento', '>=', $filters['fecha_desde']);
@@ -49,7 +85,7 @@ class InventarioMovimientoController extends Controller
             'catalogoProductos' => $this->catalogoProductos(),
             'categorias' => Categoria::orderBy('nombre_categoria')->get(),
             'proveedores' => Proveedor::orderBy('nombre')->get(),
-            'motivos' => InventarioMovimiento::query()->whereNotNull('motivo')->distinct()->orderBy('motivo')->pluck('motivo'),
+            'motivos' => self::MOTIVOS_FILTRO,
             'productoFiltrado' => isset($filters['producto'])
                 ? Producto::with('categoria')->find($filters['producto'])
                 : null,

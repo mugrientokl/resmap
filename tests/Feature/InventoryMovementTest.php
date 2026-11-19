@@ -469,6 +469,77 @@ class InventoryMovementTest extends TestCase
             ->assertSee('name="motivo"', false);
     }
 
+    public function test_reason_filter_groups_related_movements_and_preserves_other_history(): void
+    {
+        [$admin, $productId] = $this->createInventoryFixture(3);
+        $movements = [
+            ['venta', 'Venta registrada', 'grupo:venta'],
+            ['venta', 'Salida por venta de cotización', 'grupo:venta'],
+            ['adquisicion', 'Compra de reposición', 'grupo:compra'],
+            ['ingreso', 'Compra / Adquisición', 'grupo:compra'],
+            ['merma', 'Producto dañado', 'grupo:merma'],
+            ['egreso', 'Merma / Daño', 'grupo:merma'],
+            ['egreso', 'Devolución', 'grupo:devolucion'],
+            ['ajuste', 'Stock editado desde producto', 'grupo:ajuste'],
+            ['ajuste', 'Uso interno', 'grupo:uso_interno'],
+            ['ingreso', 'Producto creado', 'grupo:stock_inicial'],
+            ['entrada', 'Stock inicial reconstruido para el historial de ventas', 'grupo:stock_inicial'],
+            ['ingreso', 'Motivo histórico libre', 'grupo:otros'],
+            ['ingreso', null, 'grupo:otros'],
+        ];
+        $expected = [];
+        foreach ($movements as [$tipo, $motivo, $group]) {
+            $cantidad = in_array($tipo, ['venta', 'egreso', 'merma'], true) ? -1 : 1;
+            $movement = InventarioMovimiento::create([
+                'id_producto' => $productId, 'tipo' => $tipo, 'cantidad' => $cantidad,
+                'stock_anterior' => 3, 'stock_nuevo' => 3 + $cantidad, 'motivo' => $motivo,
+            ]);
+            $expected[$group][] = $movement->id_movimiento;
+        }
+
+        $this->actingAs($admin)->get(route('inventario.movimientos'))
+            ->assertOk()
+            ->assertSee('value="grupo:venta"', false)
+            ->assertSee('font-bold">-1</td>', false)
+            ->assertSee('font-bold">+1</td>', false)
+            ->assertDontSee('<option value="Salida por venta de cotización"', false)
+            ->assertDontSee('<option value="Motivo histórico libre"', false);
+
+        foreach ($expected as $group => $ids) {
+            $this->get(route('inventario.movimientos', ['motivo' => $group, 'producto' => $productId]))
+                ->assertOk()
+                ->assertViewHas('movimientos', fn ($result): bool => $result->pluck('id_movimiento')->sort()->values()->all() === $ids);
+        }
+    }
+
+    public function test_successive_acquisitions_update_the_product_price_and_keep_each_purchase_cost(): void
+    {
+        [$admin, $productId] = $this->createInventoryFixture(3);
+        $proveedor = Proveedor::factory()->create();
+        $purchase = [
+            'tipo' => 'ingreso', 'motivo' => 'Compra / Adquisición', 'fecha_evento' => '2026-10-15',
+            'proveedor_id' => $proveedor->id,
+        ];
+
+        $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
+            ...$purchase, 'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 1000]],
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5, 'precio' => 595]);
+
+        $this->post(route('inventario.movimientos.store'), [
+            ...$purchase, 'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 3001]],
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 7, 'precio' => 1785.60]);
+        $this->assertDatabaseHas('inventario_movimientos', [
+            'id_producto' => $productId, 'precio_entrada' => 1000, 'cantidad_adquirida' => 2,
+        ]);
+        $latest = InventarioMovimiento::query()->latest('id_movimiento')->firstOrFail();
+        $this->getJson(route('inventario.movimientos.show', $latest))
+            ->assertOk()->assertJsonPath('precio_entrada', 3001)
+            ->assertJsonPath('precio_unitario_adquisicion', 1500.5)
+            ->assertJsonPath('precio_venta_recomendado', 1785.6);
+    }
+
     private function createInventoryFixture(int $stock): array
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
