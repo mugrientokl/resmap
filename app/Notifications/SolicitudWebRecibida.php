@@ -19,7 +19,7 @@ class SolicitudWebRecibida extends Notification
     public function via(object $notifiable): array
     {
         return $this->solicitud->tipo_solicitud === 'servicio'
-            ? ['mail']
+            ? ['database', 'mail']
             : ['mail', 'database'];
     }
 

@@ -43,6 +43,7 @@ class ContactoClienteTest extends TestCase
             ...$datos,
             'contacto' => 'Beatriz',
             'cargo' => 'Equipo 12',
+            'direccion' => 'Calle 123',
             'tipo_servicio' => 'Mantención',
             'descripcion_servicio' => 'Revisión preventiva del equipo.',
         ])->assertSessionHasNoErrors();

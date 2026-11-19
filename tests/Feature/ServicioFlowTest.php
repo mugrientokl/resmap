@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\SolicitudWebRecibida;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Mail\Events\MessageSending;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Tests\TestCase;
@@ -17,7 +19,7 @@ class ServicioFlowTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_service_request_notifies_staff_only_by_email(): void
+    public function test_service_request_notifies_staff_by_email_and_database(): void
     {
         Notification::fake();
         $admin = User::factory()->create(['rol' => 'Administrador']);
@@ -25,23 +27,66 @@ class ServicioFlowTest extends TestCase
         $this->solicitarServicio();
 
         foreach ([$admin, $vendedor] as $usuario) {
-            Notification::assertSentTo($usuario, SolicitudWebRecibida::class, fn ($notificacion, $canales): bool => $canales === ['mail']
+            Notification::assertSentTo($usuario, SolicitudWebRecibida::class, fn ($notificacion, $canales): bool => $canales === ['database', 'mail']
                 && $notificacion->solicitud->tipo_solicitud === 'servicio');
         }
-        $this->assertDatabaseCount('notifications', 0);
     }
 
     public function test_mail_transport_failure_keeps_request_and_warns_customer(): void
     {
-        User::factory()->create(['rol' => 'Administrador']);
-        Notification::shouldReceive('send')->once()->andThrow(new TransportException('Fallo de prueba'));
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $vendedor = User::factory()->create(['rol' => 'Vendedor']);
+        Event::listen(MessageSending::class, fn () => throw new TransportException('Fallo de prueba'));
         $this->post(route('servicios.store'), [
             'rut' => '12345678-5', 'nombre' => 'Empresa', 'contacto' => 'Ana',
+            'correo' => 'cliente@example.test',
+            'prefijo_telefono' => '+569', 'telefono' => '12345678',
+            'direccion' => 'Calle 123', 'region' => 'Metropolitana', 'comuna' => 'Santiago',
+            'tipo_servicio' => 'Mantención', 'descripcion_servicio' => 'Revisión preventiva del equipo',
+        ])->assertRedirect(route('servicios.index'))
+            ->assertSessionHas('warning', 'Tu solicitud quedó registrada y el equipo recibió un aviso en el sistema, pero no se pudo enviar algún correo interno.');
+        $this->assertDatabaseHas('solicitud_webs', ['tipo_solicitud' => 'servicio', 'estado' => 'Pendiente']);
+        foreach ([$admin, $vendedor] as $usuario) {
+            $aviso = $usuario->notifications()->firstOrFail();
+            $this->assertSame('Nuevo servicio solicitado', $aviso->data['titulo']);
+            $this->assertSame(route('solicitudes.show', SolicitudWeb::firstOrFail()), $aviso->data['url']);
+        }
+    }
+
+    public function test_service_requires_address_and_provides_rut_lookup(): void
+    {
+        $this->get(route('servicios.index'))->assertOk()
+            ->assertSee('id="mensaje-cliente-solicitud"', false)
+            ->assertSee(asset('js/cliente-por-rut.js'), false)
+            ->assertSee(route('catalogo.cliente.rut'), false)
+            ->assertSee('name="direccion" value="" required', false);
+
+        $this->post(route('servicios.store'), [
+            'rut' => '12345678-5', 'nombre' => 'Empresa', 'contacto' => 'Ana',
+            'correo' => 'cliente@example.test',
             'prefijo_telefono' => '+569', 'telefono' => '12345678',
             'region' => 'Metropolitana', 'comuna' => 'Santiago',
             'tipo_servicio' => 'Mantención', 'descripcion_servicio' => 'Revisión preventiva del equipo',
-        ])->assertRedirect(route('servicios.index'))->assertSessionHas('warning');
-        $this->assertDatabaseHas('solicitud_webs', ['tipo_solicitud' => 'servicio', 'estado' => 'Pendiente']);
+        ])->assertSessionHasErrors('direccion');
+        $this->assertDatabaseCount('solicitud_webs', 0);
+    }
+
+    public function test_service_requires_a_valid_email(): void
+    {
+        $this->get(route('servicios.index'))->assertOk()
+            ->assertSee('name="correo" type="email" value="" required', false);
+
+        $datos = [
+            'rut' => '12345678-5', 'nombre' => 'Empresa', 'contacto' => 'Ana',
+            'prefijo_telefono' => '+569', 'telefono' => '12345678',
+            'direccion' => 'Calle 123', 'region' => 'Metropolitana', 'comuna' => 'Santiago',
+            'tipo_servicio' => 'Mantención', 'descripcion_servicio' => 'Revisión preventiva del equipo',
+        ];
+
+        $this->post(route('servicios.store'), $datos)->assertSessionHasErrors('correo');
+        $this->post(route('servicios.store'), [...$datos, 'correo' => 'correo-invalido'])
+            ->assertSessionHasErrors('correo');
+        $this->assertDatabaseCount('solicitud_webs', 0);
     }
 
     public function test_service_without_staff_recipients_is_saved_with_a_warning(): void
@@ -49,7 +94,10 @@ class ServicioFlowTest extends TestCase
         Notification::fake();
         $solicitud = $this->solicitarServicio();
         $this->assertNotNull($solicitud->id_solicitud);
-        $this->assertNotNull(session('warning'));
+        $this->assertSame(
+            'Tu solicitud quedó registrada, pero no hay destinatarios disponibles para avisar al equipo. Contacta a RESMAP.',
+            session('warning')
+        );
         Notification::assertNothingSent();
     }
 
@@ -207,7 +255,7 @@ class ServicioFlowTest extends TestCase
         $this->post(route('servicios.store'), [
             'rut' => '12345678-5', 'nombre' => 'Empresa', 'contacto' => 'Ana',
             'correo' => 'cliente@example.test', 'prefijo_telefono' => '+569',
-            'telefono' => '12345678', 'region' => 'Metropolitana', 'comuna' => 'Santiago',
+            'telefono' => '12345678', 'direccion' => 'Calle 123', 'region' => 'Metropolitana', 'comuna' => 'Santiago',
             'tipo_servicio' => 'Mantención', 'descripcion_servicio' => 'Revisión preventiva del equipo',
         ])->assertRedirect(route('servicios.index'));
 

@@ -34,10 +34,10 @@ class ServicioController extends Controller
             'nombre' => ['required', 'string', 'max:255'],
             'contacto' => ['required', 'string', 'max:255'],
             'cargo' => ['nullable', 'string', 'max:255'],
-            'correo' => ['nullable', 'email', 'max:255'],
+            'correo' => ['required', 'email', 'max:255'],
             'prefijo_telefono' => ['required', 'regex:/^\+[1-9][0-9]{0,4}$/'],
             'telefono' => ['required', 'regex:/^[0-9]{8}$/'],
-            'direccion' => ['nullable', 'string', 'max:255'],
+            'direccion' => ['required', 'string', 'max:255'],
             'region' => ['required', 'string', 'max:100'],
             'comuna' => ['required', 'string', 'max:100'],
             'tipo_servicio' => ['required', 'in:Mantención,Reparación,Soldadura'],
@@ -45,9 +45,11 @@ class ServicioController extends Controller
         ], [
             'rut.required' => 'Escribe tu RUT, por ejemplo: 12.345.678-5.',
             'nombre.required' => 'Escribe tu nombre o razón social.',
+            'correo.required' => 'Escribe tu correo electrónico.',
             'correo.email' => 'Escribe un correo electrónico válido.',
             'telefono.required' => 'Escribe los 8 dígitos de tu teléfono.',
             'telefono.regex' => 'El teléfono debe contener exactamente 8 dígitos.',
+            'direccion.required' => 'Escribe tu dirección.',
             'tipo_servicio.required' => 'Selecciona el tipo de servicio.',
             'descripcion_servicio.required' => 'Describe el servicio que necesitas.',
             'descripcion_servicio.min' => 'Describe tu necesidad con al menos 10 caracteres.',
@@ -60,9 +62,9 @@ class ServicioController extends Controller
                 'rut' => $data['rut'],
                 'nombre' => $data['nombre'],
                 'contacto' => $data['contacto'],
-                'correo' => $data['correo'] ?? null,
+                'correo' => $data['correo'],
                 'telefono' => $telefono,
-                'direccion' => $data['direccion'] ?? null,
+                'direccion' => $data['direccion'],
                 'region' => $data['region'],
                 'comuna' => $data['comuna'],
                 'ciudad' => $data['comuna'],
@@ -102,10 +104,17 @@ class ServicioController extends Controller
             }
         }
 
+        if ($destinatarios->isEmpty()) {
+            return redirect()->route('servicios.index')->with(
+                'warning',
+                'Tu solicitud quedó registrada, pero no hay destinatarios disponibles para avisar al equipo. Contacta a RESMAP.'
+            );
+        }
+
         return redirect()->route('servicios.index')->with(
             $fallosNotificacion ? 'warning' : 'success',
             $fallosNotificacion
-                ? 'Tu solicitud quedó registrada, pero no se pudo enviar algún aviso al equipo. Contacta a RESMAP.'
+                ? 'Tu solicitud quedó registrada y el equipo recibió un aviso en el sistema, pero no se pudo enviar algún correo interno.'
                 : 'Solicitud de servicio enviada. Te contactaremos pronto.'
         );
     }

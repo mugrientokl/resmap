@@ -97,6 +97,10 @@ window.inicializarSelectorTelefono = function (selectorId, inputId) {
 
     const paisInicial = window.paisesTelefono.find(pais => pais[1] === prefijoInicial) || window.paisesTelefono[0];
     mostrarSeleccion(paisInicial, paisInicial[1]);
+    selector.addEventListener('change', () => {
+        const pais = window.paisesTelefono.find(pais => pais[1] === selector.value);
+        if (pais) mostrarSeleccion(pais, selector.value);
+    });
     boton.addEventListener('click', event => {
         event.stopPropagation();
         menu.classList.toggle('hidden');

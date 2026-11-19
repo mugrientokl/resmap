@@ -169,7 +169,7 @@ class ProductAndCustomerSearchTest extends TestCase
             ->assertSee('id="rut_solicitud"', false)
             ->assertSee('id="mensaje-cliente-solicitud"', false)
             ->assertSee(route('catalogo.cliente.rut'), false)
-            ->assertSee('RUT ya registrado. Se autocompletaron los datos del cliente.');
+            ->assertSee(asset('js/cliente-por-rut.js'), false);
     }
 
     /**
