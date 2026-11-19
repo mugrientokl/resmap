@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 @php($isHome = request()->routeIs('home'))
-@php($posicionNavegacion = auth()->check() ? (\Illuminate\Support\Facades\DB::table('configuraciones')->where('clave', 'posicion_navegacion')->value('valor') ?? 'superior') : 'superior')
+@php($isStaff = auth()->check() && in_array(auth()->user()->rol, ['Administrador', 'Vendedor'], true))
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -196,8 +196,8 @@
             #main-menu { max-height: calc(100vh - 76px); overflow-y: auto; }
         }
 
-        @media (min-width: 768px) {
-            body.navegacion-izquierda { padding-top: 0; padding-left: 18rem; --content-gutter: clamp(1rem, 2vw, 2rem); }
+        @media all {
+            body.navegacion-izquierda { --content-gutter: clamp(1rem, 2vw, 2rem); }
             body.navegacion-izquierda > nav {
                 right: auto;
                 bottom: 0;
@@ -283,9 +283,9 @@
             }
             body.navegacion-izquierda .nav-badge { margin-left: auto; }
             body.navegacion-izquierda .profile-section {
-                margin-top: .75rem;
-                padding-top: .75rem;
-                border-top: 1px solid rgba(255, 255, 255, .25);
+                margin-bottom: .75rem;
+                padding-bottom: .75rem;
+                border-bottom: 1px solid rgba(255, 255, 255, .25);
             }
             body.navegacion-izquierda #profile-menu-button {
                 min-height: 3.25rem;
@@ -300,6 +300,40 @@
                 position: static;
                 margin-top: .25rem;
                 font-size: .9375rem;
+            }
+        }
+        @media (min-width: 768px) {
+            body.navegacion-izquierda { padding-top: 0; padding-left: 18rem; }
+        }
+        @media (max-width: 767px) {
+            body.navegacion-izquierda { padding-top: 4rem; }
+            body.navegacion-izquierda > nav {
+                width: min(18rem, 100vw);
+                visibility: hidden;
+                transform: translateX(-100%);
+                transition: transform .2s ease, visibility .2s;
+            }
+            body.navegacion-izquierda > nav.is-open {
+                visibility: visible;
+                transform: translateX(0);
+            }
+            body.navegacion-izquierda > nav > div { padding-top: 4rem; }
+            body.navegacion-izquierda #main-menu {
+                position: static;
+                display: flex;
+                max-height: none;
+                overflow: visible;
+                padding: 0;
+                background: transparent;
+                box-shadow: none;
+            }
+            body.navegacion-izquierda #mobile-menu-button {
+                position: fixed;
+                top: .75rem;
+                left: .75rem;
+                z-index: 50;
+                background: #8f241d;
+                box-shadow: 0 2px 8px rgba(36, 24, 23, .25);
             }
         }
 
@@ -344,22 +378,33 @@
         }
     </style>
 </head>
-<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ auth()->guest() ? 'navegacion-superior public-navigation' : ($posicionNavegacion === 'izquierda' ? 'navegacion-izquierda' : 'navegacion-superior') }}{{ request()->routeIs('catalogo.index') ? ' catalogo-page' : '' }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}">
+<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ $isStaff ? 'navegacion-izquierda' : 'navegacion-superior public-navigation' }}{{ request()->routeIs('catalogo.index') ? ' catalogo-page' : '' }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}">
+    @if($isStaff)
+        <button type="button" id="mobile-menu-button" class="rounded-md p-2 text-white hover:bg-[#721d18] md:hidden" aria-controls="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" aria-expanded="false" aria-label="Abrir menú">
+            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+        </button>
+    @endif
     <nav id="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" class="fixed inset-x-0 top-0 z-40 text-white {{ $isHome ? 'bg-transparent' : 'bg-[#8f241d] shadow-lg' }}">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
             <a href="{{ route('home') }}" class="brand-link flex items-center" aria-label="Ir al inicio de Resmap">
                 <img src="{{ asset('images/resmap sin fondo.png') }}" alt="Resmap" class="brand-logo h-12 w-auto max-w-45 object-contain">
                 <span class="brand-caption" aria-hidden="true">Repuestos y maquinaria</span>
             </a>
-            @auth
+            @if($isStaff)
                 @php($unreadNotifications = auth()->user()->unreadNotifications()->whereNull('deleted_at')->count())
                 @php($pendingRequests = \App\Models\SolicitudWeb::where('tipo_solicitud', '!=', 'servicio')->where(function ($query) { $query->whereDoesntHave('cotizacion')->orWhereHas('cotizacion', fn ($query) => $query->whereIn('estado', ['pendiente_revision', 'borrador'])); })->count())
-                <button type="button" id="mobile-menu-button" class="rounded-md p-2 hover:bg-[#721d18] md:hidden" aria-controls="main-menu" aria-expanded="false" aria-label="Abrir menú">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                </button>
-            @endauth
-            @auth
-                <div id="main-menu" class="absolute left-0 right-0 top-full hidden bg-[#8f241d] px-4 pb-4 shadow-lg md:static md:flex md:items-center md:gap-1 md:bg-transparent md:p-0 md:shadow-none xl:gap-4">
+                <div id="main-menu" class="flex flex-col md:static md:items-center md:gap-1 md:bg-transparent md:p-0 md:shadow-none xl:gap-4">
+                    <div class="profile-section relative">
+                        <button type="button" id="profile-menu-button" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-[#721d18]" aria-haspopup="true" aria-expanded="false">
+                            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#ffd5c9] font-bold text-[#8f241d]">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
+                            <span>{{ auth()->user()->name }}</span>
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7" /></svg>
+                        </button>
+                        <div id="profile-menu" class="absolute right-0 mt-1 hidden min-w-48 rounded-md bg-white py-1 text-sm text-gray-700 shadow-xl">
+                            <a href="{{ route('perfil.show') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Mi perfil</a>
+                            <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="block w-full px-4 py-2 text-left text-red-700 hover:bg-red-50">Cerrar sesión</button></form>
+                        </div>
+                    </div>
                     <a href="{{ route('dashboard') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('dashboard', 'dashboard.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13h8V3H3v10Zm0 8h8v-5H3v5Zm11 0h7V11h-7v10Zm0-18v5h7V3h-7Z"/></svg><span>Dashboard</span></a>
                     <a href="{{ route('productos.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('productos.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="m3 7 9-4 9 4-9 4-9-4Zm0 0v10l9 4 9-4V7m-9 4v10"/></svg><span>Inventario</span></a>
                     <a href="{{ route('pos.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('pos.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l2 11h11l3-8H6m2 12h.01M17 19h.01"/></svg><span>POS</span></a>
@@ -368,27 +413,17 @@
                         <a href="{{ route('clientes.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('clientes.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-5a4 4 0 0 1 0 7m2 8v-2a4 4 0 0 0-2-3.46"/></svg><span>Clientes</span></a>
                     @endif
                     @if(auth()->user()->rol === 'Administrador')
-                        <a href="{{ route('administracion.index') }}" class="nav-link block rounded px-3 py-2 text-sm font-bold hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('administracion.*', 'categorias.*', 'proveedores.*', 'usuarios.*', 'backups.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7ZM19 12l2-1-2-3-2 .5-1.5-1L15 5h-3l-.5 2.5-1.5 1L8 8l-2 3 2 1v2l-2 1 2 3 2-.5 1.5 1L12 21h3l.5-2.5 1.5-1 2 .5 2-3-2-1v-2Z"/></svg><span>Administración</span></a>
+                        <a href="{{ route('usuarios.index') }}" class="nav-link" @if(request()->routeIs('usuarios.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-5a4 4 0 0 1 0 7m2 8v-2a4 4 0 0 0-2-3.46"/></svg><span>Usuarios</span></a>
+                        <a href="{{ route('backups.index') }}" class="nav-link" @if(request()->routeIs('backups.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4V5Zm3 3h10M7 12h10M7 16h6"/></svg><span>Backups</span></a>
+                        <a href="{{ route('proveedores.index') }}" class="nav-link" @if(request()->routeIs('proveedores.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12v12H3V5Zm12 4h3l3 3v5h-6V9ZM7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg><span>Proveedores</span></a>
+                        <a href="{{ route('categorias.index') }}" class="nav-link" @if(request()->routeIs('categorias.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg><span>Categorías</span></a>
+                        <a href="{{ route('reportes.index') }}" class="nav-link" @if(request()->routeIs('reportes.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 20h16M6 17v-6m6 6V5m6 12V9"/></svg><span>Reportes</span></a>
+                        <a href="{{ route('inventario.movimientos') }}" class="nav-link" @if(request()->routeIs('inventario.movimientos*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg><span>Movimientos de Inventario</span></a>
+                        @can('ver-actividad')
+                            <a href="{{ route('actividad.index') }}" class="nav-link" @if(request()->routeIs('actividad.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 2M4 12a8 8 0 1 0 2-5.3L4 9m0-5v5h5"/></svg><span>Registro de Actividad</span></a>
+                        @endcan
                     @endif
-                    <div class="profile-section relative mt-2 border-t border-[#b5534b] pt-2 md:mt-0 md:border-0 md:pt-0">
-                        <button type="button" id="profile-menu-button" class="flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm hover:bg-[#721d18]" aria-haspopup="true" aria-expanded="false">
-                            <span class="flex h-7 w-7 items-center justify-center rounded-full bg-[#ffd5c9] font-bold text-[#8f241d]">{{ strtoupper(substr(auth()->user()->name, 0, 1)) }}</span>
-                            <span>{{ auth()->user()->name }}</span>
-                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 9-7 7-7-7" /></svg>
-                        </button>
-                        <div id="profile-menu" class="absolute right-0 mt-1 hidden min-w-48 rounded-md bg-white py-1 text-sm text-gray-700 shadow-xl">
-                            <a href="{{ route('perfil.show') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Mi perfil</a>
-                            @if(auth()->user()->rol === 'Administrador')
-                                <a href="{{ route('reportes.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Reportes</a>
-                                <a href="{{ route('inventario.movimientos') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Movimientos de Inventario</a>
-                                @can('ver-actividad')
-                                    <a href="{{ route('actividad.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Registro de Actividad</a>
-                                @endcan
-                            @endif
-                            <a href="{{ route('notificaciones.index') }}" class="block px-4 py-2 hover:bg-[#f7e8e6]">Avisos @if($unreadNotifications)<span class="ml-1 rounded-full bg-[#b52f25] px-2 py-0.5 text-xs text-white">{{ $unreadNotifications }}</span>@endif</a>
-                            <form method="POST" action="{{ route('logout') }}">@csrf<button type="submit" class="block w-full px-4 py-2 text-left text-red-700 hover:bg-red-50">Cerrar sesión</button></form>
-                        </div>
-                    </div>
+                    <a href="{{ route('notificaciones.index') }}" class="nav-link" @if(request()->routeIs('notificaciones.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M18 8a6 6 0 0 0-12 0c0 7-2 7-2 9h16c0-2-2-2-2-9ZM10 20h4"/></svg><span>Avisos</span> @if($unreadNotifications)<span class="nav-badge rounded-full bg-[#ffd5c9] px-2 py-0.5 text-xs text-[#8f241d]">{{ $unreadNotifications }}</span>@endif</a>
                 </div>
             @else
                 <button type="button" id="public-menu-toggle" hidden aria-controls="public-menu" aria-expanded="false" aria-label="Abrir menú">
@@ -400,7 +435,7 @@
                     <a href="{{ route('servicios.index') }}" class="nav-link" @if(request()->routeIs('servicios.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14.5 6.5a5 5 0 0 0-6.3 6.3l-5 5a2 2 0 0 0 2.8 2.8l5-5a5 5 0 0 0 6.3-6.3l-3.1 3.1-2.6-2.6 2.9-3.3Z"/></svg><span>Servicios</span></a>
                     <a href="{{ route('login') }}" class="nav-link"><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14 4h5v16h-5M10 8l4 4-4 4m4-4H3"/></svg><span>Acceso interno</span></a>
                 </div>
-            @endauth
+            @endif
         </div>
     </nav>
 
@@ -489,7 +524,7 @@
     @include('components.resmap-dialog')
     <script>
         const mobileMenuButton = document.getElementById('mobile-menu-button');
-        const mainMenu = document.getElementById('main-menu');
+        const staffNavigation = mobileMenuButton && document.getElementById(mobileMenuButton.getAttribute('aria-controls'));
         const profileMenuButton = document.getElementById('profile-menu-button');
         const profileMenu = document.getElementById('profile-menu');
         const homeNavigation = document.getElementById('home-navigation');
@@ -520,8 +555,9 @@
         updateHomeNavigation();
 
         mobileMenuButton?.addEventListener('click', () => {
-            const isHidden = mainMenu.classList.toggle('hidden');
-            mobileMenuButton.setAttribute('aria-expanded', String(!isHidden));
+            const isOpen = staffNavigation.classList.toggle('is-open');
+            mobileMenuButton.setAttribute('aria-expanded', String(isOpen));
+            mobileMenuButton.setAttribute('aria-label', isOpen ? 'Cerrar menú' : 'Abrir menú');
         });
 
         profileMenuButton?.addEventListener('click', () => {
@@ -530,9 +566,22 @@
         });
 
         document.addEventListener('click', (event) => {
+            if (staffNavigation && mobileMenuButton && !staffNavigation.contains(event.target) && !mobileMenuButton.contains(event.target)) {
+                staffNavigation.classList.remove('is-open');
+                mobileMenuButton.setAttribute('aria-expanded', 'false');
+                mobileMenuButton.setAttribute('aria-label', 'Abrir menú');
+            }
             if (profileMenu && profileMenuButton && !profileMenuButton.contains(event.target) && !profileMenu.contains(event.target)) {
                 profileMenu.classList.add('hidden');
                 profileMenuButton.setAttribute('aria-expanded', 'false');
+            }
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && staffNavigation?.classList.contains('is-open')) {
+                staffNavigation.classList.remove('is-open');
+                mobileMenuButton.setAttribute('aria-expanded', 'false');
+                mobileMenuButton.setAttribute('aria-label', 'Abrir menú');
+                mobileMenuButton.focus();
             }
         });
 
