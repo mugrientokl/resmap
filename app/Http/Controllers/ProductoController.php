@@ -9,6 +9,7 @@ use App\Models\Producto;
 use App\Models\ReservaInventario;
 use App\Services\RegistroActividad;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -248,19 +249,23 @@ class ProductoController extends Controller
 
     public function store(Request $request)
     {
+        if (is_string($request->input('nombre'))) {
+            $request->merge(['nombre' => trim($request->input('nombre'))]);
+        }
         $validator = Validator::make($request->all(), [
-            'codigo_barra' => [
-                'required',
-                'string',
-                'max:255',
-                'regex:/^[A-Za-z0-9._\/-]+$/',
-                'unique:productos,codigo_barra',
-            ],
+            'codigo_barra' => ['prohibited'],
+            'codigo_origen' => ['prohibited'],
             'nombre' => [
                 'required',
                 'string',
                 'max:255',
                 'not_regex:/^\d+$/',
+                'unique:productos,nombre',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    if (is_string($value) && $this->nombreExiste($value)) {
+                        $fail('Ya existe un repuesto con ese nombre.');
+                    }
+                },
             ],
             'descripcion' => 'nullable|string',
             'precio' => 'required|numeric|min:0|max:99999999.99',
@@ -291,7 +296,17 @@ class ProductoController extends Controller
             $datos['imagen'] = $imagenNueva;
         }
 
-        $producto = Producto::create($datos);
+        try {
+            $producto = Producto::crearConCodigo($datos);
+        } catch (UniqueConstraintViolationException $exception) {
+            if ($imagenNueva !== null) {
+                Storage::disk('public')->delete($imagenNueva);
+            }
+            if ($this->nombreExiste($datos['nombre'])) {
+                return redirect()->back()->withInput()->withErrors(['nombre' => 'Ya existe un repuesto con ese nombre.']);
+            }
+            throw $exception;
+        }
 
         InventarioMovimiento::create([
             'id_producto' => $producto->id_producto,
@@ -320,20 +335,31 @@ class ProductoController extends Controller
     {
         $producto = Producto::findOrFail($id);
         $seDesactiva = $producto->activo && ! $request->boolean('activo');
+        if (is_string($request->input('nombre'))) {
+            $request->merge(['nombre' => trim($request->input('nombre'))]);
+        }
 
         $validator = Validator::make($request->all(), [
+            'codigo_origen' => ['prohibited'],
             'codigo_barra' => [
                 'required',
                 'string',
                 'max:255',
                 'regex:/^[A-Za-z0-9._\/-]+$/',
                 'unique:productos,codigo_barra,'.$id.',id_producto',
+                'in:'.$producto->codigo_barra,
             ],
             'nombre' => [
                 'required',
                 'string',
                 'max:255',
                 'not_regex:/^\d+$/',
+                'unique:productos,nombre,'.$id.',id_producto',
+                function (string $attribute, mixed $value, \Closure $fail) use ($producto): void {
+                    if (is_string($value) && $this->nombreExiste($value, $producto->id_producto)) {
+                        $fail('Ya existe un repuesto con ese nombre.');
+                    }
+                },
             ],
             'descripcion' => 'nullable|string',
             'precio' => 'required|numeric|min:0|max:99999999.99',
@@ -415,6 +441,14 @@ class ProductoController extends Controller
                     ]);
                 }
             });
+        } catch (UniqueConstraintViolationException $exception) {
+            if ($imagenNueva !== null) {
+                Storage::disk('public')->delete($imagenNueva);
+            }
+            if ($this->nombreExiste($datos['nombre'], $producto->id_producto)) {
+                return redirect()->back()->withInput()->withErrors(['nombre' => 'Ya existe un repuesto con ese nombre.']);
+            }
+            throw $exception;
         } catch (\RuntimeException $exception) {
             if ($imagenNueva !== null) {
                 Storage::disk('public')->delete($imagenNueva);
@@ -458,5 +492,17 @@ class ProductoController extends Controller
         return redirect()
             ->route('productos.index')
             ->with('success', 'Producto eliminado con éxito.');
+    }
+
+    private function nombreExiste(string $nombre, ?int $productoId = null): bool
+    {
+        return Producto::query()
+            ->where(function ($query) use ($nombre): void {
+                $query->where('nombre_normalizado', Producto::claveNombre($nombre))
+                    ->orWhere('nombre', $nombre)
+                    ->orWhereRaw('LOWER(nombre) = ?', [mb_strtolower($nombre)]);
+            })
+            ->when($productoId !== null, fn ($query) => $query->where('id_producto', '!=', $productoId))
+            ->exists();
     }
 }

@@ -18,8 +18,7 @@
         @csrf
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">Código de Barra</label>
-            <input type="text" name="codigo_barra" value="{{ old('codigo_barra') }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+            <p class="text-sm text-gray-700">El código del repuesto se asignará automáticamente al guardarlo.</p>
         </div>
 
         <div>

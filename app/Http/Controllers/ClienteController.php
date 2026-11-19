@@ -148,7 +148,6 @@ class ClienteController extends Controller
                 'direccion' => $cliente->direccion,
                 'region' => $cliente->region,
                 'comuna' => $cliente->comuna,
-                'ciudad' => $cliente->ciudad,
             ],
         ]);
     }

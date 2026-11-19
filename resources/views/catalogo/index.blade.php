@@ -170,14 +170,14 @@
 <div id="carrito-modal"
     class="fixed inset-0 z-50 hidden bg-black/50 p-4"
     role="dialog" aria-modal="true" aria-labelledby="carrito-titulo">
-    <div class="ml-auto flex h-full w-full max-w-lg flex-col bg-[#8f241d] text-white shadow-2xl">
-        <div class="flex items-center justify-between border-b border-white/25 p-5">
-            <h2 id="carrito-titulo" class="text-2xl font-black text-white">
+    <div class="ml-auto flex h-full w-full max-w-lg flex-col bg-white text-[#241817] shadow-2xl">
+        <div class="flex items-center justify-between border-b border-[#e8c8c3] p-5">
+            <h2 id="carrito-titulo" class="text-2xl font-black text-[#8f241d]">
                 Tu carrito
             </h2>
 
             <button type="button" onclick="cerrarCarrito()"
-                class="rounded-md px-2 text-2xl text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="Cerrar carrito">
+                class="rounded-md px-2 text-2xl text-[#8f241d] hover:bg-[#f7e8e6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]" aria-label="Cerrar carrito">
                 &times;
             </button>
         </div>
@@ -198,9 +198,9 @@
             </div>
         </div>
 
-        <div class="border-t border-white/25 p-5">
+        <div class="border-t border-[#e8c8c3] p-5">
             <button type="button" onclick="abrirSolicitud()"
-                class="w-full rounded-md bg-[#fff7f5] p-3 font-bold text-[#8f241d] hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                class="w-full rounded-md bg-[#b52f25] p-3 font-bold text-white hover:bg-[#8f241d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]">
                 Continuar cotización
             </button>
         </div>
@@ -509,7 +509,7 @@ function agregar(id, nombre, stock) {
 
     if (seleccion[id].cantidad >= Math.min(stock, 99)) {
         mostrarErrorStock(
-            `Cantidad máxima para ${nombre}: ${Math.min(stock, 99)}.`
+            stock <= 99 ? `Stock insuficiente para ${nombre}: disponibles ${stock}.` : `El límite por producto es 99 unidades.`
         );
         return;
     }
@@ -526,7 +526,7 @@ function cambiarCantidad(id, cambio) {
 
     if (cambio > 0 && item.cantidad >= Math.min(Number(item.stock), 99)) {
         mostrarErrorStock(
-            `Cantidad máxima para ${item.nombre}: ${Math.min(Number(item.stock), 99)}.`
+            Number(item.stock) <= 99 ? `Stock insuficiente para ${item.nombre}: disponibles ${item.stock}.` : `El límite por producto es 99 unidades.`
         );
         return;
     }
@@ -560,6 +560,8 @@ function establecerCantidad(id, valor) {
         mostrarErrorStock(
             `Stock insuficiente para ${item.nombre}: disponibles ${stock}.`
         );
+    } else if (cantidadSolicitada > 99) {
+        mostrarErrorStock('El límite por producto es 99 unidades.');
     }
 }
 
@@ -616,8 +618,8 @@ function renderCarrito() {
             const cantidad = Number(item.cantidad);
 
             return `
-                <div class="flex items-center gap-3 border-b border-white/25 pb-3">
-                    <span class="min-w-0 flex-1 break-words font-semibold text-white">
+                <div class="flex items-center gap-3 border-b border-[#e8c8c3] pb-3">
+                    <span class="min-w-0 flex-1 break-words font-semibold text-[#241817]">
                         ${escaparHTML(item.nombre)}
                     </span>
                     <div class="flex shrink-0 items-center gap-2">
@@ -635,14 +637,14 @@ function renderCarrito() {
                             onclick="cambiarCantidad(${id}, -${cantidad})"
                             aria-label="Quitar ${escaparHTML(item.nombre)} del carrito"
                             title="Quitar del carrito"
-                            class="inline-flex h-8 w-8 items-center justify-center rounded-md text-white hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                            class="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#8f241d] hover:bg-[#f7e8e6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]">
                             <svg aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
                         </button>
                     </div>
                 </div>
             `;
         }).join('')
-        : '<p class="py-8 text-center text-white/80">Tu carrito está vacío.</p>';
+        : '<p class="py-8 text-center text-gray-500">Tu carrito está vacío.</p>';
 
     document.querySelectorAll('[id^="selector-"]').forEach(selector => {
         const id = Number(selector.id.replace('selector-', ''));

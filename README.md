@@ -31,6 +31,8 @@ Para cargar el inventario real desde el CSV incluido:
 php artisan db:seed --class=ProductoRealSeeder
 ```
 
+La migración de identificadores reemplaza los códigos de barras y de origen por códigos `RESMAP-` basados en el ID del producto y distingue los nombres duplicados. Conserva los valores anteriores en `producto_identificadores_anteriores`; los datos originales del CSV también permanecen en `productos_importados`. Los productos nuevos reciben su código automáticamente y los nombres no pueden repetirse, incluso con diferencias de mayúsculas. Antes de migrar, genera y verifica un respaldo y considera que las etiquetas y referencias externas con códigos anteriores deberán actualizarse.
+
 Las cuentas de prueba del `UserSeeder` son `admin` y `vendedor1`, ambas con contraseña `password123`.
 
 ## Funciones

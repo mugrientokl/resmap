@@ -40,12 +40,6 @@ class ProductoRealSeeder extends Seeder
 
         app(RegistroActividad::class)->enLote('Importación de productos desde '.$archivoOrigen, function () use ($file, $archivoOrigen, &$cabeceraEncontrada, &$filaOrigen, &$importados, &$revisar): array {
             DB::transaction(function () use ($file, $archivoOrigen, &$cabeceraEncontrada, &$filaOrigen, &$importados, &$revisar): void {
-                Producto::where(function ($query): void {
-                    $query->where('codigo_barra', 'like', 'KIT-%')
-                        ->orWhere('codigo_barra', 'like', 'SET-%')
-                        ->orWhere('codigo_barra', 'like', 'JUEGO-%');
-                })->delete();
-
                 while (($linea = fgets($file)) !== false) {
                     $filaOrigen++;
                     $linea = $this->normalizarCodificacion($linea);
@@ -100,10 +94,9 @@ class ProductoRealSeeder extends Seeder
                         ['descripcion' => 'Categoría importada desde inventario RESMAP']
                     );
 
-                    $codigoBarra = $this->codigoInterno($filaOrigen);
                     $stockNuevo = $this->stock($stockOrigen);
                     $productoExistente = Producto::query()
-                        ->where('codigo_barra', $codigoBarra)
+                        ->where('fila_origen', $filaOrigen)
                         ->lockForUpdate()
                         ->first();
 
@@ -121,21 +114,27 @@ class ProductoRealSeeder extends Seeder
                         }
                     }
 
-                    Producto::updateOrCreate(
-                        ['codigo_barra' => $codigoBarra],
-                        [
-                            'codigo_origen' => $codigoOrigen,
-                            'nombre' => $detalle ?: 'Producto sin nombre - fila '.$filaOrigen,
-                            'descripcion' => 'Importado desde '.$archivoOrigen.' | Fila '.$filaOrigen,
-                            'precio' => $this->precio($precioIvaOrigen),
-                            'stock' => $stockNuevo,
-                            'stock_critico' => 3,
-                            'id_categoria' => $categoria->id_categoria,
-                            'ubicacion' => $this->texto($row[1]),
-                            'fila_origen' => $filaOrigen,
-                            'estado_importacion' => $estado,
-                        ]
+                    $nombre = $this->nombreDisponible(
+                        $detalle ?: 'Producto sin nombre - fila '.$filaOrigen,
+                        $filaOrigen,
+                        $productoExistente?->id_producto,
                     );
+                    $datos = [
+                        'nombre' => $nombre,
+                        'descripcion' => 'Importado desde '.$archivoOrigen.' | Fila '.$filaOrigen,
+                        'precio' => $this->precio($precioIvaOrigen),
+                        'stock' => $stockNuevo,
+                        'stock_critico' => 3,
+                        'id_categoria' => $categoria->id_categoria,
+                        'ubicacion' => $this->texto($row[1]),
+                        'fila_origen' => $filaOrigen,
+                        'estado_importacion' => $estado,
+                    ];
+                    if ($productoExistente) {
+                        $productoExistente->update($datos);
+                    } else {
+                        Producto::crearConCodigo($datos);
+                    }
 
                     $importados++;
                     $revisar += $estado === 'revisar' ? 1 : 0;
@@ -221,9 +220,23 @@ class ProductoRealSeeder extends Seeder
         return $value !== null && preg_match('/^-?\d+$/', $value) === 1 ? (int) $value : 0;
     }
 
-    private function codigoInterno(int $filaOrigen): string
+    private function nombreDisponible(string $nombre, int $filaOrigen, ?int $productoId): string
     {
-        return sprintf('RESMAP-IMPORT-%06d', $filaOrigen);
+        $nombreBase = mb_substr(trim($nombre), 0, 255);
+        $candidato = $nombreBase;
+        $numero = 0;
+        while (Producto::query()
+            ->where(function ($query) use ($candidato): void {
+                $query->where('nombre_normalizado', Producto::claveNombre($candidato))
+                    ->orWhereRaw('LOWER(nombre) = ?', [mb_strtolower($candidato)]);
+            })
+            ->when($productoId !== null, fn ($query) => $query->where('id_producto', '!=', $productoId))
+            ->exists()) {
+            $sufijo = ' - fila '.$filaOrigen.($numero++ > 0 ? '-'.$numero : '');
+            $candidato = mb_substr($nombreBase, 0, 255 - mb_strlen($sufijo)).$sufijo;
+        }
+
+        return $candidato;
     }
 
     private function esKitOSet(?string $detalle): bool

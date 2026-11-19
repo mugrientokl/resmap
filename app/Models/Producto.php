@@ -9,10 +9,26 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class Producto extends Model
 {
     use HasFactory;
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $producto): void {
+            if ($producto->isDirty('nombre')) {
+                $producto->nombre_normalizado = self::claveNombre($producto->nombre);
+            }
+        });
+    }
+
+    public static function claveNombre(string $nombre): string
+    {
+        return hash('sha256', mb_convert_case(trim($nombre), MB_CASE_FOLD, 'UTF-8'));
+    }
 
     protected $table = 'productos';
 
@@ -40,6 +56,19 @@ class Producto extends Model
         return [
             'activo' => 'boolean',
         ];
+    }
+
+    public static function crearConCodigo(array $datos): self
+    {
+        return DB::transaction(function () use ($datos): self {
+            $datos['codigo_barra'] = 'TEMP-'.Str::uuid();
+            $datos['codigo_origen'] = null;
+            $producto = self::create($datos);
+            $codigo = sprintf('RESMAP-%06d', $producto->id_producto);
+            $producto->update(['codigo_barra' => $codigo, 'codigo_origen' => $codigo]);
+
+            return $producto;
+        });
     }
 
     protected function stockDisponible(): Attribute

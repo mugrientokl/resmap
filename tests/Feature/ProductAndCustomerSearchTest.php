@@ -131,6 +131,7 @@ class ProductAndCustomerSearchTest extends TestCase
         DB::table('clientes')->insert([
             'rut' => '76123456-0',
             'nombre' => 'Repuestos del Sur',
+            'contacto' => 'Contacto de prueba',
             'giro' => 'Venta de repuestos',
             'correo' => 'compras@example.com',
             'telefono' => '+56987654321',
@@ -147,6 +148,7 @@ class ProductAndCustomerSearchTest extends TestCase
                 'encontrado' => true,
                 'cliente' => [
                     'nombre' => 'Repuestos del Sur',
+                    'contacto' => 'Contacto de prueba',
                     'correo' => 'compras@example.com',
                     'telefono' => '+56987654321',
                     'direccion' => 'Av. Central 123',

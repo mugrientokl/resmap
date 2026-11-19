@@ -419,7 +419,9 @@ class CatalogoStockTest extends TestCase
 
         return DB::table('productos')->insertGetId([
             'codigo_barra' => 'TEST-'.uniqid(),
-            'nombre' => 'Producto de prueba',
+            'nombre' => DB::table('productos')->where('nombre', 'Producto de prueba')->exists()
+                ? 'Producto de prueba '.uniqid()
+                : 'Producto de prueba',
             'precio' => 1000,
             'stock' => $stock,
             'stock_critico' => 1,

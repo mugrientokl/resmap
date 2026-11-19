@@ -757,7 +757,9 @@ class B2BQuotationFlowTest extends TestCase
 
         return DB::table('productos')->insertGetId([
             'codigo_barra' => 'B2B-'.uniqid(),
-            'nombre' => 'Producto B2B de prueba',
+            'nombre' => DB::table('productos')->where('nombre', 'Producto B2B de prueba')->exists()
+                ? 'Producto B2B de prueba '.uniqid()
+                : 'Producto B2B de prueba',
             'precio' => 1190,
             'stock' => $stock,
             'stock_critico' => 1,

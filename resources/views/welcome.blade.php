@@ -26,7 +26,7 @@
             body.public-navigation .hero-content { min-height: max(100svh, 48rem); }
         }
     </style>
-    <main class="-mt-6">
+    <div class="-mt-6">
         <section class="hero-bleed relative isolate min-h-svh overflow-hidden bg-[#8f241d]" aria-label="Servicios destacados">
             <div id="hero-slides" class="absolute inset-0">
                 <article class="hero-slide absolute inset-0 opacity-100 transition-opacity duration-700" data-slide="0" aria-hidden="false">
@@ -82,7 +82,7 @@
                 <div id="kits-carrito-acceso" class="mt-6 hidden justify-end"><a href="{{ route('catalogo.index', ['open_cart' => 'true']) }}" class="inline-flex items-center gap-3 rounded-md bg-[#8f241d] px-5 py-3 font-bold text-white shadow-sm transition hover:bg-[#721d18]">Ver carrito <span id="kits-carrito-contador" class="rounded-full bg-white px-2 py-0.5 text-xs text-[#8f241d]">0</span> <span aria-hidden="true">→</span></a></div>
             </section>
         </section>
-    </main>
+    </div>
 
     <div id="carrito-modal" class="fixed inset-0 z-50 hidden bg-black/50 p-4" role="dialog" aria-modal="true" aria-labelledby="carrito-titulo">
         <div class="ml-auto flex h-full w-full max-w-lg flex-col bg-white shadow-2xl">

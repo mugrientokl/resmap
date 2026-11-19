@@ -479,7 +479,9 @@ class InventoryMovementTest extends TestCase
         ]);
         $productId = DB::table('productos')->insertGetId([
             'codigo_barra' => 'TEST-'.uniqid(),
-            'nombre' => 'Producto de prueba',
+            'nombre' => DB::table('productos')->where('nombre', 'Producto de prueba')->exists()
+                ? 'Producto de prueba '.uniqid()
+                : 'Producto de prueba',
             'precio' => 1190,
             'stock' => $stock,
             'stock_critico' => 1,

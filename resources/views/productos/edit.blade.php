@@ -20,7 +20,7 @@
 
         <div>
             <label class="block text-sm font-medium text-gray-700">Código de Barra</label>
-            <input type="text" name="codigo_barra" value="{{ old('codigo_barra', $producto->codigo_barra) }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+            <input type="text" name="codigo_barra" value="{{ $producto->codigo_barra }}" readonly required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
         </div>
 
         <div>

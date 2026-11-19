@@ -16,6 +16,8 @@
         body.homepage { padding-top: 0; }
 
         :root { --content-gutter: clamp(1rem, 10vw, 5cm); }
+        body.homepage,
+        body.servicios-page { --content-gutter: clamp(1rem, 2vw, 2rem); }
 
         body > main {
             max-width: none !important;
@@ -84,7 +86,7 @@
         }
         body.navegacion-superior .brand-logo {
             width: auto;
-            height: 3rem;
+            height: 3.4rem;
         }
         body.navegacion-superior .nav-link {
             display: flex;
@@ -95,7 +97,7 @@
             border: 1px solid transparent;
             border-radius: .65rem;
             color: #fff7f5;
-            font-size: .9375rem;
+            font-size: 1.0625rem;
             font-weight: 600;
             line-height: 1.25;
             transition: background-color .15s ease, border-color .15s ease;
@@ -130,7 +132,7 @@
             border: 1px solid rgba(255, 255, 255, .2);
             border-radius: .65rem;
             background-color: rgba(255, 255, 255, .07);
-            font-size: .9375rem;
+            font-size: 1rem;
         }
         body.navegacion-superior #profile-menu-button > span:first-child { flex: none; }
         body.navegacion-superior #profile-menu-button > span:nth-child(2) {
@@ -145,7 +147,7 @@
             border-radius: .65rem;
             font-size: .9375rem;
         }
-        @media (max-width: 1023px) {
+        @media (max-width: 1279px) {
             body.navegacion-superior #mobile-menu-button {
                 display: flex;
                 align-items: center;
@@ -183,7 +185,7 @@
             }
             body.navegacion-superior #profile-menu { position: static; margin-top: .35rem; }
         }
-        @media (min-width: 1024px) {
+        @media (min-width: 1280px) {
             body.navegacion-superior #main-menu { gap: .15rem; }
             body.navegacion-superior #main-menu > .nav-link { flex: none; white-space: nowrap; }
             body.navegacion-superior .profile-section { flex: none; margin-left: .35rem; }
@@ -221,7 +223,7 @@
             body.navegacion-izquierda .brand-logo {
                 width: 100%;
                 height: auto;
-                max-width: 13.5rem;
+                max-width: 14.5rem;
             }
             body.navegacion-izquierda .brand-caption {
                 display: block;
@@ -249,7 +251,7 @@
                 border: 1px solid transparent;
                 border-radius: .65rem;
                 color: #fff7f5;
-                font-size: .9375rem;
+                font-size: 1.0625rem;
                 font-weight: 600;
                 line-height: 1.35;
                 transition: background-color .15s ease, border-color .15s ease, color .15s ease;
@@ -289,7 +291,7 @@
                 border: 1px solid rgba(255, 255, 255, .18);
                 border-radius: .65rem;
                 background-color: rgba(255, 255, 255, .07);
-                font-size: .9375rem;
+                font-size: 1rem;
             }
             body.navegacion-izquierda #profile-menu-button:hover { background-color: rgba(255, 255, 255, .14); }
             body.navegacion-izquierda #profile-menu-button > svg { margin-left: auto; flex: none; }
@@ -341,7 +343,7 @@
         }
     </style>
 </head>
-<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ auth()->guest() ? 'navegacion-superior public-navigation' : ($posicionNavegacion === 'izquierda' ? 'navegacion-izquierda' : 'navegacion-superior') }}">
+<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ auth()->guest() ? 'navegacion-superior public-navigation' : ($posicionNavegacion === 'izquierda' ? 'navegacion-izquierda' : 'navegacion-superior') }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}">
     <nav id="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" class="fixed inset-x-0 top-0 z-40 text-white {{ $isHome ? 'bg-transparent' : 'bg-[#8f241d] shadow-lg' }}">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
             <a href="{{ route('home') }}" class="brand-link flex items-center" aria-label="Ir al inicio de Resmap">
