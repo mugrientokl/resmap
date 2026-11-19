@@ -47,7 +47,7 @@ class ResumenInternoVentaTest extends TestCase
             'region_cliente' => 'Biobío',
             'comuna_cliente' => 'Los Ángeles',
             'ciudad_cliente' => 'Concepción',
-            'acteco_emisor' => 'PRUEBA-002',
+            'acteco_emisor' => '453000',
             'tipo_venta' => 'del_giro',
             'tipo_compra' => 'del_giro',
             'detalles' => [['id_producto' => $productoId, 'cantidad' => 1]],
@@ -70,7 +70,7 @@ class ResumenInternoVentaTest extends TestCase
         $this->assertSame('Concepción', $venta->datos_resumen['ciudad']);
         $this->assertSame('del_giro', $venta->datos_resumen['tipo_venta']);
         $this->assertSame('del_giro', $venta->datos_resumen['tipo_compra']);
-        $this->assertSame('Venta de partes y piezas de vehículos automotores', $venta->datos_resumen['giro_emisor']);
+        $this->assertSame('Venta de partes, piezas y accesorios para vehículos automotores', $venta->datos_resumen['giro_emisor']);
         $this->assertDatabaseHas('clientes', [
             'rut' => '12345678-5',
             'comuna' => 'Los Ángeles',
@@ -135,7 +135,7 @@ class ResumenInternoVentaTest extends TestCase
             'region_cliente' => 'Biobío',
             'comuna_cliente' => 'Los Ángeles',
             'ciudad_cliente' => 'Los Ángeles',
-            'acteco_emisor' => 'PRUEBA-001',
+            'acteco_emisor' => '475201',
             'tipo_venta' => 'del_giro',
             'tipo_compra' => 'del_giro',
             'detalles' => [['id_producto' => $productoId, 'cantidad' => 1]],
@@ -178,9 +178,32 @@ class ResumenInternoVentaTest extends TestCase
             ->assertDontSee(route('solicitudes.pdf', $solicitud->id_solicitud), false);
 
         $respuesta = $this->get(route('solicitudes.pdf', $solicitud->id_solicitud));
-        $respuesta->assertOk();
-        $this->assertStringStartsWith('%PDF', $respuesta->getContent());
-        $this->get(route('ventas.resumen-interno', $venta->id_venta))->assertOk();
+        $respuesta->assertNotFound();
+        $this->get(route('ventas.resumen-interno', $venta->id_venta))->assertNotFound();
+        $this->get(route('reportes.ventas.resumen', $venta->id_venta))->assertNotFound();
+    }
+
+    public function test_legacy_quote_summary_is_frozen_on_first_report_download(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        [$solicitud, $venta] = $this->crearCotizacionConVenta($admin, [
+            'estado_venta' => 'confirmada',
+            'estado_facturacion' => 'pendiente',
+            'estado_entrega' => 'pendiente',
+        ]);
+        $venta->update([
+            'stock_descontado_at' => now(),
+            'datos_resumen' => ['nombre' => 'Cliente histórico', 'acteco_emisor' => 'PRUEBA-001'],
+        ]);
+
+        $this->actingAs($admin)->get(route('solicitudes.show', $solicitud->id_solicitud))
+            ->assertDontSee('Generar resumen interno');
+        $primeraDescarga = $this->get(route('reportes.ventas.resumen', $venta->id_venta))->assertOk()->getContent();
+        $this->assertStringStartsWith('%PDF', $primeraDescarga);
+        $this->assertNotNull($venta->fresh()->resumen_interno_pdf);
+
+        $venta->update(['total' => 99999]);
+        $this->assertSame($primeraDescarga, $this->get(route('reportes.ventas.resumen', $venta->id_venta))->assertOk()->getContent());
     }
 
     /**

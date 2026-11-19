@@ -44,7 +44,7 @@ class SalesFlowTest extends TestCase
             'region_cliente' => 'Metropolitana',
             'comuna_cliente' => 'Santiago',
             'ciudad_cliente' => 'Santiago',
-            'acteco_emisor' => 'PRUEBA-001',
+            'acteco_emisor' => '475201',
             'tipo_venta' => 'del_giro',
             'tipo_compra' => 'del_giro',
             'detalles' => [

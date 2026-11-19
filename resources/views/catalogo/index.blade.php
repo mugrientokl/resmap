@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('content')
-<main class="mx-auto max-w-7xl px-6 py-6 pb-32 lg:px-8">
+<main class="mx-auto max-w-7xl py-6 pb-32">
     <div>
         <p class="text-sm font-bold uppercase tracking-[.25em] text-[#9f2f25]">
             Catálogo de repuestos

@@ -80,6 +80,8 @@ class ReporteController extends Controller
             'total' => (float) $venta->total,
             'cotizacion_id' => $venta->cotizacionVersion?->cotizacion_id,
             'cotizacion_version' => $venta->cotizacionVersion?->numero_version,
+            'resumen_disponible' => $venta->cotizacion_version_id === null
+                || ! empty($venta->datos_resumen) || $venta->resumen_interno_pdf !== null,
             'ordenes_compra' => $venta->ordenesCompra->map(fn (OrdenCompra $orden): array => [
                 'id' => $orden->id_orden_compra,
                 'numero' => $orden->numero,

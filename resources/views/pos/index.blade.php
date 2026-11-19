@@ -276,12 +276,12 @@
                 </div>
                 <div>
                     <label for="acteco_emisor" class="block text-xs font-medium text-gray-700">
-                        Giro y ACTECO de prueba
+                        Giro y ACTECO
                     </label>
                     <select id="acteco_emisor" required
                         class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
                         <option value="">Selecciona un giro</option>
-                        @foreach(config('services.cotizaciones.actividades_emisor_prueba') as $codigo => $actividad)
+                        @foreach(config('services.cotizaciones.actividades_emisor') as $codigo => $actividad)
                             <option value="{{ $codigo }}">{{ $actividad }} · {{ $codigo }}</option>
                         @endforeach
                     </select>

@@ -100,7 +100,13 @@ class SolicitudWebController extends Controller
         $productos = $this->productosDeSolicitud($solicitud);
         $totales = $this->totalesDeSolicitud($productos);
         $productosDisponibles = Producto::query()->where('activo', true)
-            ->orderBy('nombre')->get(['id_producto', 'nombre', 'codigo_origen', 'codigo_barra', 'precio']);
+            ->select(['id_producto', 'nombre', 'codigo_origen', 'codigo_barra', 'precio', 'stock'])
+            ->withSum(['reservasActivas as stock_reservado' => function ($query) use ($solicitud): void {
+                if ($solicitud->cotizacion) {
+                    $query->where('cotizacion_id', '!=', $solicitud->cotizacion->id_cotizacion);
+                }
+            }], 'cantidad')
+            ->orderBy('nombre')->get();
         $solicitud->setAttribute('estado_comercial', $this->estadoComercial($solicitud));
         $cliente = Cliente::desdeSnapshot($solicitud->snapshotDatosCliente());
 
@@ -157,6 +163,8 @@ class SolicitudWebController extends Controller
             403,
             'El resumen interno estará disponible cuando la venta esté completada.'
         );
+
+        abort_if($venta->cotizacion_version_id !== null, 404);
 
         return $resumen->descargar($venta);
     }

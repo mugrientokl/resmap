@@ -70,7 +70,7 @@
                 Dirección: Av. Gabriela Mistral 1255, Bodega 48, Los Ángeles<br>
                 Correo: resmap.la@gmail.com<br>
                 @if(!empty($datosResumen['giro_emisor']))Giro: {{ $datosResumen['giro_emisor'] }}<br>@endif
-                @if(!empty($datosResumen['acteco_emisor']))ACTECO de prueba: {{ $datosResumen['acteco_emisor'] }}<br>@endif
+                @if(!empty($datosResumen['acteco_emisor']))ACTECO: {{ $datosResumen['acteco_emisor'] }}<br>@endif
                 @if(!empty($datosResumen['tipo_venta']))Tipo de venta: Del giro<br>@endif
             </td>
             <td>

@@ -103,7 +103,7 @@ class ServicioFlowTest extends TestCase
             ->assertSee('Mantención preventiva');
 
         $this->post(route('ventas.generar-resumen', $venta), [
-            'acteco_emisor' => array_key_first(config('services.cotizaciones.actividades_emisor_prueba')),
+            'acteco_emisor' => array_key_first(config('services.cotizaciones.actividades_emisor')),
             'tipo_venta' => 'del_giro',
             'rut' => '12345678-5',
             'nombre' => 'Empresa',

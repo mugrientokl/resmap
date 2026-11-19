@@ -55,10 +55,10 @@ return [
         'reserva_horas' => (int) env('COTIZACION_RESERVA_HORAS', 48),
         'vigencia_dias' => (int) env('COTIZACION_VIGENCIA_DIAS', 7),
         'costo_despacho' => (float) env('COTIZACION_COSTO_DESPACHO', 0),
-        'actividades_emisor_prueba' => [
-            'PRUEBA-001' => 'Venta al por menor de artículos de ferretería',
-            'PRUEBA-002' => 'Venta de partes y piezas de vehículos automotores',
-            'PRUEBA-003' => 'Mantención y reparación de vehículos automotores',
+        'actividades_emisor' => [
+            '475201' => 'Venta al por menor de artículos de ferretería y materiales de construcción',
+            '452002' => 'Mantenimiento y reparación de vehículos automotores',
+            '453000' => 'Venta de partes, piezas y accesorios para vehículos automotores',
         ],
     ],
 

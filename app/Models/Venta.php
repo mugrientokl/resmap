@@ -49,6 +49,7 @@ class Venta extends Model
         'confirmada_at',
         'entregada_at',
         'datos_resumen',
+        'resumen_interno_pdf',
     ];
 
     protected function casts(): array

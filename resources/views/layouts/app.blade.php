@@ -17,6 +17,7 @@
 
         :root { --content-gutter: clamp(1rem, 10vw, 5cm); }
         body.homepage,
+        body.catalogo-page,
         body.servicios-page { --content-gutter: clamp(1rem, 2vw, 2rem); }
 
         body > main {
@@ -343,7 +344,7 @@
         }
     </style>
 </head>
-<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ auth()->guest() ? 'navegacion-superior public-navigation' : ($posicionNavegacion === 'izquierda' ? 'navegacion-izquierda' : 'navegacion-superior') }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}">
+<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ auth()->guest() ? 'navegacion-superior public-navigation' : ($posicionNavegacion === 'izquierda' ? 'navegacion-izquierda' : 'navegacion-superior') }}{{ request()->routeIs('catalogo.index') ? ' catalogo-page' : '' }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}">
     <nav id="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" class="fixed inset-x-0 top-0 z-40 text-white {{ $isHome ? 'bg-transparent' : 'bg-[#8f241d] shadow-lg' }}">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
             <a href="{{ route('home') }}" class="brand-link flex items-center" aria-label="Ir al inicio de Resmap">

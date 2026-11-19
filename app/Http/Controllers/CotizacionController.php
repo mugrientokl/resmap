@@ -29,6 +29,7 @@ use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -322,12 +323,12 @@ class CotizacionController extends Controller
         return back()->with('success', 'La venta quedó registrada y el stock descontado.');
     }
 
-    public function generarResumen(Request $request, Venta $venta, ResumenInternoVentaPdf $resumen)
+    public function generarResumen(Request $request, Venta $venta, ResumenInternoVentaPdf $resumen): RedirectResponse|Response
     {
         abort_unless(($venta->cotizacion_version_id !== null || $venta->solicitudServicio()->exists())
             && $venta->estado_venta === 'confirmada'
             && $venta->stock_descontado_at !== null, 403);
-        $actividades = config('services.cotizaciones.actividades_emisor_prueba');
+        $actividades = config('services.cotizaciones.actividades_emisor');
         $datos = $request->validate([
             'acteco_emisor' => ['required', Rule::in(array_keys($actividades))],
             'tipo_venta' => ['required', Rule::in(['del_giro'])],
@@ -343,9 +344,24 @@ class CotizacionController extends Controller
             'numero_oc' => [Rule::requiredIf($venta->cotizacion_version_id !== null), 'nullable', 'string', 'max:100'],
         ]);
         $datos['giro_emisor'] = $actividades[$datos['acteco_emisor']];
-        $venta->update(['datos_resumen' => $datos]);
+        if ($venta->cotizacion_version_id === null) {
+            $venta->update(['datos_resumen' => $datos]);
 
-        return $resumen->descargar($venta);
+            return $resumen->descargar($venta);
+        }
+
+        DB::transaction(function () use ($venta, $datos, $resumen): void {
+            $venta = Venta::query()->whereKey($venta->id_venta)->lockForUpdate()->firstOrFail();
+            if ($venta->resumen_interno_pdf !== null || ! empty($venta->datos_resumen)) {
+                throw ValidationException::withMessages(['resumen' => 'El resumen interno ya fue generado y no puede modificarse.']);
+            }
+
+            $venta->datos_resumen = $datos;
+            $venta->resumen_interno_pdf = base64_encode($resumen->generar($venta));
+            $venta->save();
+        });
+
+        return back()->with('success', 'Resumen interno generado. Puedes descargarlo desde Reportes.');
     }
 
     public function descargarOrdenCompra(OrdenCompra $ordenCompra): StreamedResponse

@@ -45,7 +45,7 @@ class VentaController extends Controller
             'region_cliente' => 'required|string|max:100',
             'comuna_cliente' => 'required|string|max:100',
             'ciudad_cliente' => 'required|string|max:100',
-            'acteco_emisor' => ['required', Rule::in(array_keys(config('services.cotizaciones.actividades_emisor_prueba')))],
+            'acteco_emisor' => ['required', Rule::in(array_keys(config('services.cotizaciones.actividades_emisor')))],
             'tipo_venta' => ['required', Rule::in(['del_giro'])],
             'tipo_compra' => ['required', Rule::in(['del_giro'])],
             'numero_oc' => 'nullable|string|max:100',
@@ -56,7 +56,7 @@ class VentaController extends Controller
 
         try {
             $resultado = DB::transaction(function () use ($request, $datos) {
-                $actividades = config('services.cotizaciones.actividades_emisor_prueba');
+                $actividades = config('services.cotizaciones.actividades_emisor');
                 $cliente = Cliente::query()->lockForUpdate()->firstOrCreate(
                     ['rut' => $datos['rut']],
                     [
@@ -222,6 +222,9 @@ class VentaController extends Controller
 
     public function resumenInterno(int $venta, ResumenInternoVentaPdf $resumen)
     {
-        return $resumen->descargar(Venta::completadas()->findOrFail($venta));
+        $venta = Venta::completadas()->findOrFail($venta);
+        abort_if($venta->cotizacion_version_id !== null, 404);
+
+        return $resumen->descargar($venta);
     }
 }

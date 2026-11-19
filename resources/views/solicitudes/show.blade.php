@@ -11,6 +11,7 @@
         ? $ultimaVersion->detalles->map(fn ($item) => ['id_producto' => $item->producto_id, 'nombre' => $item->nombre_producto, 'cantidad' => $item->cantidad])
         : $productos->map(fn ($item) => ['id_producto' => $item['producto']?->id_producto, 'nombre' => $item['producto']?->nombre ?? 'Producto no encontrado', 'cantidad' => $item['cantidad']]);
     $datosResumen = $venta?->datos_resumen ?? [];
+    $datosProductosCotizacion = $productosDisponibles->map(fn ($p) => ['id' => $p->id_producto, 'nombre' => $p->nombre, 'codigo' => $p->codigo_origen ?: $p->codigo_barra, 'stock' => $p->stock_disponible])->values();
 @endphp
 <div class="mx-auto max-w-6xl">
     <div class="flex flex-wrap items-center justify-between gap-4">
@@ -163,25 +164,27 @@
                         <div id="items-cotizacion" class="space-y-2">
                             @foreach($itemsEdicion as $indice => $item)
                                 <div class="flex flex-wrap items-center gap-2" data-item>
-                                    <input type="hidden" name="items[{{ $indice }}][id_producto]" value="{{ $item['id_producto'] }}">
+                                    <input type="hidden" name="items[{{ $indice }}][id_producto]" value="{{ $item['id_producto'] }}" data-producto-id>
                                     <span class="min-w-40 flex-1 text-sm">{{ $item['nombre'] }}</span>
-                                    <input type="number" name="items[{{ $indice }}][cantidad]" value="{{ $item['cantidad'] }}" min="1" max="99999" required class="w-24 border p-2" aria-label="Cantidad de {{ $item['nombre'] }}">
+                                    <input type="number" name="items[{{ $indice }}][cantidad]" value="{{ $item['cantidad'] }}" min="1" max="99999" required data-cantidad class="w-24 border p-2" aria-label="Cantidad de {{ $item['nombre'] }}">
                                     <button type="button" data-quitar class="rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Quitar</button>
+                                    <p data-stock-mensaje role="status" class="w-full text-sm text-red-700"></p>
                                 </div>
                             @endforeach
                         </div>
                         <template id="nuevo-item">
                             <div class="flex flex-wrap items-center gap-2" data-item>
-                                <select name="items[__INDEX__][id_producto]" required class="min-w-40 flex-1 border p-2" aria-label="Repuesto">
-                                    <option value="">Selecciona un repuesto</option>
-                                    @foreach($productosDisponibles as $producto)
-                                        <option value="{{ $producto->id_producto }}">{{ $producto->nombre }} · {{ $producto->codigo_origen ?: $producto->codigo_barra }}</option>
-                                    @endforeach
-                                </select>
-                                <input type="number" name="items[__INDEX__][cantidad]" value="1" min="1" max="99999" required class="w-24 border p-2" aria-label="Cantidad">
+                                <div class="relative min-w-40 flex-1">
+                                    <input type="search" data-buscar-producto required autocomplete="off" placeholder="Escribe el nombre o código del repuesto" aria-label="Buscar repuesto" aria-autocomplete="list" aria-expanded="false" class="w-full border p-2">
+                                    <input type="hidden" name="items[__INDEX__][id_producto]" data-producto-id>
+                                    <div data-opciones class="absolute z-10 hidden max-h-56 w-full overflow-y-auto border bg-white shadow-lg"></div>
+                                </div>
+                                <input type="number" name="items[__INDEX__][cantidad]" value="1" min="1" max="99999" required data-cantidad class="w-24 border p-2" aria-label="Cantidad">
                                 <button type="button" data-quitar class="rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Quitar</button>
+                                <p data-stock-mensaje role="status" class="w-full text-sm text-red-700"></p>
                             </div>
                         </template>
+                        <script type="application/json" id="productos-cotizacion">@json($datosProductosCotizacion)</script>
                         <button type="button" id="agregar-item" class="block rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">+ Agregar repuesto</button>
                         @if($solicitud->metodo_entrega === 'despacho')
                             <label class="block text-sm font-bold">Costo despacho
@@ -229,23 +232,22 @@
                     </div>
                 @endif
             @endif
-                @if($ventaCompleta)
-                    <form id="form-resumen" method="POST" action="{{ route('ventas.generar-resumen', $venta->id_venta) }}" class="mt-6 space-y-4 border-t pt-5">
+                @if($ventaCompleta && ($esServicio || (empty($venta->datos_resumen) && $venta->resumen_interno_pdf === null)))
+                    <form id="form-resumen" method="POST" action="{{ route('ventas.generar-resumen', $venta->id_venta) }}" class="mt-6 space-y-4 border-t pt-5" @unless($esServicio) data-confirm-message="El resumen no podrá modificarse ni generarse nuevamente. ¿Confirmas que los datos son correctos?" data-confirm-title="Confirmar resumen interno" data-confirm-text="Generar resumen" @endunless>
                         @csrf
                         <h3 class="text-lg font-black">Generar resumen interno · Venta #{{ $venta->id_venta }}</h3>
                         <p class="text-sm text-amber-800">Este documento no es una factura ni un DTE tributario.</p>
                         <fieldset class="space-y-3 rounded-md border border-[#ead8d5] bg-[#fffaf9] p-4">
                             <legend class="px-1 font-black">Datos del emisor</legend>
                             <p class="text-sm">RESMAP · RUT 76.991.966-K<br>Av. Gabriela Mistral 1255, Bodega 48, Los Ángeles · resmap.la@gmail.com</p>
-                            <label class="block text-sm font-bold">Giro y ACTECO de prueba
+                            <label class="block text-sm font-bold">Giro y ACTECO
                                 <select name="acteco_emisor" required class="mt-1 block w-full rounded-md border p-2">
                                     <option value="">Selecciona un giro</option>
-                                    @foreach(config('services.cotizaciones.actividades_emisor_prueba') as $codigo => $actividad)
-                                        <option value="{{ $codigo }}" @selected(old('acteco_emisor', $datosResumen['acteco_emisor'] ?? '') === $codigo)>{{ $actividad }} · {{ $codigo }}</option>
+                                    @foreach(config('services.cotizaciones.actividades_emisor') as $codigo => $actividad)
+                                        <option value="{{ $codigo }}" @selected((string) old('acteco_emisor', $datosResumen['acteco_emisor'] ?? '') === (string) $codigo)>{{ $actividad }} · {{ $codigo }}</option>
                                     @endforeach
                                 </select>
                             </label>
-                            <p class="text-xs text-amber-800">Códigos ficticios para pruebas; no son códigos tributarios reales.</p>
                             <label class="block text-sm font-bold">Tipo de venta
                                 <select name="tipo_venta" required class="mt-1 block w-full rounded-md border p-2">
                                     <option value="del_giro" @selected(old('tipo_venta', $datosResumen['tipo_venta'] ?? 'del_giro') === 'del_giro')>Del giro</option>
@@ -282,6 +284,8 @@
                         </label>
                         <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Generar resumen interno</button>
                     </form>
+                @elseif($ventaCompleta)
+                    <p class="mt-6 border-t pt-5 text-sm">El resumen interno ya fue generado y no puede modificarse. Su descarga está disponible en Reportes para administradores.</p>
                 @endif
         </section>
     </div>
@@ -307,6 +311,29 @@
     const itemsCotizacion = document.getElementById('items-cotizacion');
     const botonAgregar = document.getElementById('agregar-item');
     if (itemsCotizacion && botonAgregar) {
+        const productos = JSON.parse(document.getElementById('productos-cotizacion').textContent);
+        const productosPorId = new Map(productos.map(producto => [String(producto.id), producto]));
+        const normalizar = texto => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+        const validarItem = (item, limitar = false) => {
+            const id = item.querySelector('[data-producto-id]').value;
+            const producto = productosPorId.get(id);
+            const cantidad = item.querySelector('[data-cantidad]');
+            const mensaje = item.querySelector('[data-stock-mensaje]');
+            const buscador = item.querySelector('[data-buscar-producto]');
+            if (buscador) buscador.setCustomValidity(id ? '' : 'Selecciona un repuesto de las opciones.');
+            if (!id) {
+                cantidad.setCustomValidity('');
+                mensaje.textContent = '';
+                return;
+            }
+            const stock = producto?.stock ?? 0;
+            const excede = Number(cantidad.value) > stock;
+            if (excede && limitar && stock > 0) cantidad.value = stock;
+            cantidad.max = Math.min(stock, 99999);
+            cantidad.setCustomValidity(stock === 0 ? 'Este repuesto no tiene stock disponible.' : (excede && !limitar ? `Stock disponible: ${stock}.` : ''));
+            mensaje.textContent = stock === 0 ? 'Sin stock disponible. Quita este repuesto.' : (excede && limitar ? `Stock disponible: ${stock}. La cantidad se ajustó al máximo.` : `Stock disponible: ${stock}.`);
+        };
+        itemsCotizacion.querySelectorAll('[data-item]').forEach(item => validarItem(item));
         let siguienteItem = itemsCotizacion.querySelectorAll('[data-item]').length;
         botonAgregar.addEventListener('click', () => {
             const plantilla = document.getElementById('nuevo-item').innerHTML.replaceAll('__INDEX__', siguienteItem++);
@@ -314,6 +341,52 @@
         });
         itemsCotizacion.addEventListener('click', event => {
             if (event.target.closest('[data-quitar]')) event.target.closest('[data-item]').remove();
+        });
+        itemsCotizacion.addEventListener('input', event => {
+            const item = event.target.closest('[data-item]');
+            if (!item) return;
+            if (event.target.matches('[data-cantidad]')) {
+                validarItem(item, true);
+                return;
+            }
+            if (!event.target.matches('[data-buscar-producto]')) return;
+            const buscador = event.target;
+            item.querySelector('[data-producto-id]').value = '';
+            validarItem(item);
+            const opciones = item.querySelector('[data-opciones]');
+            opciones.replaceChildren();
+            const texto = normalizar(buscador.value.trim());
+            if (!texto) {
+                opciones.classList.add('hidden');
+                buscador.setAttribute('aria-expanded', 'false');
+                return;
+            }
+            const seleccionados = new Set(Array.from(itemsCotizacion.querySelectorAll('[data-producto-id]'), input => input.value));
+            productos.filter(producto => normalizar(`${producto.nombre} ${producto.codigo}`).includes(texto)).slice(0, 20).forEach(producto => {
+                const opcion = document.createElement('button');
+                opcion.type = 'button';
+                opcion.className = 'block w-full border-b p-2 text-left text-sm hover:bg-gray-100 disabled:text-gray-400';
+                opcion.textContent = `${producto.nombre} · ${producto.codigo} · Stock: ${producto.stock}${seleccionados.has(String(producto.id)) ? ' · Ya agregado' : ''}`;
+                opcion.disabled = producto.stock <= 0 || seleccionados.has(String(producto.id));
+                opcion.addEventListener('click', () => {
+                    const duplicado = Array.from(itemsCotizacion.querySelectorAll('[data-producto-id]'))
+                        .some(input => input !== item.querySelector('[data-producto-id]') && input.value === String(producto.id));
+                    if (duplicado) {
+                        item.querySelector('[data-stock-mensaje]').textContent = 'Este repuesto ya fue agregado.';
+                        opcion.disabled = true;
+                        return;
+                    }
+                    item.querySelector('[data-producto-id]').value = producto.id;
+                    buscador.value = `${producto.nombre} · ${producto.codigo}`;
+                    opciones.classList.add('hidden');
+                    buscador.setAttribute('aria-expanded', 'false');
+                    validarItem(item, true);
+                });
+                opciones.append(opcion);
+            });
+            if (!opciones.childElementCount) opciones.textContent = 'No se encontraron repuestos.';
+            opciones.classList.remove('hidden');
+            buscador.setAttribute('aria-expanded', 'true');
         });
     }
 

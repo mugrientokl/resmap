@@ -294,14 +294,18 @@ class B2BQuotationFlowTest extends TestCase
         $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
         $this->post(route('cotizaciones.convertir-venta', $versionId));
         $ventaId = (int) DB::table('ventas')->value('id_venta');
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $this->actingAs($admin)->get(route('reportes.ventas.resumen', $ventaId))->assertNotFound();
+        $this->actingAs($seller);
         $this->get(route('solicitudes.show', $solicitudId))
             ->assertOk()
             ->assertSee('Datos del emisor')
             ->assertSee('Datos del receptor')
             ->assertSee('Número de orden de compra')
-            ->assertSee('Cliente de prueba');
+            ->assertSee('Cliente de prueba')
+            ->assertSee('El resumen no podrá modificarse ni generarse nuevamente');
         $datos = [
-            'acteco_emisor' => 'PRUEBA-002',
+            'acteco_emisor' => '453000',
             'tipo_venta' => 'del_giro',
             'nombre' => 'Empresa de prueba',
             'rut' => '12.345.678-5',
@@ -325,13 +329,12 @@ class B2BQuotationFlowTest extends TestCase
         $this->assertNull(DB::table('ventas')->value('datos_resumen'));
 
         $response = $this->post(route('ventas.generar-resumen', $ventaId), $datos);
-        $response->assertOk()->assertHeader('content-type', 'application/pdf');
-        $this->assertStringStartsWith('%PDF', $response->getContent());
+        $response->assertRedirect()->assertSessionHasNoErrors();
         $guardados = json_decode(DB::table('ventas')->value('datos_resumen'), true);
         $this->assertSame('OC-123', $guardados['numero_oc']);
         $this->assertSame('Responsable receptor', $guardados['contacto']);
-        $this->assertSame('PRUEBA-002', $guardados['acteco_emisor']);
-        $this->assertSame('Venta de partes y piezas de vehículos automotores', $guardados['giro_emisor']);
+        $this->assertSame('453000', $guardados['acteco_emisor']);
+        $this->assertSame('Venta de partes, piezas y accesorios para vehículos automotores', $guardados['giro_emisor']);
         $this->assertSame('del_giro', $guardados['tipo_venta']);
         $this->assertSame('del_giro', $guardados['tipo_compra']);
         $venta = Venta::findOrFail($ventaId);
@@ -342,7 +345,7 @@ class B2BQuotationFlowTest extends TestCase
             'logoDataUri' => '',
         ])->assertSee('EMISOR')
             ->assertSee('RECEPTOR')
-            ->assertSee('PRUEBA-002')
+            ->assertSee('453000')
             ->assertSee('Responsable receptor')
             ->assertSee('Ciudad: Santiago')
             ->assertSee('Tipo de venta: Del giro')
@@ -350,14 +353,20 @@ class B2BQuotationFlowTest extends TestCase
             ->assertDontSee('OT-123');
         $this->get(route('solicitudes.show', $solicitudId))
             ->assertOk()
-            ->assertSee('Responsable receptor')
-            ->assertSee('PRUEBA-002');
+            ->assertSee('El resumen interno ya fue generado')
+            ->assertDontSee('Generar resumen interno');
+        $this->post(route('ventas.generar-resumen', $ventaId), [...$datos, 'nombre' => 'Otro cliente'])
+            ->assertSessionHasErrors('resumen');
+        $this->assertSame('Empresa de prueba', Venta::findOrFail($ventaId)->datos_resumen['nombre']);
         $this->getJson(route('pos.cliente.rut', ['rut' => '12.345.678-5']))
             ->assertOk()->assertJsonPath('cliente.contacto', 'Contacto B2B')
             ->assertJsonStructure(['cliente' => ['razon_social', 'ciudad']]);
         $this->assertDatabaseCount('eventos_facturacion', 0);
-        $this->actingAs(User::factory()->create(['rol' => 'Administrador']))
-            ->get(route('reportes.ventas.resumen', $ventaId))->assertOk();
+        $original = base64_decode(Venta::findOrFail($ventaId)->resumen_interno_pdf, true);
+        $this->assertStringStartsWith('%PDF', $original);
+        DB::table('ventas')->where('id_venta', $ventaId)->update(['total' => 99999]);
+        $descarga = $this->actingAs($admin)->get(route('reportes.ventas.resumen', $ventaId))->assertOk();
+        $this->assertSame($original, $descarga->getContent());
     }
 
     public function test_new_quote_notifies_admin_and_seller_by_email(): void
@@ -404,6 +413,27 @@ class B2BQuotationFlowTest extends TestCase
             'cantidad' => 3,
             'estado' => 'activa',
         ]);
+    }
+
+    public function test_quote_editor_availability_excludes_other_reservations_but_includes_its_own(): void
+    {
+        Notification::fake();
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 2);
+        $firstId = (int) DB::table('solicitud_webs')->max('id_solicitud');
+        $this->createProductRequest($productId, 3);
+
+        $this->actingAs(User::factory()->create(['rol' => 'Vendedor']))
+            ->get(route('solicitudes.show', $firstId))
+            ->assertOk()
+            ->assertViewHas('productosDisponibles', fn ($productos) => $productos->firstWhere('id_producto', $productId)->stock_disponible === 2)
+            ->assertSee('data-buscar-producto', false);
+
+        $this->post(route('solicitudes.cotizacion.crear', $firstId), [
+            'items_edicion' => 1,
+            'items' => [['id_producto' => $productId, 'cantidad' => 3]],
+        ])->assertSessionHasErrors('detalles_productos');
+        $this->assertDatabaseHas('reservas_inventario', ['producto_id' => $productId, 'cantidad' => 2, 'estado' => 'activa']);
     }
 
     public function test_legacy_request_completion_cannot_bypass_b2b_quote_flow(): void
