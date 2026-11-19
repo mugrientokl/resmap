@@ -7,18 +7,60 @@ use App\Models\Cliente;
 use App\Models\CotizacionVersion;
 use App\Models\User;
 use App\Models\Venta;
+use App\Notifications\NuevaCotizacionPendiente;
 use App\Notifications\SolicitudWebRecibida;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class B2BQuotationFlowTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_opening_a_quote_marks_only_its_pending_notification_as_read(): void
+    {
+        Notification::fake();
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $cotizacionId = (int) DB::table('cotizaciones')->where('solicitud_id', $solicitudId)->value('id_cotizacion');
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $notificationIds = [(string) Str::uuid(), (string) Str::uuid()];
+
+        foreach ([$cotizacionId, $cotizacionId + 1] as $index => $idCotizacion) {
+            DB::table('notifications')->insert([
+                'id' => $notificationIds[$index],
+                'type' => NuevaCotizacionPendiente::class,
+                'notifiable_type' => User::class,
+                'notifiable_id' => $seller->id,
+                'data' => json_encode([
+                    'tipo' => 'cotizacion_pendiente',
+                    'cotizacion_id' => $idCotizacion,
+                    'titulo' => 'Nueva cotización B2B',
+                    'mensaje' => 'Cotización pendiente de revisión.',
+                    'url' => route('solicitudes.show', $solicitudId),
+                ]),
+                'read_at' => null,
+                'deleted_at' => null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $this->actingAs($seller)
+            ->get(route('notificaciones.index'))
+            ->assertOk();
+        $this->assertDatabaseHas('notifications', ['id' => $notificationIds[0], 'read_at' => null]);
+
+        $this->get(route('solicitudes.show', $solicitudId))->assertOk();
+
+        $this->assertDatabaseMissing('notifications', ['id' => $notificationIds[0], 'read_at' => null]);
+        $this->assertDatabaseHas('notifications', ['id' => $notificationIds[1], 'read_at' => null]);
+    }
 
     public function test_quote_pdf_shows_the_request_contact_and_optional_cargo_with_historical_customer_data(): void
     {

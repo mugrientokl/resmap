@@ -194,7 +194,7 @@
 
                 <div>
                     <label for="giro_cliente" class="block text-xs font-medium text-gray-700">
-                        <span id="etiqueta-giro-cliente">Giro (opcional para boleta)</span>
+                        <span id="etiqueta-giro-cliente">Giro del cliente (opcional para boleta)</span>
                     </label>
                     <input type="text" id="giro_cliente" maxlength="255" placeholder="Comercio de repuestos"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
@@ -276,7 +276,7 @@
                 </div>
                 <div>
                     <label for="acteco_emisor" class="block text-xs font-medium text-gray-700">
-                        Giro y ACTECO
+                        Giro del emisor y ACTECO
                     </label>
                     <select id="acteco_emisor" required
                         class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
@@ -417,8 +417,8 @@ function actualizarRequisitoGiro() {
     const requiereGiro = tipoDocumentoSelect.value === 'Factura Electrónica';
     giroClienteInput.required = requiereGiro;
     etiquetaGiroCliente.textContent = requiereGiro
-        ? 'Giro *'
-        : 'Giro (opcional para boleta)';
+        ? 'Giro del cliente *'
+        : 'Giro del cliente (opcional para boleta)';
 }
 
 tipoDocumentoSelect.addEventListener('change', actualizarRequisitoGiro);

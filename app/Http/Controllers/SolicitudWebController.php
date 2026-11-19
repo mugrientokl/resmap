@@ -9,6 +9,7 @@ use App\Models\Producto;
 use App\Models\ReservaInventario;
 use App\Models\SolicitudWeb;
 use App\Models\Venta;
+use App\Notifications\NuevaCotizacionPendiente;
 use App\Services\ResumenInternoVentaPdf;
 use App\Services\SeguimientoCotizacion;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -16,6 +17,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 
 class SolicitudWebController extends Controller
 {
@@ -87,7 +89,7 @@ class SolicitudWebController extends Controller
         return view('solicitudes.index', compact('solicitudes'));
     }
 
-    public function show($id)
+    public function show(Request $request, int $id): View
     {
         $solicitud = SolicitudWeb::with([
             'cliente',
@@ -97,6 +99,15 @@ class SolicitudWebController extends Controller
             'cotizacion.reservas',
             'venta.creditoAutorizadoPor',
         ])->findOrFail($id);
+
+        if ($solicitud->cotizacion) {
+            $request->user()->unreadNotifications()
+                ->whereNull('deleted_at')
+                ->where('type', NuevaCotizacionPendiente::class)
+                ->where('data->cotizacion_id', $solicitud->cotizacion->id_cotizacion)
+                ->update(['read_at' => now()]);
+        }
+
         $productos = $this->productosDeSolicitud($solicitud);
         $totales = $this->totalesDeSolicitud($productos);
         $productosDisponibles = Producto::query()->where('activo', true)
