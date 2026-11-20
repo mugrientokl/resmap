@@ -164,12 +164,16 @@
             </div>
             <div id="movement-provider-field" class="hidden">
                 <label for="movement-provider" class="mb-1 block text-sm font-medium text-gray-700">Proveedor</label>
-                <select id="movement-provider" name="proveedor_id" disabled class="w-full rounded-md border border-gray-300 p-2 text-sm">
-                    <option value="">Seleccione un proveedor</option>
-                    @foreach($proveedores as $proveedor)
-                        <option value="{{ $proveedor->id }}" @selected((string) old('proveedor_id') === (string) $proveedor->id)>{{ $proveedor->nombre }} · {{ $proveedor->contacto }}</option>
-                    @endforeach
-                </select>
+                <div class="flex flex-wrap gap-2">
+                    <select id="movement-provider" name="proveedor_id" disabled class="min-w-0 flex-1 rounded-md border border-gray-300 p-2 text-sm">
+                        <option value="">Seleccione un proveedor</option>
+                        @foreach($proveedores as $proveedor)
+                            <option value="{{ $proveedor->id }}" @selected((string) old('proveedor_id') === (string) $proveedor->id)>{{ $proveedor->nombre }} · {{ $proveedor->contacto }}</option>
+                        @endforeach
+                    </select>
+                    <button id="movement-new-provider" type="button" class="hidden rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Nuevo proveedor</button>
+                </div>
+                <p id="movement-provider-success" class="mt-1 text-sm text-green-700" role="status"></p>
                 <p class="mt-1 text-xs text-gray-600">La compra es un ingreso y la devolución al proveedor es un egreso. <a href="{{ route('proveedores.index') }}" class="font-bold text-[#9f2f25] underline">Administrar proveedores</a></p>
             </div>
             <div>
@@ -222,6 +226,25 @@
             <div class="flex items-end justify-end gap-2 md:col-span-2">
                 <button type="button" id="cancel-movement-modal" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Cancelar</button>
                 <button type="submit" class="rounded-md bg-[#b52f25] px-4 py-2 text-sm font-medium text-white hover:bg-[#8f241d]">Registrar Movimiento</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div id="movement-provider-modal" class="fixed inset-0 z-[60] hidden overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="movement-provider-modal-title">
+    <div class="mx-auto my-6 w-full max-w-md rounded-lg bg-white shadow-2xl">
+        <form id="movement-provider-form" action="{{ route('proveedores.store') }}" method="POST">
+            @csrf
+            <div class="flex items-center justify-between border-b px-6 py-4">
+                <h3 id="movement-provider-modal-title" class="text-lg font-bold text-gray-800">Nuevo proveedor</h3>
+                <button type="button" data-close-movement-provider class="text-2xl text-gray-500" aria-label="Cerrar formulario">&times;</button>
+            </div>
+            <div id="movement-provider-errors" class="mx-6 mt-4 hidden rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-700" role="alert"></div>
+            <div class="space-y-4 p-6">
+                @include('proveedores.campos', ['prefix' => 'movement-new-provider', 'useOld' => false])
+            </div>
+            <div class="flex justify-end gap-2 bg-gray-50 px-6 py-3">
+                <button type="button" data-close-movement-provider class="rounded-md border border-gray-300 px-4 py-2 text-sm">Cancelar</button>
+                <button type="submit" class="rounded-md bg-[#b52f25] px-4 py-2 text-sm font-bold text-white hover:bg-[#8f241d] disabled:opacity-50">Guardar</button>
             </div>
         </form>
     </div>
@@ -468,6 +491,12 @@
         const movementReason = document.getElementById('movement-reason');
         const providerField = document.getElementById('movement-provider-field');
         const providerSelect = document.getElementById('movement-provider');
+        const newProviderButton = document.getElementById('movement-new-provider');
+        const providerModal = document.getElementById('movement-provider-modal');
+        const providerForm = document.getElementById('movement-provider-form');
+        const providerErrors = document.getElementById('movement-provider-errors');
+        const providerSuccess = document.getElementById('movement-provider-success');
+        const providerSubmit = providerForm.querySelector('button[type="submit"]');
         const movementLines = document.getElementById('movement-lines');
         const addMovementLineButton = document.getElementById('add-movement-line');
         let nextLineIndex = Math.max(...Array.from(movementLines.querySelectorAll('.movement-line'), (line) => Number(line.dataset.index)), -1) + 1;
@@ -563,6 +592,7 @@
             const isReturn = movementReason.value === 'Devolución';
             const required = isPurchase || isReturn;
             providerField.classList.toggle('hidden', !required);
+            newProviderButton.classList.toggle('hidden', !isPurchase);
             providerSelect.disabled = !required;
             providerSelect.required = required;
             const documentField = document.getElementById('movement-document-field');
@@ -592,6 +622,51 @@
             document.body.classList.add('overflow-hidden');
             movementModal.querySelector('[role="combobox"]')?.focus();
         };
+
+        const closeProviderModal = () => {
+            if (providerSubmit.disabled) return;
+            providerModal.classList.add('hidden');
+            newProviderButton.focus();
+        };
+        newProviderButton.addEventListener('click', () => {
+            providerModal.classList.remove('hidden');
+            providerForm.elements.nombre.focus();
+        });
+        providerModal.querySelectorAll('[data-close-movement-provider]').forEach((button) => button.addEventListener('click', closeProviderModal));
+        providerModal.addEventListener('click', (event) => {
+            if (event.target === providerModal) closeProviderModal();
+        });
+        providerForm.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            providerSubmit.disabled = true;
+            providerErrors.classList.add('hidden');
+            providerErrors.replaceChildren();
+            try {
+                const response = await fetch(providerForm.action, {
+                    method: 'POST',
+                    headers: { Accept: 'application/json' },
+                    body: new FormData(providerForm),
+                });
+                const data = await response.json();
+                if (!response.ok) {
+                    const messages = data.errors ? Object.values(data.errors).flat() : [data.message || 'No se pudo registrar el proveedor.'];
+                    providerErrors.textContent = messages.join(' ');
+                    providerErrors.classList.remove('hidden');
+                    return;
+                }
+                const option = new Option(`${data.nombre} · ${data.contacto}`, data.id, true, true);
+                providerSelect.add(option);
+                providerSuccess.textContent = data.message;
+                providerForm.reset();
+                providerSubmit.disabled = false;
+                closeProviderModal();
+            } catch (error) {
+                providerErrors.textContent = 'No se pudo registrar el proveedor. Verifica la conexión e inténtalo nuevamente.';
+                providerErrors.classList.remove('hidden');
+            } finally {
+                providerSubmit.disabled = false;
+            }
+        });
 
         const closeMovementModal = () => {
             if (!movementModal) {
@@ -626,6 +701,10 @@
             }
         });
         document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !providerModal.classList.contains('hidden')) {
+                closeProviderModal();
+                return;
+            }
             if (event.key === 'Escape' && movementModal && !movementModal.classList.contains('hidden')) {
                 closeMovementModal();
             }

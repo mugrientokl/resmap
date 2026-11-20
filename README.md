@@ -44,7 +44,8 @@ Las cuentas de prueba del `UserSeeder` son `admin` y `vendedor1`, ambas con cont
 - `/productos`: inventario paginado, etiquetas, búsqueda y exportación CSV/PDF.
 - `/pos`: búsqueda por código de barras, carrito y registro de ventas.
 - `/solicitudes-web`: gestión de solicitudes por administrador y vendedor.
-- `/inventario/movimientos`: ajustes y trazabilidad del stock para administradores.
+- `/inventario/movimientos`: ajustes y trazabilidad del stock para administradores; permite registrar proveedores al ingresar una adquisición.
+- `/proveedores`: gestión de proveedores con teléfono móvil chileno (`+56 9` y ocho dígitos), correo electrónico y página web opcional. Los proveedores anteriores sin estos datos se conservan y deben completarse al editarlos.
 - `/reportes`: ventas por período, total, IVA, stock crítico y productos más vendidos.
 - `/auditoria`: altas, modificaciones y eliminaciones con usuario, IP y fecha.
 - `/administracion`: acceso desde «Administración» en la navegación para administrar categorías, proveedores, usuarios y backups; permite elegir la navegación superior o lateral para todos los usuarios autenticados, sin modificar la navegación pública. En móviles se mantiene el menú superior.

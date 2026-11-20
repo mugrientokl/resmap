@@ -343,16 +343,85 @@ class InventoryMovementTest extends TestCase
         $this->actingAs($admin)->get(route('proveedores.index'))
             ->assertOk()->assertSee('Imbra')->assertSee('Ricardo Soto')
             ->assertSee('Brajovic')->assertSee('Victoria Rodriguez');
-        $this->post(route('proveedores.store'), ['nombre' => 'Repuestos del Sur', 'contacto' => 'María Díaz'])
+        $this->post(route('proveedores.store'), [
+            'nombre' => 'Repuestos del Sur', 'contacto' => 'María Díaz',
+            'telefono' => '+56912345678', 'correo' => 'ventas@example.cl', 'pagina_web' => 'https://example.cl',
+        ])
             ->assertRedirect(route('proveedores.index'))->assertSessionHasNoErrors();
         $proveedor = Proveedor::where('nombre', 'Repuestos del Sur')->firstOrFail();
-        $this->put(route('proveedores.update', $proveedor), ['nombre' => 'Repuestos Sur', 'contacto' => 'Ana Soto'])
+        $this->put(route('proveedores.update', $proveedor), [
+            'nombre' => 'Repuestos Sur', 'contacto' => 'Ana Soto',
+            'telefono' => '+56223456789', 'correo' => 'ana@example.cl', 'pagina_web' => '',
+        ])
             ->assertRedirect(route('proveedores.index'))->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('proveedores', ['id' => $proveedor->id, 'nombre' => 'Repuestos Sur', 'contacto' => 'Ana Soto']);
+        $this->assertDatabaseHas('proveedores', [
+            'id' => $proveedor->id, 'nombre' => 'Repuestos Sur', 'contacto' => 'Ana Soto',
+            'telefono' => '+56223456789', 'correo' => 'ana@example.cl', 'pagina_web' => null,
+        ]);
+        $this->get(route('proveedores.index'))->assertSee('+56223456789')->assertSee('ana@example.cl');
         $this->post(route('proveedores.store'), ['nombre' => 'Repuestos Sur', 'contacto' => 'Otra persona'])
             ->assertSessionHasErrors('nombre');
         $this->put(route('proveedores.update', $proveedor), ['nombre' => 'Repuestos Sur', 'contacto' => ''])
             ->assertSessionHasErrors('contacto');
+    }
+
+    public function test_supplier_contact_fields_are_validated_on_creation_and_editing(): void
+    {
+        $this->actingAs(User::factory()->create(['rol' => 'Administrador']));
+        $proveedor = Proveedor::where('nombre', 'Imbra')->firstOrFail();
+        $this->assertNull($proveedor->telefono);
+        $this->assertNull($proveedor->correo);
+
+        $this->postJson(route('proveedores.store'), [])
+            ->assertUnprocessable()->assertJsonValidationErrors(['nombre', 'contacto', 'telefono', 'correo']);
+        $invalid = [
+            'nombre' => 'Proveedor nuevo', 'contacto' => 'Contacto',
+            'telefono' => '1234567', 'correo' => 'invalido', 'pagina_web' => 'ftp://example.cl',
+        ];
+        $this->postJson(route('proveedores.store'), $invalid)
+            ->assertUnprocessable()->assertJsonValidationErrors(['telefono', 'correo', 'pagina_web']);
+        $this->putJson(route('proveedores.update', $proveedor), $invalid)
+            ->assertUnprocessable()->assertJsonValidationErrors(['telefono', 'correo', 'pagina_web']);
+        $this->assertDatabaseHas('proveedores', ['id' => $proveedor->id, 'nombre' => 'Imbra', 'contacto' => 'Ricardo Soto']);
+
+        $this->put(route('proveedores.update', $proveedor), [
+            'nombre' => 'Imbra', 'contacto' => 'Ricardo Soto',
+            'telefono' => '87654321', 'correo' => 'imbra@example.cl',
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('proveedores', ['id' => $proveedor->id, 'telefono' => '+56987654321', 'correo' => 'imbra@example.cl']);
+    }
+
+    public function test_supplier_forms_show_required_fields_and_fixed_mobile_prefix(): void
+    {
+        $this->actingAs(User::factory()->create(['rol' => 'Administrador']));
+
+        foreach (['proveedores.index', 'inventario.movimientos'] as $page) {
+            $this->get(route($page))->assertOk()
+                ->assertSee('+56 9')
+                ->assertSee('pattern="[0-9]{8}" maxlength="8"', false);
+        }
+    }
+
+    public function test_supplier_created_as_json_can_be_used_in_an_acquisition_and_duplicates_are_rejected(): void
+    {
+        [$admin, $productId] = $this->createInventoryFixture(3);
+        $this->actingAs($admin);
+        $supplier = [
+            'nombre' => 'Proveedor modal', 'contacto' => 'Contacto modal',
+            'telefono' => '12345678', 'correo' => 'modal@example.cl', 'pagina_web' => 'https://example.cl',
+        ];
+        $response = $this->postJson(route('proveedores.store'), $supplier)
+            ->assertCreated()->assertJsonPath('nombre', 'Proveedor modal')->assertJsonPath('contacto', 'Contacto modal');
+        $providerId = $response->json('id');
+        $this->assertDatabaseHas('proveedores', ['id' => $providerId, ...$supplier, 'telefono' => '+56912345678']);
+        $this->postJson(route('proveedores.store'), $supplier)
+            ->assertUnprocessable()->assertJsonValidationErrors('nombre');
+        $this->post(route('inventario.movimientos.store'), [
+            'tipo' => 'ingreso', 'motivo' => 'Compra / Adquisición', 'fecha_evento' => '2026-10-15',
+            'proveedor_id' => $providerId,
+            'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 1000]],
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('inventario_movimientos', ['id_producto' => $productId, 'proveedor_id' => $providerId, 'cantidad' => 2]);
     }
 
     public function test_only_administrators_can_manage_suppliers(): void
@@ -361,6 +430,7 @@ class InventoryMovementTest extends TestCase
         $this->actingAs(User::factory()->create(['rol' => 'Vendedor']))
             ->get(route('proveedores.index'))->assertForbidden();
         $this->post(route('proveedores.store'), ['nombre' => 'Proveedor', 'contacto' => 'Contacto'])->assertForbidden();
+        $this->postJson(route('proveedores.store'), [])->assertForbidden();
     }
 
     public function test_purchase_and_supplier_return_require_valid_supplier_and_correct_stock_direction(): void

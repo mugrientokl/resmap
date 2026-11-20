@@ -11,6 +11,9 @@
             <thead class="bg-gray-50"><tr>
                 <th class="px-6 py-3 text-xs font-medium uppercase text-gray-500">Marca o proveedor</th>
                 <th class="px-6 py-3 text-xs font-medium uppercase text-gray-500">Vendedor o contacto</th>
+                <th class="px-6 py-3 text-xs font-medium uppercase text-gray-500">Teléfono</th>
+                <th class="px-6 py-3 text-xs font-medium uppercase text-gray-500">Correo electrónico</th>
+                <th class="px-6 py-3 text-xs font-medium uppercase text-gray-500">Página web</th>
                 <th class="px-6 py-3 text-xs font-medium uppercase text-gray-500">Acciones</th>
             </tr></thead>
             <tbody class="divide-y divide-gray-200">
@@ -18,12 +21,15 @@
                     <tr>
                         <td class="px-6 py-4 font-medium">{{ $proveedor->nombre }}</td>
                         <td class="px-6 py-4">{{ $proveedor->contacto }}</td>
+                        <td class="px-6 py-4">{{ $proveedor->telefono ?: '—' }}</td>
+                        <td class="px-6 py-4">{{ $proveedor->correo ?: '—' }}</td>
+                        <td class="px-6 py-4">{{ $proveedor->pagina_web ?: '—' }}</td>
                         <td class="px-6 py-4">
-                            <button type="button" data-edit-provider data-id="{{ $proveedor->id }}" data-nombre="{{ $proveedor->nombre }}" data-contacto="{{ $proveedor->contacto }}" class="rounded-md border border-[#d9aaa3] px-3 py-2 font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Editar</button>
+                            <button type="button" data-edit-provider data-id="{{ $proveedor->id }}" data-nombre="{{ $proveedor->nombre }}" data-contacto="{{ $proveedor->contacto }}" data-telefono="{{ $proveedor->telefono }}" data-correo="{{ $proveedor->correo }}" data-pagina-web="{{ $proveedor->pagina_web }}" class="rounded-md border border-[#d9aaa3] px-3 py-2 font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Editar</button>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="3" class="px-6 py-8 text-gray-500">No hay proveedores registrados.</td></tr>
+                    <tr><td colspan="6" class="px-6 py-8 text-gray-500">No hay proveedores registrados.</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -31,8 +37,8 @@
     <div class="mt-6">{{ $proveedores->links() }}</div>
 </div>
 
-<div id="provider-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 p-4">
-    <div role="dialog" aria-modal="true" aria-labelledby="provider-modal-title" class="w-full max-w-md overflow-hidden rounded-lg bg-white shadow-lg">
+<div id="provider-modal" class="fixed inset-0 z-50 hidden items-center justify-center overflow-y-auto bg-black/60 p-4">
+    <div role="dialog" aria-modal="true" aria-labelledby="provider-modal-title" class="max-h-full w-full max-w-md overflow-y-auto rounded-lg bg-white shadow-lg">
         <form id="provider-form" method="POST" action="{{ route('proveedores.store') }}" data-store-url="{{ route('proveedores.store') }}" data-update-url="{{ route('proveedores.update', ['proveedor' => '__ID__']) }}">
             @csrf
             <input id="provider-method" type="hidden" name="_method" value="PUT" disabled>
@@ -48,12 +54,7 @@
                 </div>
             @endif
             <div class="space-y-4 p-6">
-                <label class="block text-sm font-medium text-gray-700">Nombre de la marca o proveedor
-                    <input id="provider-name" name="nombre" value="{{ old('nombre') }}" required maxlength="255" class="mt-1 w-full rounded-md border border-gray-300 p-2">
-                </label>
-                <label class="block text-sm font-medium text-gray-700">Vendedor o contacto
-                    <input id="provider-contact" name="contacto" value="{{ old('contacto') }}" required maxlength="255" class="mt-1 w-full rounded-md border border-gray-300 p-2">
-                </label>
+                @include('proveedores.campos', ['prefix' => 'provider', 'useOld' => true])
             </div>
             <div class="flex justify-end gap-2 bg-gray-50 px-6 py-3">
                 <button type="button" data-close-provider class="rounded-md border border-gray-300 px-4 py-2 text-sm">Cancelar</button>
@@ -68,12 +69,16 @@
         const form = document.getElementById('provider-form');
         const name = document.getElementById('provider-name');
         const contact = document.getElementById('provider-contact');
+        const phone = document.getElementById('provider-phone');
+        const legacyPhone = document.getElementById('provider-legacy-phone');
+        const email = document.getElementById('provider-email');
+        const website = document.getElementById('provider-website');
         const type = document.getElementById('provider-form-type');
         const idField = document.getElementById('provider-id');
         const method = document.getElementById('provider-method');
         const title = document.getElementById('provider-modal-title');
         let previousFocus;
-        const open = (id, providerName, providerContact) => {
+        const open = (id, providerName, providerContact, providerPhone = '', providerEmail = '', providerWebsite = '') => {
             previousFocus = document.activeElement;
             type.value = id ? 'edit' : 'create';
             idField.value = id || '';
@@ -82,6 +87,13 @@
             title.textContent = id ? 'Editar proveedor' : 'Nuevo proveedor';
             name.value = providerName;
             contact.value = providerContact;
+            const isMobile = providerPhone.startsWith('+569');
+            const isLegacyPhone = providerPhone.startsWith('+56') && !isMobile;
+            phone.value = isMobile ? providerPhone.slice(4) : (isLegacyPhone ? '' : providerPhone);
+            legacyPhone.textContent = isLegacyPhone ? `Teléfono anterior: ${providerPhone}. Ingresa un número móvil para actualizarlo.` : '';
+            legacyPhone.classList.toggle('hidden', !isLegacyPhone);
+            email.value = providerEmail;
+            website.value = providerWebsite;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             name.focus();
@@ -93,13 +105,13 @@
         };
         document.getElementById('create-provider').addEventListener('click', () => open('', '', ''));
         document.querySelectorAll('[data-edit-provider]').forEach(button => {
-            button.addEventListener('click', () => open(button.dataset.id, button.dataset.nombre, button.dataset.contacto));
+            button.addEventListener('click', () => open(button.dataset.id, button.dataset.nombre, button.dataset.contacto, button.dataset.telefono, button.dataset.correo, button.dataset.paginaWeb));
         });
         modal.querySelectorAll('[data-close-provider]').forEach(button => button.addEventListener('click', close));
         modal.addEventListener('click', event => { if (event.target === modal) close(); });
         document.addEventListener('keydown', event => { if (event.key === 'Escape' && !modal.classList.contains('hidden')) close(); });
         @if($errors->any())
-            open(type.value === 'edit' ? idField.value : '', name.value, contact.value);
+            open(type.value === 'edit' ? idField.value : '', name.value, contact.value, phone.value, email.value, website.value);
         @endif
     });
 </script>
