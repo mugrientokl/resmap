@@ -32,15 +32,18 @@ class NotificacionTest extends TestCase
 
     public function test_notifications_can_be_trashed_restored_and_permanently_deleted(): void
     {
-        $usuario = User::factory()->create();
+        $usuario = User::factory()->create(['rol' => 'Vendedor']);
         $aviso = $this->crearAviso($usuario, 'Aviso de prueba');
         $this->actingAs($usuario);
 
         $this->get(route('notificaciones.index'))->assertOk()->assertSee('Aviso de prueba')->assertSee('Marcar todo como leído');
         $this->post(route('notificaciones.move-to-trash', $aviso))->assertRedirect();
         $this->assertNotNull(DB::table('notifications')->where('id', $aviso)->value('deleted_at'));
-        $this->get(route('notificaciones.index'))->assertDontSee('Aviso de prueba')
-            ->assertDontSee('Avisos <span class="ml-1', false);
+        $bandejaSinAvisos = $this->get(route('notificaciones.index'))->assertDontSee('Aviso de prueba');
+        $this->assertDoesNotMatchRegularExpression(
+            '/<span>Avisos<\/span>\s*<span class="nav-badge\b/',
+            $bandejaSinAvisos->getContent()
+        );
         $this->get(route('notificaciones.trash'))->assertSee('Aviso de prueba')->assertSee('Restaurar')->assertSee('Eliminar definitivamente')
             ->assertSee('data-confirm-message="¿Eliminar este aviso definitivamente? Esta acción no se puede deshacer."', false)
             ->assertSee('data-confirm-title="Eliminar aviso"', false)
@@ -48,8 +51,11 @@ class NotificacionTest extends TestCase
 
         $this->post(route('notificaciones.restore', $aviso))->assertRedirect();
         $this->assertDatabaseHas('notifications', ['id' => $aviso, 'deleted_at' => null, 'read_at' => null]);
-        $this->get(route('notificaciones.index'))->assertSee('Aviso de prueba')
-            ->assertSee('Avisos <span class="ml-1', false);
+        $bandejaRestaurada = $this->get(route('notificaciones.index'))->assertSee('Aviso de prueba');
+        $this->assertMatchesRegularExpression(
+            '/<span>Avisos<\/span>\s*<span class="nav-badge\b[^"]*">1<\/span>/',
+            $bandejaRestaurada->getContent()
+        );
         $this->get(route('notificaciones.trash'))->assertDontSee('Aviso de prueba');
 
         $this->post(route('notificaciones.move-to-trash', $aviso))->assertRedirect();

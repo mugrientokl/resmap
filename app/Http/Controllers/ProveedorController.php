@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Proveedor;
+use App\Support\TelefonoChileno;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -44,8 +45,8 @@ class ProveedorController extends Controller
     private function validateProveedor(Request $request, ?Proveedor $proveedor = null): array
     {
         $telefono = $request->input('telefono');
-        if (is_string($telefono) && preg_match('/^[0-9]{8}$/', $telefono)) {
-            $request->merge(['telefono' => '+569'.$telefono]);
+        if (is_string($telefono)) {
+            $request->merge(['telefono' => TelefonoChileno::normalizar($telefono)]);
         }
 
         return $request->validate([

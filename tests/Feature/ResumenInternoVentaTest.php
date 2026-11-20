@@ -80,7 +80,7 @@ class ResumenInternoVentaTest extends TestCase
         $this->get('/pos')
             ->assertOk()
             ->assertSee('Registrar venta')
-            ->assertSee('Giro (opcional para boleta)')
+            ->assertSee('Giro del cliente (opcional para boleta)')
             ->assertSee('Datos de venta y facturación')
             ->assertDontSee('Datos para el resumen interno')
             ->assertDontSee('id="tipo_venta"', false)

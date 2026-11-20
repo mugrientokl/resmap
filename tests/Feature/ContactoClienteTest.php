@@ -135,6 +135,47 @@ class ContactoClienteTest extends TestCase
         $this->assertDatabaseCount('clientes', 0);
     }
 
+    public function test_customer_edit_preserves_chilean_numbers_and_rejects_foreign_numbers(): void
+    {
+        $cliente = Cliente::create([
+            'rut' => '12345678-5',
+            'nombre' => 'Empresa',
+            'telefono' => '+56223456789',
+        ]);
+        $this->actingAs(User::factory()->create(['rol' => 'Administrador']));
+
+        $this->put(route('clientes.update', $cliente->id_cliente), [
+            'rut' => $cliente->rut, 'nombre' => $cliente->nombre, 'telefono' => '223456789',
+        ])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('clientes', ['id_cliente' => $cliente->id_cliente, 'telefono' => '+56223456789']);
+
+        $this->put(route('clientes.update', $cliente->id_cliente), [
+            'rut' => $cliente->rut, 'nombre' => $cliente->nombre, 'telefono' => '+541123456789',
+        ])->assertSessionHasErrors('telefono');
+        $this->assertDatabaseHas('clientes', ['id_cliente' => $cliente->id_cliente, 'telefono' => '+56223456789']);
+    }
+
+    public function test_sale_normalizes_chilean_phone_and_rejects_duplicated_prefix(): void
+    {
+        $producto = $this->crearProducto();
+        $this->actingAs(User::factory()->create(['rol' => 'Vendedor']));
+        $venta = [
+            'rut' => '12345678-5', 'nombre_cliente' => 'Empresa', 'contacto' => 'Ana',
+            'correo_cliente' => 'cliente@example.test', 'direccion_cliente' => 'Calle 123',
+            'region_cliente' => 'Metropolitana', 'comuna_cliente' => 'Santiago', 'ciudad_cliente' => 'Santiago',
+            'acteco_emisor' => '475201', 'tipo_venta' => 'del_giro', 'tipo_compra' => 'del_giro',
+            'tipo_documento' => 'Boleta Electrónica', 'medio_pago' => 'Efectivo',
+            'detalles' => [['id_producto' => $producto, 'cantidad' => 1]],
+        ];
+
+        $this->postJson('/ventas', [...$venta, 'telefono_cliente' => '+5656912345678'])
+            ->assertUnprocessable()->assertJsonValidationErrors('telefono_cliente');
+        $this->assertDatabaseCount('ventas', 0);
+
+        $this->postJson('/ventas', [...$venta, 'telefono_cliente' => '912345678'])->assertCreated();
+        $this->assertDatabaseHas('clientes', ['rut' => '12345678-5', 'telefono' => '+56912345678']);
+    }
+
     public function test_failed_reservation_rolls_back_contact_change_and_history(): void
     {
         Notification::fake();

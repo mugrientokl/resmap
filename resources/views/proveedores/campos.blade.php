@@ -7,9 +7,14 @@
 <div>
     <label for="{{ $prefix }}-phone" class="block text-sm font-medium text-gray-700">Teléfono chileno <span class="text-[#b52f25]" aria-hidden="true">*</span></label>
     <div class="mt-1 flex">
-        <span class="flex items-center rounded-l-md border border-r-0 border-gray-300 bg-[#f7e8e6] px-3 font-bold text-[#8f241d]">+56 9</span>
-        <input id="{{ $prefix }}-phone" name="telefono" type="tel" value="{{ $useOld ? old('telefono') : '' }}" required pattern="[0-9]{8}" maxlength="8" inputmode="numeric" placeholder="12345678" title="Ingresa los 8 dígitos del teléfono." class="min-w-0 flex-1 rounded-r-md border border-gray-300 p-2">
+        <select id="{{ $prefix }}-phone-prefix" aria-label="Código de país"></select>
+        <input id="{{ $prefix }}-phone" name="telefono" type="tel" value="{{ $useOld ? old('telefono') : '' }}" required pattern="[2-9][0-9]{8}" maxlength="9" inputmode="numeric" placeholder="912345678" class="min-w-0 flex-1 rounded-r-md border border-gray-300 p-2">
     </div>
+    <script src="{{ asset('js/chile-location.js') }}"></script>
+    <script>
+        inicializarSelectorTelefono(@json($prefix.'-phone-prefix'), @json($prefix.'-phone'));
+        document.getElementById(@json($prefix.'-phone')).value = window.telefonoNacionalChile(document.getElementById(@json($prefix.'-phone')).value);
+    </script>
     <p id="{{ $prefix }}-legacy-phone" class="mt-1 hidden text-sm text-gray-600"></p>
 </div>
 <label class="block text-sm font-medium text-gray-700">Correo electrónico <span class="text-[#b52f25]" aria-hidden="true">*</span>

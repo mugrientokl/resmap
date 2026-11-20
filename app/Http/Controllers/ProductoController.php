@@ -200,6 +200,32 @@ class ProductoController extends Controller
         return 'Disponible';
     }
 
+    public function buscarParaPos(Request $request)
+    {
+        $datos = $request->validate(['buscar' => ['required', 'string', 'max:100']]);
+        $buscar = trim($datos['buscar']);
+
+        if ($buscar === '') {
+            return response()->json(['message' => 'Escribe un nombre o código de producto.'], 422);
+        }
+
+        $productos = Producto::query()
+            ->where('activo', true)
+            ->withSum('reservasActivas as stock_reservado', 'cantidad')
+            ->buscarCoincidencias($buscar)
+            ->orderBy('nombre')
+            ->limit(8)
+            ->get();
+
+        return response()->json($productos->map(fn (Producto $producto): array => [
+            'id_producto' => $producto->id_producto,
+            'nombre' => $producto->nombre,
+            'codigo' => $producto->codigo_origen ?: $producto->codigo_barra,
+            'precio' => (float) $producto->precio,
+            'stock' => $producto->stock_disponible,
+        ]));
+    }
+
     public function buscarPorCodigo(Request $request)
     {
         $codigo = $request->string('codigo')->trim()->toString();

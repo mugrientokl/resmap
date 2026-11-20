@@ -29,8 +29,11 @@
                 <input type="email" name="correo" value="{{ old('correo', $cliente->correo) }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
             </div>
             <div>
-                <label class="block text-sm font-medium text-gray-700">Teléfono</label>
-                <input type="text" name="telefono" value="{{ old('telefono', $cliente->telefono) }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+                <label for="telefono_cliente" class="block text-sm font-medium text-gray-700">Teléfono</label>
+                <div class="mt-1 flex">
+                    <select id="prefijo_telefono_cliente" aria-label="Código de país"></select>
+                    <input id="telefono_cliente" type="tel" name="telefono" value="{{ old('telefono', $cliente->telefono) }}" pattern="[2-9][0-9]{8}" maxlength="9" inputmode="numeric" placeholder="912345678" class="min-w-0 flex-1 rounded-r-md border border-gray-300 p-2 shadow-sm">
+                </div>
             </div>
         </div>
 
@@ -46,4 +49,10 @@
     </form>
 </div>
 <script src="{{ asset('js/rut.js') }}"></script>
+<script src="{{ asset('js/chile-location.js') }}"></script>
+<script>
+    const telefonoCliente = document.getElementById('telefono_cliente');
+    telefonoCliente.value = window.telefonoNacionalChile(telefonoCliente.value);
+    inicializarSelectorTelefono('prefijo_telefono_cliente', 'telefono_cliente');
+</script>
 @endsection

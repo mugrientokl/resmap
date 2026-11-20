@@ -35,8 +35,8 @@ class ServicioController extends Controller
             'contacto' => ['required', 'string', 'max:255'],
             'cargo' => ['nullable', 'string', 'max:255'],
             'correo' => ['required', 'email', 'max:255'],
-            'prefijo_telefono' => ['required', 'regex:/^\+[1-9][0-9]{0,4}$/'],
-            'telefono' => ['required', 'regex:/^[0-9]{8}$/'],
+            'prefijo_telefono' => ['required', 'in:+56,+569'],
+            'telefono' => ['required', 'regex:/^[0-9]{8,9}$/'],
             'direccion' => ['required', 'string', 'max:255'],
             'region' => ['required', 'string', 'max:100'],
             'comuna' => ['required', 'string', 'max:100'],
@@ -47,8 +47,8 @@ class ServicioController extends Controller
             'nombre.required' => 'Escribe tu nombre o razón social.',
             'correo.required' => 'Escribe tu correo electrónico.',
             'correo.email' => 'Escribe un correo electrónico válido.',
-            'telefono.required' => 'Escribe los 8 dígitos de tu teléfono.',
-            'telefono.regex' => 'El teléfono debe contener exactamente 8 dígitos.',
+            'telefono.required' => 'Escribe tu teléfono chileno.',
+            'telefono.regex' => 'El teléfono debe contener los dígitos nacionales.',
             'direccion.required' => 'Escribe tu dirección.',
             'tipo_servicio.required' => 'Selecciona el tipo de servicio.',
             'descripcion_servicio.required' => 'Describe el servicio que necesitas.',
@@ -56,6 +56,9 @@ class ServicioController extends Controller
         ]);
 
         $telefono = $data['prefijo_telefono'].$data['telefono'];
+        validator(['telefono' => $telefono], [
+            'telefono' => ['regex:/^\+56[2-9][0-9]{8}$/'],
+        ], ['telefono.regex' => 'Ingresa un teléfono chileno válido.'])->validate();
 
         $solicitud = DB::transaction(function () use ($data, $telefono, $actualizarCliente): SolicitudWeb {
             $cliente = $actualizarCliente->actualizarDesdeSolicitud([

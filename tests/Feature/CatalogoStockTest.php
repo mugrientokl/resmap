@@ -90,6 +90,22 @@ class CatalogoStockTest extends TestCase
         ]);
     }
 
+    public function test_catalog_rejects_non_chilean_or_duplicated_phone_prefixes(): void
+    {
+        $productId = $this->createProductWithStock(3);
+        $datos = [
+            ...$this->validCustomerData(),
+            'detalles_productos' => [['id_producto' => $productId, 'cantidad' => 1]],
+        ];
+
+        $this->post(route('catalogo.solicitudes.store'), [...$datos, 'prefijo_telefono' => '+54'])
+            ->assertSessionHasErrors('prefijo_telefono');
+        $this->post(route('catalogo.solicitudes.store'), [
+            ...$datos, 'prefijo_telefono' => '+56', 'telefono' => '56912345678',
+        ])->assertSessionHasErrors('telefono');
+        $this->assertDatabaseCount('solicitud_webs', 0);
+    }
+
     public function test_catalog_request_success_shows_a_dedicated_confirmation_without_a_duplicate_notification(): void
     {
         $this->withSession(['success' => 'El equipo de RESMAP se pondrá en contacto contigo.'])

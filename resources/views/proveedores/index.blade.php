@@ -87,11 +87,8 @@
             title.textContent = id ? 'Editar proveedor' : 'Nuevo proveedor';
             name.value = providerName;
             contact.value = providerContact;
-            const isMobile = providerPhone.startsWith('+569');
-            const isLegacyPhone = providerPhone.startsWith('+56') && !isMobile;
-            phone.value = isMobile ? providerPhone.slice(4) : (isLegacyPhone ? '' : providerPhone);
-            legacyPhone.textContent = isLegacyPhone ? `Teléfono anterior: ${providerPhone}. Ingresa un número móvil para actualizarlo.` : '';
-            legacyPhone.classList.toggle('hidden', !isLegacyPhone);
+            phone.value = window.telefonoNacionalChile(providerPhone);
+            legacyPhone.classList.add('hidden');
             email.value = providerEmail;
             website.value = providerWebsite;
             modal.classList.remove('hidden');

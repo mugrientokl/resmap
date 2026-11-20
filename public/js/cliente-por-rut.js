@@ -31,7 +31,7 @@ window.inicializarBusquedaClientePorRut = function (form, url, tipoSolicitud) {
         campos.correo.value = '';
         campos.direccion.value = '';
         campos.telefono.value = '';
-        campos.prefijo.value = '+569';
+        campos.prefijo.value = '+56';
         campos.prefijo.dispatchEvent(new Event('change'));
         campos.region.value = '';
         campos.region.dispatchEvent(new Event('change'));
@@ -72,15 +72,7 @@ window.inicializarBusquedaClientePorRut = function (form, url, tipoSolicitud) {
             campos.contacto.value = cliente.contacto || '';
             campos.correo.value = cliente.correo || '';
             campos.direccion.value = cliente.direccion || '';
-            const digitosTelefono = String(cliente.telefono || '').replace(/\D/g, '');
-            campos.telefono.value = digitosTelefono.length >= 8 ? digitosTelefono.slice(-8) : '';
-            if (digitosTelefono.length > 8) {
-                const prefijo = '+' + digitosTelefono.slice(0, -8);
-                if (Array.from(campos.prefijo.options).some(opcion => opcion.value === prefijo)) {
-                    campos.prefijo.value = prefijo;
-                    campos.prefijo.dispatchEvent(new Event('change'));
-                }
-            }
+            campos.telefono.value = window.telefonoNacionalChile(cliente.telefono);
             campos.region.value = cliente.region || '';
             campos.region.dispatchEvent(new Event('change'));
             campos.comuna.value = cliente.comuna || '';

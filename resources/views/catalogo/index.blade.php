@@ -276,12 +276,12 @@
                 <label for="telefono" class="sr-only">Teléfono chileno</label>
                 <div class="flex">
                     <span class="flex items-center border border-r-0 border-[#d9aaa3] bg-[#f7e8e6] px-3 font-bold text-[#8f241d]">
-                        +569
+                        +56
                     </span>
                     <input id="telefono" name="telefono"
                         value="{{ old('telefono') }}" required
-                        pattern="[0-9]{8}" maxlength="8" inputmode="numeric"
-                        placeholder="12345678"
+                        pattern="[2-9][0-9]{8}" maxlength="9" inputmode="numeric"
+                        placeholder="912345678"
                         class="min-w-0 flex-1 border border-[#d9aaa3] p-3 text-[#241817]">
                 </div>
                 <p class="mt-1 text-sm text-gray-600">Te contactaremos por WhatsApp a este número para enviarte la cotización.</p>

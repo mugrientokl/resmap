@@ -89,6 +89,26 @@ class ServicioFlowTest extends TestCase
         $this->assertDatabaseCount('solicitud_webs', 0);
     }
 
+    public function test_service_accepts_chilean_national_numbers_and_rejects_foreign_or_duplicate_prefixes(): void
+    {
+        Notification::fake();
+        $datos = [
+            'rut' => '12345678-5', 'nombre' => 'Empresa', 'contacto' => 'Ana',
+            'correo' => 'cliente@example.test', 'prefijo_telefono' => '+56', 'telefono' => '223456789',
+            'direccion' => 'Calle 123', 'region' => 'Metropolitana', 'comuna' => 'Santiago',
+            'tipo_servicio' => 'Mantención', 'descripcion_servicio' => 'Revisión preventiva del equipo',
+        ];
+
+        $this->post(route('servicios.store'), [...$datos, 'prefijo_telefono' => '+54'])
+            ->assertSessionHasErrors('prefijo_telefono');
+        $this->post(route('servicios.store'), [...$datos, 'telefono' => '56912345678'])
+            ->assertSessionHasErrors('telefono');
+        $this->assertDatabaseCount('solicitud_webs', 0);
+
+        $this->post(route('servicios.store'), $datos)->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('clientes', ['rut' => '12345678-5', 'telefono' => '+56223456789']);
+    }
+
     public function test_service_without_staff_recipients_is_saved_with_a_warning(): void
     {
         Notification::fake();

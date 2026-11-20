@@ -2,6 +2,82 @@
 
 @section('content')
 <style>
+    .pos-page {
+        max-width: 100rem;
+        margin: 0 auto;
+    }
+
+    .pos-header {
+        margin-bottom: 1.5rem;
+    }
+
+    .pos-kicker {
+        color: #9f2f25;
+        font-size: .75rem;
+        font-weight: 800;
+        letter-spacing: .14em;
+        text-transform: uppercase;
+    }
+
+    .pos-grid {
+        display: grid;
+        gap: 1.5rem;
+        align-items: start;
+    }
+
+    .pos-panel {
+        min-width: 0;
+        border: 1px solid #ead8d5;
+        border-radius: 1rem;
+        background: #fff;
+        box-shadow: 0 8px 24px rgba(80, 38, 31, .06);
+    }
+
+    .pos-section-heading {
+        display: flex;
+        align-items: flex-start;
+        gap: .75rem;
+    }
+
+    .pos-section-number {
+        display: grid;
+        width: 2rem;
+        height: 2rem;
+        flex: none;
+        place-items: center;
+        border-radius: .625rem;
+        background: #f7e8e6;
+        color: #8f241d;
+        font-weight: 800;
+    }
+
+    .pos-client-fields {
+        display: grid;
+        gap: 1rem;
+    }
+
+    .pos-input-row {
+        display: grid;
+        gap: 1rem;
+    }
+
+    @media (min-width: 640px) {
+        .pos-client-fields,
+        .pos-input-row {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .pos-field-wide {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @media (min-width: 1280px) {
+        .pos-grid {
+            grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
+        }
+    }
+
     .pos-resumen label {
         color: #382723;
         font-size: .9375rem;
@@ -20,8 +96,8 @@
         border: 1px solid #d5c3bf;
     }
 
-    .pos-resumen input:focus-visible,
-    .pos-resumen select:focus-visible {
+    .pos-panel input:focus-visible,
+    .pos-panel select:focus-visible {
         outline: 2px solid #b52f25;
         outline-offset: 1px;
     }
@@ -31,13 +107,24 @@
         line-height: 1.4;
     }
 </style>
-<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-    <div class="lg:col-span-2 bg-white shadow-md rounded-lg p-6">
-        <h2 class="text-xl font-bold text-gray-800 mb-4">
-            Punto de Venta (POS) - Repuestos
-        </h2>
+<div class="pos-page">
+    <header class="pos-header">
+        <p class="pos-kicker">Ventas / Punto de venta</p>
+        <h2 class="mt-1 text-2xl font-black text-[#241817] sm:text-3xl">Punto de Venta (POS) - Repuestos</h2>
+        <p class="mt-2 text-sm text-gray-600">Agrega los repuestos y completa los datos para registrar la venta.</p>
+    </header>
 
-        <div class="mb-4 rounded-md border border-[#e8c8c3] bg-[#fff7f5] p-3">
+    <div class="pos-grid">
+    <section class="pos-panel p-5 sm:p-6" aria-labelledby="titulo-productos-pos">
+        <div class="pos-section-heading mb-5">
+            <span class="pos-section-number" aria-hidden="true">1</span>
+            <div>
+                <h3 id="titulo-productos-pos" class="text-lg font-black text-[#721d18]">Productos de la venta</h3>
+                <p class="mt-1 text-sm text-gray-600">Escanea un código o busca el repuesto por su nombre.</p>
+            </div>
+        </div>
+
+        <div class="mb-4 rounded-xl border border-[#e8c8c3] bg-[#fff7f5] p-4">
             <label for="lector-codigo" class="block text-sm font-bold text-[#8f241d]">
                 Escanear código
             </label>
@@ -45,10 +132,10 @@
             <div class="mt-2 flex gap-2">
                 <input type="text" id="lector-codigo" autocomplete="off"
                     placeholder="Apunta el lector y escanea"
-                    class="w-full rounded-md border-gray-300 p-2 shadow-sm">
+                    class="min-w-0 flex-1 rounded-md border border-gray-300 bg-white p-2 shadow-sm">
 
                 <button type="button" onclick="buscarCodigo()"
-                    class="rounded-md bg-[#b52f25] px-4 py-2 text-sm font-bold text-white">
+                    class="shrink-0 rounded-md bg-[#b52f25] px-4 py-2 text-sm font-bold text-white hover:bg-[#8f241d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]">
                     Agregar
                 </button>
             </div>
@@ -58,120 +145,75 @@
             </p>
         </div>
 
-        <form id="form-filtros" method="GET" action="{{ url('/pos') }}"
-            class="mb-4 grid grid-cols-1 md:grid-cols-3 gap-2">
-
+        <div class="mb-6">
             <div id="selector-productos" class="relative min-w-0">
-                <label for="buscar-producto" class="sr-only">Buscar producto</label>
-
-                <input type="text" id="buscar-producto" name="nombre"
-                    value="{{ request('nombre') }}"
-                    placeholder="Escribe una palabra del producto"
+                <label for="buscar-producto" class="mb-1 block text-sm font-bold text-gray-700">Buscar producto por nombre o código</label>
+                <input type="text" id="buscar-producto" maxlength="100"
+                    placeholder="Escribe parte del nombre o código"
                     autocomplete="off"
                     class="w-full rounded-md border-gray-300 shadow-sm border p-2 text-gray-900 bg-white">
-
-                <div id="lista-sugerencias" style="display: none;"
-                    class="absolute left-0 top-full z-40 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                <div id="lista-sugerencias" style="display: none;" role="status" aria-live="polite"
+                    class="absolute left-0 top-full z-40 mt-1 w-full max-h-60 overflow-y-auto rounded-lg border border-gray-300 bg-white shadow-lg">
                 </div>
-
-                <script type="application/json" id="datos-productos">@json($productosBuscador->map(fn ($p) => [$p->nombre, $p->codigo_origen ?: $p->codigo_barra])->values())</script>
             </div>
-
-            <select name="categoria" aria-label="Categoría"
-                class="rounded-md border-gray-300 shadow-sm border p-2">
-                <option value="">Todas las categorías</option>
-
-                @foreach($categorias as $categoria)
-                    <option value="{{ $categoria->id_categoria }}"
-                        @selected(request('categoria') == $categoria->id_categoria)>
-                        {{ $categoria->nombre_categoria }}
-                    </option>
-                @endforeach
-            </select>
-
-            <div class="flex gap-2">
-                <button type="submit"
-                    class="bg-[#b52f25] text-white px-3 py-2 rounded-md hover:bg-[#8f241d]">
-                    Filtrar
-                </button>
-
-                <a href="{{ url('/pos') }}"
-                    class="border border-[#d9aaa3] px-3 py-2 text-[#9f2f25] rounded-md hover:bg-[#f7e8e6]">
-                    Limpiar
-                </a>
-            </div>
-        </form>
-
-        <p class="mb-3 text-sm text-gray-500">
-            {{ $productos->total() }} productos encontrados
-        </p>
-
-        <div class="overflow-x-auto max-h-96 overflow-y-auto">
-            <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50 sticky top-0">
-                    <tr>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Código</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Nombre</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Precio</th>
-                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Stock</th>
-                        <th class="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase">Acción</th>
-                    </tr>
-                </thead>
-
-                <tbody id="tabla-productos" class="bg-white divide-y divide-gray-200">
-                    @forelse($productos as $prod)
-                        <tr>
-                            <td class="px-4 py-2 text-sm font-mono text-gray-600">
-                                {{ $prod->codigo_barra }}
-                            </td>
-                            <td class="px-4 py-2 text-sm font-medium text-gray-900">
-                                {{ $prod->nombre }}
-                            </td>
-                            <td class="px-4 py-2 text-sm text-gray-900">
-                                $ {{ number_format($prod->precio, 0, ',', '.') }}
-                            </td>
-                            <td class="px-4 py-2 text-sm text-gray-500">
-                                {{ $prod->stock_disponible }}
-                            </td>
-                            <td class="px-4 py-2 text-center text-sm">
-                                <button type="button"
-                                    data-id="{{ $prod->id_producto }}"
-                                    data-nombre="{{ $prod->nombre }}"
-                                    data-precio="{{ $prod->precio }}"
-                                    data-stock="{{ $prod->stock_disponible }}"
-                                    onclick="agregarAlCarro(
-                                        Number(this.dataset.id),
-                                        this.dataset.nombre,
-                                        Number(this.dataset.precio),
-                                        Number(this.dataset.stock)
-                                    )"
-                                    class="bg-[#b52f25] text-white px-3 py-1 rounded hover:bg-[#8f241d] text-xs">
-                                    Agregar
-                                </button>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="5" class="px-4 py-6 text-center text-sm text-gray-500">
-                                No se encontraron productos.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
         </div>
 
-        <div class="mt-4">{{ $productos->links() }}</div>
-    </div>
+        <div class="border-t border-[#ead8d5] pt-5">
+            <h3 class="mb-3 text-lg font-black text-[#721d18]">Ítems Seleccionados</h3>
+            <div class="mb-5 max-h-80 overflow-y-auto rounded-xl border border-[#ead8d5] bg-[#fffaf9] p-3">
+                <table class="block w-full text-sm" id="tabla-carro">
+                    <thead class="sr-only">
+                        <tr>
+                            <th>Repuesto</th>
+                            <th>Cantidad</th>
+                            <th>Subtotal</th>
+                            <th>Quitar</th>
+                        </tr>
+                    </thead>
+                    <tbody id="carro-items" class="block space-y-3"></tbody>
+                </table>
+                <p id="carro-vacio" class="px-3 py-6 text-center text-sm text-gray-600">Aún no hay productos. Escanea un código o usa el buscador para comenzar.</p>
+            </div>
 
-    <div class="pos-resumen flex min-w-0 flex-col justify-between rounded-xl border border-[#ead8d5] bg-white p-5 shadow-md sm:p-6">
-        <div>
-            <h3 class="mb-5 text-xl font-black text-[#721d18]">
-                Datos de venta y facturación
-            </h3>
-            <p class="mb-4 text-sm text-gray-600">Estos datos también se utilizan para el resumen interno, que no es un documento tributario electrónico.</p>
+            <div class="mb-5 space-y-2 rounded-xl bg-[#f7eeec] p-4 text-base">
+                <div class="flex justify-between text-gray-700">
+                    <span>Neto:</span>
+                    <span id="label-neto">$ 0</span>
+                </div>
+                <div class="flex justify-between text-gray-700">
+                    <span>IVA (19%):</span>
+                    <span id="label-iva">$ 0</span>
+                </div>
+                <div class="flex justify-between border-t border-[#e5cbc6] pt-3 text-xl font-black text-[#721d18]">
+                    <span>Total:</span>
+                    <span id="label-total">$ 0</span>
+                </div>
+            </div>
 
-            <div class="mb-6 space-y-4">
+            <button type="button" id="registrar-venta" onclick="procesarVenta()"
+                class="w-full rounded-md bg-[#8f241d] px-4 py-3 text-base font-bold text-white shadow-sm hover:bg-[#721d18] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d] disabled:opacity-50">
+                Registrar venta
+            </button>
+
+            @if (session('resumen_venta_id'))
+                <a href="{{ route('ventas.resumen-interno', session('resumen_venta_id')) }}"
+                    class="mt-3 block w-full rounded-md border border-[#8f241d] py-2 text-center text-sm font-bold text-[#8f241d] hover:bg-[#fff8f6]">
+                    ↓ Descargar resumen interno de la venta #{{ session('resumen_venta_id') }}
+                </a>
+            @endif
+        </div>
+    </section>
+
+    <section class="pos-panel pos-resumen p-5 sm:p-6" aria-labelledby="titulo-datos-venta">
+            <div class="pos-section-heading mb-5">
+                <span class="pos-section-number" aria-hidden="true">2</span>
+                <div>
+                    <h3 id="titulo-datos-venta" class="text-lg font-black text-[#721d18]">Datos de venta y facturación</h3>
+                    <p class="mt-1 text-sm text-gray-600">Estos datos también se utilizan para el resumen interno, que no es un documento tributario electrónico.</p>
+                </div>
+            </div>
+
+            <div class="pos-client-fields">
                 <div>
                     <label for="rut" class="block text-xs font-medium text-gray-700">
                         RUT Empresa / Cliente
@@ -192,7 +234,7 @@
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
 
-                <div>
+                <div class="pos-field-wide">
                     <label for="giro_cliente" class="block text-xs font-medium text-gray-700">
                         <span id="etiqueta-giro-cliente">Giro del cliente (opcional para boleta)</span>
                     </label>
@@ -200,7 +242,7 @@
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 min-[1800px]:grid-cols-2">
+                <div class="pos-input-row pos-field-wide">
                     <div>
                         <label for="contacto_cliente" class="block text-xs font-medium text-gray-700">Contacto *</label>
                         <input type="text" id="contacto_cliente" maxlength="255" required placeholder="Persona o responsable"
@@ -213,7 +255,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4">
+                <div class="pos-input-row pos-field-wide">
                     <div>
                         <label for="correo_cliente" class="block text-xs font-medium text-gray-700">
                             Correo *
@@ -230,14 +272,14 @@
                             <select id="prefijo_telefono_cliente" aria-label="Código de país"
                                 class="min-w-0 rounded-l-md border border-gray-300 bg-white p-2 text-sm">
                             </select>
-                            <input type="text" id="telefono_cliente" placeholder="12345678"
-                                pattern="[0-9]{8}" maxlength="8" inputmode="numeric"
+                            <input type="text" id="telefono_cliente" placeholder="912345678"
+                                pattern="[2-9][0-9]{8}" maxlength="9" inputmode="numeric"
                                 class="min-w-0 flex-1 rounded-r-md border border-l-0 border-gray-300 p-2 text-sm">
                         </div>
                     </div>
                 </div>
 
-                <div>
+                <div class="pos-field-wide">
                     <label for="direccion_cliente" class="block text-xs font-medium text-gray-700">
                         Dirección *
                     </label>
@@ -245,7 +287,7 @@
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 min-[1800px]:grid-cols-2">
+                <div class="pos-input-row pos-field-wide">
                     <div>
                         <label for="region_cliente" class="block text-xs font-medium text-gray-700">
                             Región *
@@ -267,14 +309,14 @@
                     </div>
                 </div>
 
-                <div>
+                <div class="pos-field-wide">
                     <label for="ciudad_cliente" class="block text-xs font-medium text-gray-700">
                         Ciudad * <span class="font-normal text-gray-500">(se sugiere la comuna)</span>
                     </label>
                     <input type="text" id="ciudad_cliente" required maxlength="100" placeholder="Los Ángeles"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
-                <div>
+                <div class="pos-field-wide">
                     <label for="acteco_emisor" class="block text-xs font-medium text-gray-700">
                         Giro del emisor y ACTECO
                     </label>
@@ -286,14 +328,14 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
+                <div class="pos-field-wide">
                     <label for="numero_oc" class="block text-xs font-medium text-gray-700">
                         Número de orden de compra (opcional)
                     </label>
                     <input type="text" id="numero_oc" maxlength="100"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
-                <div class="grid grid-cols-1 gap-4 min-[1800px]:grid-cols-2">
+                <div class="pos-input-row pos-field-wide">
                     <div>
                         <label for="tipo_documento" class="block text-xs font-medium text-gray-700">
                             Documento SII
@@ -320,51 +362,7 @@
                 </div>
             </div>
 
-            <h3 class="mb-3 text-lg font-black text-[#721d18]">Ítems Seleccionados</h3>
-
-            <div class="mb-5 max-h-80 overflow-y-auto rounded-lg border border-[#ead8d5] bg-[#fffaf9] p-3">
-                <table class="block w-full text-sm" id="tabla-carro">
-                    <thead class="sr-only">
-                        <tr>
-                            <th>Repuesto</th>
-                            <th>Cantidad</th>
-                            <th>Subtotal</th>
-                            <th>Quitar</th>
-                        </tr>
-                    </thead>
-                    <tbody id="carro-items" class="block space-y-3"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div>
-            <div class="mb-5 space-y-2 border-t border-[#ead8d5] pt-4 text-base">
-                <div class="flex justify-between text-gray-700">
-                    <span>Neto:</span>
-                    <span id="label-neto">$ 0</span>
-                </div>
-                <div class="flex justify-between text-gray-700">
-                    <span>IVA (19%):</span>
-                    <span id="label-iva">$ 0</span>
-                </div>
-                <div class="flex justify-between pt-1 text-xl font-black text-[#721d18]">
-                    <span>Total:</span>
-                    <span id="label-total">$ 0</span>
-                </div>
-            </div>
-
-            <button type="button" id="registrar-venta" onclick="procesarVenta()"
-                class="w-full rounded-md bg-[#8f241d] px-4 py-3 text-base font-bold text-white shadow-sm hover:bg-[#721d18] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d] disabled:opacity-50">
-                Registrar venta
-            </button>
-
-            @if (session('resumen_venta_id'))
-                <a href="{{ route('ventas.resumen-interno', session('resumen_venta_id')) }}"
-                    class="mt-3 block w-full rounded-md border border-[#8f241d] py-2 text-center text-sm font-bold text-[#8f241d] hover:bg-[#fff8f6]">
-                    ↓ Descargar resumen interno de la venta #{{ session('resumen_venta_id') }}
-                </a>
-            @endif
-        </div>
+    </section>
     </div>
 </div>
 
@@ -454,7 +452,10 @@ function restaurarBorrador() {
             if (id === 'region_cliente' || id === 'comuna_cliente') return;
 
             if (typeof campos[id] === 'string') {
-                document.getElementById(id).value = campos[id];
+                if (id === 'prefijo_telefono_cliente') return;
+                document.getElementById(id).value = id === 'telefono_cliente' && campos.prefijo_telefono_cliente === '+569'
+                    ? window.telefonoNacionalChile(campos[id])
+                    : campos[id];
             }
         });
 
@@ -486,19 +487,6 @@ function restaurarBorrador() {
             );
         }
 
-        document.querySelectorAll(
-            '#tabla-productos button[data-id]'
-        ).forEach(boton => {
-            const item = carro.find(
-                producto => producto.id_producto === Number(boton.dataset.id)
-            );
-
-            if (item) {
-                item.stockMax = Number(boton.dataset.stock);
-                item.precio = Number(boton.dataset.precio);
-            }
-        });
-
         if (campos.rut || carro.length) {
             document.getElementById('mensaje-cliente').textContent =
                 'Venta pendiente recuperada. Puedes seguir agregando productos.';
@@ -525,44 +513,45 @@ const buscadorProducto = document.getElementById('buscar-producto');
 const listaSugerencias = document.getElementById('lista-sugerencias');
 const selectorProductos = document.getElementById('selector-productos');
 
-function normalizarBusqueda(texto) {
-    return texto
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .toLowerCase()
-        .trim();
-}
-
-const productosSugeridos = JSON.parse(
-    document.getElementById('datos-productos').textContent
-).map(([nombre, codigo]) => ({
-    nombre,
-    codigo: codigo || '',
-    palabras: normalizarBusqueda(`${nombre} ${codigo || ''}`)
-        .split(/\s+/)
-        .filter(Boolean)
-}));
+let temporizadorProductos;
+let controladorProductos;
+let consultaProductos = 0;
 
 function cerrarSugerencias() {
+    clearTimeout(temporizadorProductos);
+    controladorProductos?.abort();
+    consultaProductos++;
     listaSugerencias.style.display = 'none';
 }
 
-function mostrarSugerencias() {
-    const texto = normalizarBusqueda(buscadorProducto.value);
+async function mostrarSugerencias() {
+    const texto = buscadorProducto.value.trim();
     listaSugerencias.replaceChildren();
-
+    controladorProductos?.abort();
+    const consulta = ++consultaProductos;
     if (!texto) {
         cerrarSugerencias();
         return;
     }
 
-    const palabras = texto.split(/\s+/).filter(Boolean);
-
-    const coincidencias = productosSugeridos.filter(producto => {
-        return palabras.every(palabra =>
-            producto.palabras.some(campo => campo.includes(palabra))
-        );
-    }).slice(0, 8);
+    controladorProductos = new AbortController();
+    let coincidencias;
+    try {
+        const respuesta = await fetch('{{ route('pos.productos.buscar') }}?' + new URLSearchParams({ buscar: texto }), {
+            headers: { 'Accept': 'application/json' },
+            signal: controladorProductos.signal
+        });
+        const datos = await respuesta.json();
+        if (!respuesta.ok) throw new Error(datos.message || 'No se pudieron buscar productos.');
+        if (consulta !== consultaProductos) return;
+        coincidencias = datos;
+    } catch (error) {
+        if (error.name === 'AbortError' || consulta !== consultaProductos) return;
+        listaSugerencias.textContent = 'No se pudieron buscar productos. Inténtalo nuevamente.';
+        listaSugerencias.style.display = 'block';
+        console.error('Error al buscar productos:', error);
+        return;
+    }
 
     if (!coincidencias.length) {
         const mensaje = document.createElement('p');
@@ -583,14 +572,15 @@ function mostrarSugerencias() {
 
         const codigo = document.createElement('span');
         codigo.className = 'block text-xs text-gray-500';
-        codigo.textContent = producto.codigo;
+        codigo.textContent = `${producto.codigo || 'Sin código'} · $ ${Number(producto.precio).toLocaleString('es-CL')} · Stock: ${producto.stock}`;
 
         boton.append(nombre, codigo);
 
         boton.addEventListener('click', () => {
-            buscadorProducto.value = producto.nombre;
+            agregarAlCarro(Number(producto.id_producto), producto.nombre, Number(producto.precio), Number(producto.stock));
+            buscadorProducto.value = '';
             cerrarSugerencias();
-            document.getElementById('form-filtros').requestSubmit();
+            buscadorProducto.focus();
         });
 
         listaSugerencias.append(boton);
@@ -599,7 +589,13 @@ function mostrarSugerencias() {
     listaSugerencias.style.display = 'block';
 }
 
-buscadorProducto.addEventListener('input', mostrarSugerencias);
+buscadorProducto.addEventListener('input', () => {
+    clearTimeout(temporizadorProductos);
+    controladorProductos?.abort();
+    consultaProductos++;
+    listaSugerencias.style.display = 'none';
+    temporizadorProductos = setTimeout(mostrarSugerencias, 250);
+});
 buscadorProducto.addEventListener('focus', mostrarSugerencias);
 
 selectorProductos.addEventListener('keydown', event => {
@@ -610,7 +606,6 @@ selectorProductos.addEventListener('keydown', event => {
     }
 
     if (event.key === 'ArrowDown' && event.target === buscadorProducto) {
-        mostrarSugerencias();
         const primera = listaSugerencias.querySelector('button');
 
         if (primera) {
@@ -618,6 +613,15 @@ selectorProductos.addEventListener('keydown', event => {
             primera.focus();
         }
 
+        return;
+    }
+
+    if (event.key === 'Enter' && event.target === buscadorProducto && listaSugerencias.style.display !== 'none') {
+        const primera = listaSugerencias.querySelector('button');
+        if (primera) {
+            event.preventDefault();
+            primera.click();
+        }
         return;
     }
 
@@ -697,6 +701,7 @@ function cambiarCantidad(id_producto, delta) {
 function renderCarro() {
     const tbody = document.getElementById('carro-items');
     tbody.replaceChildren();
+    document.getElementById('carro-vacio').hidden = carro.length > 0;
 
     let total = 0;
 
@@ -825,9 +830,9 @@ async function procesarVenta() {
         return;
     }
 
-    if (!/^\d{8}$/.test(telefono)) {
+    if (!/^[2-9]\d{8}$/.test(telefono)) {
         window.resmapAlert(
-            'El teléfono debe contener exactamente 8 dígitos.',
+            'Ingresa los 9 dígitos de un teléfono chileno.',
             'warning'
         );
         return;
@@ -1010,7 +1015,6 @@ renderCarro();
     };
 
     const telefono = document.getElementById('telefono_cliente');
-    const prefijo = document.getElementById('prefijo_telefono_cliente');
     const region = document.getElementById('region_cliente');
     const comuna = document.getElementById('comuna_cliente');
 
@@ -1099,19 +1103,7 @@ renderCarro();
                 campo.value = valor || '';
             });
 
-            const numero = String(cliente.telefono || '').replace(/\D/g, '');
-            telefono.value = numero.length >= 8 ? numero.slice(-8) : '';
-
-            if (numero.length > 8) {
-                const codigo = '+' + numero.slice(0, -8);
-
-                if (Array.from(prefijo.options).some(
-                    opcion => opcion.value === codigo
-                )) {
-                    prefijo.value = codigo;
-                    prefijo.dispatchEvent(new Event('change'));
-                }
-            }
+            telefono.value = window.telefonoNacionalChile(cliente.telefono);
 
             region.value = cliente.region || '';
             region.dispatchEvent(new Event('change'));
@@ -1168,9 +1160,6 @@ idsCamposCliente.forEach(id => {
     campo.addEventListener('input', guardarBorrador);
     campo.addEventListener('change', guardarBorrador);
 });
-
-document.getElementById('form-filtros')
-    .addEventListener('submit', guardarBorrador);
 
 window.addEventListener('pagehide', guardarBorrador);
 

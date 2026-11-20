@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use App\Rules\RutChileno;
 use App\Services\ResumenInternoVentaPdf;
 use App\Support\Rut;
+use App\Support\TelefonoChileno;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
@@ -227,6 +228,9 @@ class ClienteController extends Controller
     {
         $cliente = Cliente::findOrFail($id);
         $this->normalizarRutDeSolicitud($request);
+        if (is_string($request->input('telefono'))) {
+            $request->merge(['telefono' => TelefonoChileno::normalizar($request->input('telefono'))]);
+        }
 
         $datos = $request->validate([
             'rut' => [
@@ -240,7 +244,7 @@ class ClienteController extends Controller
             'nombre' => ['required', 'string', 'max:255'],
             'contacto' => ['nullable', 'string', 'max:255'],
             'correo' => ['nullable', 'email', 'max:255'],
-            'telefono' => ['nullable', 'string', 'max:50'],
+            'telefono' => ['nullable', 'string', 'regex:/^\+56[2-9][0-9]{8}$/'],
             'direccion' => ['nullable', 'string', 'max:255'],
         ]);
 

@@ -18,25 +18,25 @@ window.chileRegions = {
 };
 
 window.paisesTelefono = [
-    ['🇨🇱', '+569', 'Chile'], ['🇦🇷', '+54', 'Argentina'], ['🇧🇴', '+591', 'Bolivia'], ['🇧🇷', '+55', 'Brasil'],
-    ['🇨🇴', '+57', 'Colombia'], ['🇪🇨', '+593', 'Ecuador'], ['🇵🇾', '+595', 'Paraguay'], ['🇵🇪', '+51', 'Perú'], ['🇺🇾', '+598', 'Uruguay'],
-    ['🇻🇪', '+58', 'Venezuela'], ['🇲🇽', '+52', 'México'], ['🇺🇸', '+1', 'Estados Unidos / Canadá'], ['🇨🇦', '+1', 'Canadá'], ['🇪🇸', '+34', 'España'],
-    ['🇵🇹', '+351', 'Portugal'], ['🇫🇷', '+33', 'Francia'], ['🇩🇪', '+49', 'Alemania'], ['🇮🇹', '+39', 'Italia'], ['🇬🇧', '+44', 'Reino Unido'],
-    ['🇦🇺', '+61', 'Australia'], ['🇳🇿', '+64', 'Nueva Zelanda'], ['🇨🇳', '+86', 'China'], ['🇯🇵', '+81', 'Japón'], ['🇰🇷', '+82', 'Corea del Sur'],
-    ['🇮🇳', '+91', 'India'], ['🇮🇱', '+972', 'Israel'], ['🇹🇷', '+90', 'Turquía'], ['🇿🇦', '+27', 'Sudáfrica'], ['🇪🇬', '+20', 'Egipto'],
-    ['🇲🇦', '+212', 'Marruecos'], ['🇳🇬', '+234', 'Nigeria'], ['🇸🇦', '+966', 'Arabia Saudita'], ['🇦🇪', '+971', 'Emiratos Árabes Unidos'],
-    ['🇷🇺', '+7', 'Rusia'], ['🇺🇦', '+380', 'Ucrania'], ['🇸🇪', '+46', 'Suecia'], ['🇳🇱', '+31', 'Países Bajos'], ['🇨🇭', '+41', 'Suiza'],
-    ['🇦🇹', '+43', 'Austria'], ['🇧🇪', '+32', 'Bélgica'], ['🇩🇰', '+45', 'Dinamarca'], ['🇳🇴', '+47', 'Noruega'], ['🇫🇮', '+358', 'Finlandia'],
-    ['🇮🇪', '+353', 'Irlanda'], ['🇵🇦', '+507', 'Panamá'], ['🇨🇷', '+506', 'Costa Rica'], ['🇬🇹', '+502', 'Guatemala'], ['🇭🇳', '+504', 'Honduras'],
-    ['🇳🇮', '+505', 'Nicaragua'], ['🇸🇻', '+503', 'El Salvador'], ['🇩🇴', '+1', 'República Dominicana'], ['🇵🇷', '+1', 'Puerto Rico']
+    ['🇨🇱', '+56', 'Chile']
 ];
+
+window.telefonoNacionalChile = function (valor) {
+    const texto = String(valor || '').trim();
+    if (!/^\+?[0-9\s().-]+$/.test(texto)) return texto;
+    const digitos = texto.replace(/\D/g, '');
+    if (/^56[2-9]\d{8}$/.test(digitos)) return digitos.slice(2);
+    if (!texto.startsWith('+') && /^\d{8}$/.test(digitos)) return '9' + digitos;
+    if (!texto.startsWith('+') && /^[2-9]\d{8}$/.test(digitos)) return digitos;
+    return texto;
+};
 
 window.inicializarSelectorTelefono = function (selectorId, inputId) {
     const selector = document.getElementById(selectorId);
     const input = document.getElementById(inputId);
     if (!selector || !input) return;
 
-    const prefijoInicial = selector.value || '+569';
+    const prefijoInicial = '+56';
     selector.replaceChildren();
     window.paisesTelefono.forEach(([bandera, prefijo, pais]) => {
         selector.add(new Option(`${prefijo} ${pais}`, prefijo, false, prefijo === prefijoInicial));
@@ -111,7 +111,16 @@ window.inicializarSelectorTelefono = function (selectorId, inputId) {
         boton.setAttribute('aria-expanded', 'false');
     });
     contenedor.append(boton, menu);
-    input.title = 'Ingresa los 8 dígitos de tu número local';
+    input.title = 'Ingresa los 9 dígitos de tu número nacional';
+    input.addEventListener('paste', event => {
+        const valor = event.clipboardData.getData('text');
+        const nacional = window.telefonoNacionalChile(valor);
+        if (/^[2-9]\d{8}$/.test(nacional)) {
+            event.preventDefault();
+            input.value = nacional;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
 };
 
 window.inicializarUbicacionChile = function (regionId, comunaId, regionInicial = '', comunaInicial = '') {
@@ -151,6 +160,7 @@ window.inicializarFormularioCatalogo = function () {
     telefono.parentElement.replaceChild(prefijo, telefono);
     prefijo.parentElement.append(telefono);
     telefono.classList.add('rounded-r-md', 'border-l-0');
+    telefono.value = window.telefonoNacionalChile(telefono.value);
     inicializarSelectorTelefono('prefijo_telefono', 'telefono');
 
     const nombre = form.querySelector('input[name="nombre"]');

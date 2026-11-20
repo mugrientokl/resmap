@@ -389,16 +389,22 @@ class InventoryMovementTest extends TestCase
             'telefono' => '87654321', 'correo' => 'imbra@example.cl',
         ])->assertSessionHasNoErrors();
         $this->assertDatabaseHas('proveedores', ['id' => $proveedor->id, 'telefono' => '+56987654321', 'correo' => 'imbra@example.cl']);
+
+        $this->putJson(route('proveedores.update', $proveedor), [
+            'nombre' => 'Imbra', 'contacto' => 'Ricardo Soto',
+            'telefono' => '+5656912345678', 'correo' => 'imbra@example.cl',
+        ])->assertUnprocessable()->assertJsonValidationErrors('telefono');
+        $this->assertDatabaseHas('proveedores', ['id' => $proveedor->id, 'telefono' => '+56987654321']);
     }
 
-    public function test_supplier_forms_show_required_fields_and_fixed_mobile_prefix(): void
+    public function test_supplier_forms_show_chilean_phone_fields(): void
     {
         $this->actingAs(User::factory()->create(['rol' => 'Administrador']));
 
         foreach (['proveedores.index', 'inventario.movimientos'] as $page) {
             $this->get(route($page))->assertOk()
-                ->assertSee('+56 9')
-                ->assertSee('pattern="[0-9]{8}" maxlength="8"', false);
+                ->assertSee('aria-label="Código de país"', false)
+                ->assertSee('pattern="[2-9][0-9]{8}" maxlength="9"', false);
         }
     }
 

@@ -13,6 +13,7 @@ use App\Notifications\ProductoStockCritico;
 use App\Rules\RutChileno;
 use App\Services\ResumenInternoVentaPdf;
 use App\Support\Rut;
+use App\Support\TelefonoChileno;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,9 @@ class VentaController extends Controller
     public function store(Request $request): JsonResponse
     {
         $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
+        if (is_string($request->input('telefono_cliente'))) {
+            $request->merge(['telefono_cliente' => TelefonoChileno::normalizar($request->input('telefono_cliente'))]);
+        }
 
         $datos = $request->validate([
             'tipo_documento' => 'required|string|in:Boleta Electrónica,Factura Electrónica',
@@ -40,7 +44,7 @@ class VentaController extends Controller
                 'max:255',
             ],
             'correo_cliente' => 'required|email|max:255',
-            'telefono_cliente' => 'nullable|string|max:50',
+            'telefono_cliente' => ['nullable', 'string', 'regex:/^\+56[2-9][0-9]{8}$/'],
             'direccion_cliente' => 'required|string|max:255',
             'region_cliente' => 'required|string|max:100',
             'comuna_cliente' => 'required|string|max:100',

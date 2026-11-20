@@ -106,7 +106,7 @@
                     <label class="mt-5 block text-sm font-bold" for="telefono_local">Teléfono registrado</label>
                     <div class="mt-2 flex">
                         <select id="prefijo_telefono" aria-label="Código de país"></select>
-                        <input id="telefono_local" type="text" required pattern="[0-9]{8}" maxlength="8" inputmode="numeric" autocomplete="tel-national" placeholder="12345678" data-valor-anterior="{{ old('telefono') }}" class="min-w-0 flex-1 rounded-r-md border border-l-0 border-[#d9aaa3] p-3 focus:border-[#b52f25] focus:outline-none">
+                        <input id="telefono_local" type="text" required pattern="[2-9][0-9]{8}" maxlength="9" inputmode="numeric" autocomplete="tel-national" placeholder="912345678" data-valor-anterior="{{ old('telefono') }}" class="min-w-0 flex-1 rounded-r-md border border-l-0 border-[#d9aaa3] p-3 focus:border-[#b52f25] focus:outline-none">
                     </div>
                     <label class="mt-4 block text-sm font-bold" for="decision">Decisión
                         <select id="decision" name="decision" required class="mt-2 w-full rounded-md border border-[#d9aaa3] bg-white p-3 focus:border-[#b52f25] focus:outline-none">
@@ -150,21 +150,8 @@
     <script>
         const phoneSelect = document.getElementById('prefijo_telefono');
         const phoneLocal = document.getElementById('telefono_local');
-        const previousPhone = (phoneLocal.dataset.valorAnterior || '').replace(/\D/g, '');
-        const matchedCountry = [...window.paisesTelefono]
-            .sort((a, b) => b[1].length - a[1].length)
-            .find(country => previousPhone.startsWith(country[1].replace('+', '')));
-        if (matchedCountry) {
-            phoneSelect.value = matchedCountry[1];
-            phoneLocal.value = previousPhone.slice(matchedCountry[1].length - 1).slice(-8);
-        } else if (previousPhone) {
-            phoneLocal.value = previousPhone.slice(-8);
-        }
-        phoneSelect.innerHTML = `<option value="${matchedCountry ? matchedCountry[1] : '+569'}"></option>`;
+        phoneLocal.value = window.telefonoNacionalChile(phoneLocal.dataset.valorAnterior);
         inicializarSelectorTelefono('prefijo_telefono', 'telefono_local');
-        phoneLocal.addEventListener('input', () => {
-            phoneLocal.value = phoneLocal.value.replace(/\D/g, '').slice(0, 8);
-        });
         document.getElementById('quote-response-form').addEventListener('formdata', event => {
             event.formData.set('telefono', phoneSelect.value + phoneLocal.value);
         });

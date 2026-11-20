@@ -20,12 +20,9 @@ use App\Http\Controllers\SolicitudWebController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\VentaController;
 use App\Http\Controllers\WhatsAppWebhookController;
-use App\Models\Categoria;
-use App\Models\Producto;
 use Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse;
 use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\ValidateCsrfToken;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Support\Facades\Route;
@@ -224,6 +221,10 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('pos.producto.codigo');
 
+    Route::get('/pos/productos/buscar', [ProductoController::class, 'buscarParaPos'])
+        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->name('pos.productos.buscar');
+
     Route::get('/pos/cliente-por-rut', [ClienteController::class, 'buscarPorRut'])
         ->middleware([
             'auth',
@@ -288,31 +289,8 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador'])
         ->name('clientes.destroy');
 
-    Route::get('/pos', function (Request $request) {
-        $categorias = Categoria::orderBy('nombre_categoria')->get();
-
-        $productosBuscador = Producto::query()
-            ->select('id_producto', 'nombre', 'codigo_barra', 'codigo_origen')
-            ->orderBy('nombre')
-            ->get();
-
-        $productos = Producto::with('categoria')
-            ->withSum('reservasActivas as stock_reservado', 'cantidad')
-            ->when($request->filled('nombre'), function ($query) use ($request): void {
-                $query->buscarCoincidencias($request->string('nombre')->trim()->toString());
-            })
-            ->when($request->filled('categoria'), function ($query) use ($request): void {
-                $query->where('id_categoria', $request->integer('categoria'));
-            })
-            ->orderBy('nombre')
-            ->paginate(20)
-            ->withQueryString();
-
-        return view(
-            'pos.index',
-            compact('productos', 'categorias', 'productosBuscador')
-        );
-    })->middleware(['auth', 'role:Administrador,Vendedor'])->name('pos.index');
+    Route::get('/pos', fn () => view('pos.index'))
+        ->middleware(['auth', 'role:Administrador,Vendedor'])->name('pos.index');
 
     Route::post('/ventas', [VentaController::class, 'store'])
         ->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:30,1']);

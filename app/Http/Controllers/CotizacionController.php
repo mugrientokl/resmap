@@ -24,6 +24,7 @@ use App\Services\InventarioReservaService;
 use App\Services\ResumenInternoVentaPdf;
 use App\Services\VentaCotizacionService;
 use App\Services\WhatsAppCloudApi;
+use App\Support\TelefonoChileno;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -440,8 +441,12 @@ class CotizacionController extends Controller
         string $token,
         InventarioReservaService $reservas,
     ): RedirectResponse {
+        if (is_string($request->input('telefono'))) {
+            $request->merge(['telefono' => TelefonoChileno::normalizar($request->input('telefono'))]);
+        }
+
         $datos = $request->validate([
-            'telefono' => ['required', 'string', 'max:25'],
+            'telefono' => ['required', 'string', 'regex:/^\+56[2-9][0-9]{8}$/'],
             'decision' => ['required', 'in:aceptar,rechazar,cambios'],
             'comentarios' => ['nullable', 'string', 'max:2000'],
             'metodo_entrega' => ['required_if:decision,aceptar', 'in:retiro,despacho'],
@@ -534,7 +539,7 @@ class CotizacionController extends Controller
 
         $telefono = $this->soloDigitos($datos['telefono']);
         $clienteSnapshot = Cliente::desdeSnapshot($versionCotizacion->snapshotDatosCliente());
-        $telefonoRegistrado = $this->soloDigitos((string) $clienteSnapshot->telefono);
+        $telefonoRegistrado = $this->soloDigitos((string) TelefonoChileno::normalizar($clienteSnapshot->telefono));
         if ($telefono === '' || ! hash_equals($telefonoRegistrado, $telefono)) {
             throw ValidationException::withMessages(['telefono' => 'El teléfono no coincide con el registrado para el cliente.']);
         }

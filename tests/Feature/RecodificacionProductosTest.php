@@ -74,7 +74,9 @@ class RecodificacionProductosTest extends TestCase
         $this->assertDatabaseHas('productos', ['id_producto' => $first, 'codigo_barra' => 'MAR004']);
         $this->maintenance(false);
         $this->get(route('catalogo.index', ['nombre' => 'MAR004']))->assertOk()->assertSee('Mártillo pesado');
-        $this->get(route('pos.index', ['nombre' => 'MAR004']))->assertOk()->assertSee('Mártillo pesado');
+        $this->getJson(route('pos.productos.buscar', ['buscar' => 'MAR004']))
+            ->assertOk()->assertJsonPath('0.nombre', 'Mártillo pesado')
+            ->assertJsonPath('0.stock', 3);
         $this->getJson(route('pos.producto.codigo', ['codigo' => 'MAR004']))->assertOk()->assertJsonPath('id_producto', $first);
         $this->get(route('productos.etiqueta', $first))->assertOk()->assertSee('MAR004')->assertSee('CODE128');
 

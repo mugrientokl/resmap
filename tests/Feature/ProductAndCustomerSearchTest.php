@@ -41,13 +41,13 @@ class ProductAndCustomerSearchTest extends TestCase
         );
 
         $admin = User::factory()->create(['rol' => 'Administrador']);
-        $pos = $this->actingAs($admin)
-            ->get(route('pos.index', ['nombre' => 'filtro ORG-7788']));
-        $pos->assertOk();
-        $this->assertSame(
-            [$productId],
-            $pos->viewData('productos')->pluck('id_producto')->all()
-        );
+        $this->actingAs($admin)->get(route('pos.index'))
+            ->assertOk()->assertDontSee('id="tabla-productos"', false)
+            ->assertDontSee('id="datos-productos"', false);
+        $this->getJson(route('pos.productos.buscar', ['buscar' => 'iltro ORG-7788']))
+            ->assertOk()->assertJsonCount(1)
+            ->assertJsonPath('0.id_producto', $productId)
+            ->assertJsonPath('0.stock', 2);
 
         $inventario = $this->get(route('productos.index', [
             'nombre' => 'filtro ORG-7788',
@@ -95,6 +95,40 @@ class ProductAndCustomerSearchTest extends TestCase
             ->assertSee('value="0" selected', false)
             ->assertSee('Motivo: Sin motivo registrado');
         $this->assertSame([$inactiveProductId], $inactivos->viewData('productos')->pluck('id_producto')->all());
+    }
+
+    public function test_pos_search_is_authenticated_bounded_and_excludes_inactive_products(): void
+    {
+        $categoryId = DB::table('categorias')->insertGetId([
+            'nombre_categoria' => 'Repuestos',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        for ($i = 0; $i < 10; $i++) {
+            $this->createProduct($categoryId, [
+                'codigo_barra' => 'BAR-'.$i,
+                'codigo_origen' => 'ORG-'.$i,
+                'nombre' => 'Motor '.$i,
+                'stock' => 3,
+                'stock_critico' => 1,
+            ]);
+        }
+        $inactiveId = $this->createProduct($categoryId, [
+            'codigo_barra' => 'INACTIVO',
+            'codigo_origen' => 'INACTIVO',
+            'nombre' => 'Motor inactivo',
+            'stock' => 3,
+            'stock_critico' => 1,
+        ]);
+        DB::table('productos')->where('id_producto', $inactiveId)->update(['activo' => false]);
+
+        $this->getJson(route('pos.productos.buscar', ['buscar' => 'motor']))->assertUnauthorized();
+        $this->actingAs(User::factory()->create(['rol' => 'Vendedor']));
+        $this->getJson(route('pos.productos.buscar', ['buscar' => 'otor']))
+            ->assertOk()->assertJsonCount(8)->assertJsonMissing(['id_producto' => $inactiveId]);
+        $this->getJson(route('pos.productos.buscar', ['buscar' => 'inactivo']))
+            ->assertOk()->assertExactJson([]);
+        $this->getJson(route('pos.productos.buscar'))->assertUnprocessable();
     }
 
     public function test_customer_search_matches_normalized_rut_and_suggests_rut_and_email(): void
