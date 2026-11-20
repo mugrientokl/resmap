@@ -243,8 +243,9 @@ class ProductoController extends Controller
     public function create()
     {
         $categorias = Categoria::orderBy('nombre_categoria')->get();
+        $nombresExistentes = Producto::pluck('nombre');
 
-        return view('productos.create', compact('categorias'));
+        return view('productos.create', compact('categorias', 'nombresExistentes'));
     }
 
     public function store(Request $request)
@@ -260,9 +261,11 @@ class ProductoController extends Controller
                 'string',
                 'max:255',
                 'not_regex:/^\d+$/',
-                'unique:productos,nombre',
                 function (string $attribute, mixed $value, \Closure $fail): void {
-                    if (is_string($value) && $this->nombreExiste($value)) {
+                    if (is_string($value) && strlen(Producto::prefijoCodigo($value)) < 3) {
+                        $fail('El nombre del repuesto debe contener al menos tres letras.');
+                    }
+                    if (is_string($value) && Producto::nombreExiste($value)) {
                         $fail('Ya existe un repuesto con ese nombre.');
                     }
                 },
@@ -302,8 +305,13 @@ class ProductoController extends Controller
             if ($imagenNueva !== null) {
                 Storage::disk('public')->delete($imagenNueva);
             }
-            if ($this->nombreExiste($datos['nombre'])) {
+            if (Producto::nombreExiste($datos['nombre'])) {
                 return redirect()->back()->withInput()->withErrors(['nombre' => 'Ya existe un repuesto con ese nombre.']);
+            }
+            throw $exception;
+        } catch (ValidationException $exception) {
+            if ($imagenNueva !== null) {
+                Storage::disk('public')->delete($imagenNueva);
             }
             throw $exception;
         }
@@ -327,8 +335,9 @@ class ProductoController extends Controller
     {
         $producto = Producto::findOrFail($id);
         $categorias = Categoria::orderBy('nombre_categoria')->get();
+        $nombresExistentes = Producto::whereKeyNot($producto->id_producto)->pluck('nombre');
 
-        return view('productos.edit', compact('producto', 'categorias'));
+        return view('productos.edit', compact('producto', 'categorias', 'nombresExistentes'));
     }
 
     public function update(Request $request, $id)
@@ -354,9 +363,8 @@ class ProductoController extends Controller
                 'string',
                 'max:255',
                 'not_regex:/^\d+$/',
-                'unique:productos,nombre,'.$id.',id_producto',
                 function (string $attribute, mixed $value, \Closure $fail) use ($producto): void {
-                    if (is_string($value) && $this->nombreExiste($value, $producto->id_producto)) {
+                    if (is_string($value) && Producto::nombreExiste($value, $producto->id_producto)) {
                         $fail('Ya existe un repuesto con ese nombre.');
                     }
                 },
@@ -376,6 +384,7 @@ class ProductoController extends Controller
             ],
         ], [
             'nombre.not_regex' => 'El nombre del repuesto no puede contener únicamente números; debe incluir al menos una letra.',
+            'codigo_barra.unique' => 'Ya existe un repuesto con ese código.',
             'motivo_desactivacion.required' => 'Indica por qué se desactiva el repuesto.',
         ]);
 
@@ -445,7 +454,7 @@ class ProductoController extends Controller
             if ($imagenNueva !== null) {
                 Storage::disk('public')->delete($imagenNueva);
             }
-            if ($this->nombreExiste($datos['nombre'], $producto->id_producto)) {
+            if (Producto::nombreExiste($datos['nombre'], $producto->id_producto)) {
                 return redirect()->back()->withInput()->withErrors(['nombre' => 'Ya existe un repuesto con ese nombre.']);
             }
             throw $exception;
@@ -492,17 +501,5 @@ class ProductoController extends Controller
         return redirect()
             ->route('productos.index')
             ->with('success', 'Producto eliminado con éxito.');
-    }
-
-    private function nombreExiste(string $nombre, ?int $productoId = null): bool
-    {
-        return Producto::query()
-            ->where(function ($query) use ($nombre): void {
-                $query->where('nombre_normalizado', Producto::claveNombre($nombre))
-                    ->orWhere('nombre', $nombre)
-                    ->orWhereRaw('LOWER(nombre) = ?', [mb_strtolower($nombre)]);
-            })
-            ->when($productoId !== null, fn ($query) => $query->where('id_producto', '!=', $productoId))
-            ->exists();
     }
 }

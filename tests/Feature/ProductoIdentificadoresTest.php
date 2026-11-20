@@ -41,7 +41,7 @@ class ProductoIdentificadoresTest extends TestCase
 
         $this->actingAs($admin)->post(route('productos.store'), $datos)->assertSessionHasNoErrors();
         $producto = Producto::where('nombre', 'Filtro nuevo')->firstOrFail();
-        $this->assertSame(sprintf('RESMAP-%06d', $producto->id_producto), $producto->codigo_barra);
+        $this->assertSame('FIL001', $producto->codigo_barra);
         $this->assertSame($producto->codigo_barra, $producto->codigo_origen);
 
         $this->post(route('productos.store'), [...$datos, 'nombre' => '  filtro nuevo  '])->assertSessionHasErrors('nombre');
@@ -66,12 +66,77 @@ class ProductoIdentificadoresTest extends TestCase
             ->assertSessionHasErrors('nombre');
     }
 
+    public function test_codes_continue_after_existing_matching_codes_and_leave_existing_identifiers_unchanged(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $categoria = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Prueba']);
+        $datos = ['nombre' => 'Martillo', 'precio' => 100, 'stock' => 1, 'stock_critico' => 1, 'id_categoria' => $categoria, 'unidad' => 'unidad', 'activo' => '1'];
+        $legacy = DB::table('productos')->insertGetId([
+            ...$datos, 'nombre' => 'Producto anterior', 'codigo_barra' => 'MAR002', 'codigo_origen' => 'mar010',
+        ]);
+        DB::table('productos')->insert([
+            ...$datos, 'nombre' => 'Código distinto', 'codigo_barra' => 'MARXYZ999', 'codigo_origen' => 'OTRO',
+        ]);
+        DB::table('productos')->insert([
+            ...$datos, 'nombre' => 'Código alto', 'codigo_barra' => 'mar999', 'codigo_origen' => null,
+        ]);
+
+        $this->actingAs($admin)->post(route('productos.store'), $datos)->assertSessionHasNoErrors();
+        $this->post(route('productos.store'), [...$datos, 'nombre' => 'Marca'])->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('productos', ['nombre' => 'Martillo', 'codigo_barra' => 'MAR1000', 'codigo_origen' => 'MAR1000']);
+        $this->assertDatabaseHas('productos', ['nombre' => 'Marca', 'codigo_barra' => 'MAR1001']);
+        $this->assertDatabaseHas('productos', ['id_producto' => $legacy, 'codigo_barra' => 'MAR002', 'codigo_origen' => 'mar010']);
+        $this->post(route('productos.store'), [...$datos, 'nombre' => 'A2'])->assertSessionHasErrors('nombre');
+    }
+
+    public function test_duplicate_names_ignore_accents_and_extra_spaces_even_for_legacy_rows(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $categoria = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Prueba']);
+        $datos = ['nombre' => 'Martillo grande', 'precio' => 100, 'stock' => 1, 'stock_critico' => 1, 'id_categoria' => $categoria, 'unidad' => 'unidad', 'activo' => '1'];
+        DB::table('productos')->insert([...$datos, 'codigo_barra' => 'ANT001', 'nombre_normalizado' => null]);
+
+        $this->actingAs($admin)->post(route('productos.store'), [...$datos, 'nombre' => '  MARTÍLLO   grande  '])
+            ->assertSessionHasErrors(['nombre' => 'Ya existe un repuesto con ese nombre.']);
+        $this->post(route('productos.store'), [...$datos, 'nombre' => "\u{00a0}MARTILLO grande\u{00a0}"])
+            ->assertSessionHasErrors(['nombre' => 'Ya existe un repuesto con ese nombre.']);
+        $this->post(route('productos.store'), [...$datos, 'nombre' => 'Otro producto'])->assertSessionHasNoErrors();
+        $otro = Producto::where('nombre', 'Otro producto')->firstOrFail();
+        $this->put(route('productos.update', $otro->id_producto), [
+            ...$datos, 'nombre' => 'martillo  GRÁNDE', 'codigo_barra' => $otro->codigo_barra,
+        ])->assertSessionHasErrors(['nombre' => 'Ya existe un repuesto con ese nombre.']);
+    }
+
+    public function test_normalization_migration_preserves_existing_accent_duplicates(): void
+    {
+        $categoria = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Prueba']);
+        $datos = ['precio' => 100, 'stock' => 1, 'stock_critico' => 1, 'id_categoria' => $categoria];
+        DB::table('productos')->insert([
+            ...$datos, 'nombre' => 'Martillo', 'codigo_barra' => 'ANT001',
+            'nombre_normalizado' => hash('sha256', 'martillo'),
+        ]);
+        DB::table('productos')->insert([
+            ...$datos, 'nombre' => 'Martíllo', 'codigo_barra' => 'ANT002',
+            'nombre_normalizado' => hash('sha256', 'martíllo'),
+        ]);
+
+        $migration = require database_path('migrations/2026_11_19_235153_normalizar_nombres_productos_sin_acentos.php');
+        $migration->up();
+
+        $this->assertDatabaseHas('productos', ['nombre' => 'Martillo', 'codigo_barra' => 'ANT001']);
+        $this->assertDatabaseHas('productos', ['nombre' => 'Martíllo', 'codigo_barra' => 'ANT002', 'nombre_normalizado' => null]);
+        $this->assertTrue(Producto::nombreExiste('MARTILLO'));
+        $migration->down();
+        $this->assertDatabaseHas('productos', ['nombre' => 'Martíllo', 'codigo_barra' => 'ANT002']);
+    }
+
     public function test_import_can_run_twice_without_creating_duplicate_products(): void
     {
         $this->seed(ProductoRealSeeder::class);
         $cantidad = Producto::count();
         $codigos = Producto::orderBy('id_producto')->pluck('codigo_barra', 'id_producto')->all();
         $this->assertGreaterThan(0, $cantidad);
+        $this->assertEmpty(array_filter($codigos, fn (string $codigo): bool => ! preg_match('/^[A-Z]{3}\d{3,}$/', $codigo)));
 
         $this->seed(ProductoRealSeeder::class);
         $this->assertSame($cantidad, Producto::count());

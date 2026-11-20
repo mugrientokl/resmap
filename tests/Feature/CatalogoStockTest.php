@@ -236,7 +236,7 @@ class CatalogoStockTest extends TestCase
         $this->assertDatabaseCount('solicitud_webs', 0);
     }
 
-    public function test_products_without_available_stock_are_hidden_from_catalog_and_search_suggestions(): void
+    public function test_products_without_available_stock_are_visible_but_cannot_be_requested(): void
     {
         $availableProductId = $this->createProductWithStock(3);
         $unavailableProductId = $this->createProductWithStock(0);
@@ -251,11 +251,36 @@ class CatalogoStockTest extends TestCase
 
         $response->assertOk()
             ->assertSee('Producto disponible')
-            ->assertDontSee('Producto agotado');
+            ->assertSee('Producto agotado')
+            ->assertSee('Agotado')
+            ->assertSee('bg-black/40', false);
+        $this->assertMatchesRegularExpression(
+            '/data-producto-id="'.$unavailableProductId.'"[^>]*disabled/s',
+            $response->getContent(),
+        );
         $this->assertSame(
-            [$availableProductId],
+            [$unavailableProductId, $availableProductId],
             $response->viewData('productosBuscador')->pluck('id_producto')->all()
         );
+        $this->post(route('catalogo.solicitudes.store'), [
+            ...$this->validCustomerData(),
+            'detalles_productos' => [['id_producto' => $unavailableProductId, 'cantidad' => 1]],
+        ])->assertSessionHasErrors('detalles_productos');
+        $this->assertDatabaseCount('solicitud_webs', 0);
+
+        DB::table('productos')->where('id_producto', $unavailableProductId)->update(['stock' => 2]);
+        $restored = $this->get(route('catalogo.index', ['nombre' => 'Producto agotado']))->assertOk()
+            ->assertSee('Producto agotado')
+            ->assertDontSee('bg-black/40', false);
+        $this->assertSame(2, $restored->viewData('productos')->first()->stock_disponible);
+        $this->assertDoesNotMatchRegularExpression(
+            '/data-producto-id="'.$unavailableProductId.'"[^>]*\sdisabled(?:\s|>)/s',
+            $restored->getContent(),
+        );
+        $this->post(route('catalogo.solicitudes.store'), [
+            ...$this->validCustomerData(),
+            'detalles_productos' => [['id_producto' => $unavailableProductId, 'cantidad' => 1]],
+        ])->assertSessionHasNoErrors()->assertSessionHas('success');
     }
 
     public function test_home_and_catalog_only_offer_kits_with_available_stock_after_reservations(): void
@@ -293,17 +318,22 @@ class CatalogoStockTest extends TestCase
 
         $catalog = $this->get(route('catalogo.index'))->assertOk()
             ->assertSee('Kit disponible')
-            ->assertDontSee('Kit reservado')
-            ->assertDontSee('Kit agotado');
+            ->assertSee('Kit reservado')
+            ->assertSee('Kit agotado')
+            ->assertSee('Agotado');
         $product = $catalog->viewData('productosBuscador')->firstWhere('id_producto', $availableId);
         $this->assertSame(2, $product->stock_disponible);
         $this->assertMatchesRegularExpression(
             '/\["Kit disponible","[^"]+",'.$categoryId.','.$availableId.',2\]/',
             $catalog->getContent(),
         );
+        $this->post(route('catalogo.solicitudes.store'), [
+            ...$this->validCustomerData(),
+            'detalles_productos' => [['id_producto' => $reservedId, 'cantidad' => 1]],
+        ])->assertSessionHasErrors('detalles_productos');
     }
 
-    public function test_zero_stock_products_are_critical_but_stay_hidden_from_the_catalog(): void
+    public function test_zero_stock_products_are_critical_and_visible_in_the_catalog(): void
     {
         $unavailableProductId = $this->createProductWithStock(0);
         $availableProductId = $this->createProductWithStock(1);
@@ -326,7 +356,7 @@ class CatalogoStockTest extends TestCase
         $catalogo = $this->get(route('catalogo.index'));
         $catalogo->assertOk()
             ->assertSee('Producto con stock bajo')
-            ->assertDontSee('Producto agotado');
+            ->assertSee('Producto agotado');
     }
 
     public function test_new_products_default_to_unit_and_active(): void

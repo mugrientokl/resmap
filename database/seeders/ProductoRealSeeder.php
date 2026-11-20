@@ -225,13 +225,7 @@ class ProductoRealSeeder extends Seeder
         $nombreBase = mb_substr(trim($nombre), 0, 255);
         $candidato = $nombreBase;
         $numero = 0;
-        while (Producto::query()
-            ->where(function ($query) use ($candidato): void {
-                $query->where('nombre_normalizado', Producto::claveNombre($candidato))
-                    ->orWhereRaw('LOWER(nombre) = ?', [mb_strtolower($candidato)]);
-            })
-            ->when($productoId !== null, fn ($query) => $query->where('id_producto', '!=', $productoId))
-            ->exists()) {
+        while (Producto::nombreExiste($candidato, $productoId)) {
             $sufijo = ' - fila '.$filaOrigen.($numero++ > 0 ? '-'.$numero : '');
             $candidato = mb_substr($nombreBase, 0, 255 - mb_strlen($sufijo)).$sufijo;
         }

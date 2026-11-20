@@ -77,15 +77,22 @@
         @forelse($productos as $producto)
             <article class="flex flex-col justify-between bg-white p-6 shadow-sm">
                 <div>
-                    @if($producto->imagen)
-                        <img src="{{ asset('storage/'.$producto->imagen) }}"
-                            alt="{{ $producto->nombre }}"
-                            class="mb-5 h-48 w-full object-cover">
-                    @else
-                        <div class="mb-5 flex h-48 items-center justify-center bg-[#f7e8e6] text-sm font-bold uppercase tracking-widest text-[#9f2f25]">
-                            RESMAP
-                        </div>
-                    @endif
+                    <div class="relative mb-5">
+                        @if($producto->imagen)
+                            <img src="{{ asset('storage/'.$producto->imagen) }}"
+                                alt="{{ $producto->nombre }}"
+                                class="h-48 w-full object-cover">
+                        @else
+                            <div class="flex h-48 items-center justify-center bg-[#f7e8e6] text-sm font-bold uppercase tracking-widest text-[#9f2f25]">
+                                RESMAP
+                            </div>
+                        @endif
+                        @if($producto->stock_disponible <= 0)
+                            <div class="absolute inset-0 flex items-center justify-center bg-black/40">
+                                <span class="rounded-md bg-[#241817] px-4 py-2 text-sm font-bold text-white">Agotado</span>
+                            </div>
+                        @endif
+                    </div>
 
                     <p class="text-xs font-bold uppercase tracking-wider text-[#9f2f25]">
                         {{ $producto->categoria?->nombre_categoria ?? 'Repuesto' }}
@@ -652,7 +659,7 @@ function renderCarrito() {
         const item = seleccion[id];
         const stock = Number(selector.dataset.stock || 0);
 
-        selector.innerHTML = item
+        selector.innerHTML = item && stock > 0
             ? `
                 <div class="flex items-center gap-2 rounded-md border border-[#e8c8c3] p-1">
                     <button type="button"

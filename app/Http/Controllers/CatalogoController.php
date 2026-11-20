@@ -55,14 +55,13 @@ class CatalogoController extends Controller
     public function index(Request $request)
     {
         $categorias = Categoria::withCount([
-            'productos' => fn ($query) => $query->where('activo', true)->conStockDisponible(),
+            'productos' => fn ($query) => $query->where('activo', true),
         ])
             ->orderBy('nombre_categoria')
             ->get();
 
         $productosBuscador = Producto::query()
             ->where('activo', true)
-            ->conStockDisponible()
             ->select('id_producto', 'nombre', 'codigo_barra', 'codigo_origen', 'id_categoria', 'stock')
             ->withSum('reservasActivas as stock_reservado', 'cantidad')
             ->orderBy('nombre')
@@ -71,7 +70,6 @@ class CatalogoController extends Controller
         $productos = Producto::with('categoria')
             ->withSum('reservasActivas as stock_reservado', 'cantidad')
             ->where('activo', true)
-            ->conStockDisponible()
             ->when($request->filled('nombre'), function ($query) use ($request): void {
                 $query->buscarCoincidencias($request->string('nombre')->trim()->toString());
             })

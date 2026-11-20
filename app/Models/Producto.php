@@ -9,8 +9,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
 class Producto extends Model
 {
@@ -27,7 +30,31 @@ class Producto extends Model
 
     public static function claveNombre(string $nombre): string
     {
-        return hash('sha256', mb_convert_case(trim($nombre), MB_CASE_FOLD, 'UTF-8'));
+        $nombre = mb_convert_case(trim($nombre), MB_CASE_FOLD, 'UTF-8');
+        $nombre = preg_replace_callback('/\p{Latin}\p{M}*/u', fn (array $letra): string => Str::ascii($letra[0]), $nombre);
+        $nombre = trim(preg_replace('/\s+/u', ' ', $nombre));
+
+        return hash('sha256', $nombre);
+    }
+
+    public static function nombreExiste(string $nombre, ?int $productoId = null): bool
+    {
+        $clave = self::claveNombre($nombre);
+        $consulta = self::query()
+            ->when($productoId !== null, fn (Builder $query) => $query->whereKeyNot($productoId));
+
+        if ((clone $consulta)->where('nombre_normalizado', $clave)->exists()) {
+            return true;
+        }
+
+        return (clone $consulta)->whereNull('nombre_normalizado')
+            ->pluck('nombre')
+            ->contains(fn (string $existente): bool => self::claveNombre($existente) === $clave);
+    }
+
+    public static function prefijoCodigo(string $nombre): string
+    {
+        return substr(preg_replace('/[^A-Z]/', '', strtoupper(Str::ascii($nombre))), 0, 3);
     }
 
     protected $table = 'productos';
@@ -60,15 +87,77 @@ class Producto extends Model
 
     public static function crearConCodigo(array $datos): self
     {
-        return DB::transaction(function () use ($datos): self {
-            $datos['codigo_barra'] = 'TEMP-'.Str::uuid();
-            $datos['codigo_origen'] = null;
-            $producto = self::create($datos);
-            $codigo = sprintf('RESMAP-%06d', $producto->id_producto);
-            $producto->update(['codigo_barra' => $codigo, 'codigo_origen' => $codigo]);
+        $prefijo = self::prefijoCodigo($datos['nombre']);
+        if (strlen($prefijo) !== 3) {
+            throw ValidationException::withMessages([
+                'nombre' => 'El nombre del repuesto debe contener al menos tres letras.',
+            ]);
+        }
 
-            return $producto;
-        });
+        for ($intento = 0; $intento < 10; $intento++) {
+            $codigo = null;
+            try {
+                return DB::transaction(function () use ($datos, $prefijo, &$codigo): self {
+                    $ultimoNumero = 0;
+                    $codigos = self::query()
+                        ->whereRaw('LOWER(codigo_barra) LIKE ?', [strtolower($prefijo).'%'])
+                        ->orWhereRaw('LOWER(codigo_origen) LIKE ?', [strtolower($prefijo).'%'])
+                        ->get(['codigo_barra', 'codigo_origen']);
+
+                    foreach ($codigos as $productoExistente) {
+                        foreach ([$productoExistente->codigo_barra, $productoExistente->codigo_origen] as $codigoExistente) {
+                            $ultimoNumero = max($ultimoNumero, self::consecutivoCodigo($codigoExistente, $prefijo));
+                        }
+                    }
+
+                    if (Schema::hasTable('producto_recodificaciones')) {
+                        $anteriores = DB::table('producto_recodificaciones')
+                            ->whereRaw('LOWER(codigo_barra_anterior) LIKE ?', [strtolower($prefijo).'%'])
+                            ->orWhereRaw('LOWER(codigo_origen_anterior) LIKE ?', [strtolower($prefijo).'%'])
+                            ->get(['codigo_barra_anterior', 'codigo_origen_anterior']);
+                        foreach ($anteriores as $anterior) {
+                            foreach ([$anterior->codigo_barra_anterior, $anterior->codigo_origen_anterior] as $codigoAnterior) {
+                                $ultimoNumero = max($ultimoNumero, self::consecutivoCodigo($codigoAnterior, $prefijo));
+                            }
+                        }
+                    }
+
+                    $codigo = $prefijo.sprintf('%03d', $ultimoNumero + 1);
+                    $datos['codigo_barra'] = $codigo;
+                    $datos['codigo_origen'] = $codigo;
+
+                    return self::create($datos);
+                });
+            } catch (UniqueConstraintViolationException $exception) {
+                if ($codigo === null || self::nombreExiste($datos['nombre']) || ! self::query()
+                    ->where('codigo_barra', $codigo)
+                    ->orWhere('codigo_origen', $codigo)
+                    ->exists()) {
+                    throw $exception;
+                }
+            }
+        }
+
+        throw ValidationException::withMessages([
+            'codigo_barra' => 'No se pudo generar un código único para el repuesto. Inténtalo nuevamente.',
+        ]);
+    }
+
+    private static function consecutivoCodigo(?string $codigo, string $prefijo): int
+    {
+        if ($codigo === null || ! preg_match('/^'.preg_quote($prefijo, '/').'(\d+)$/i', $codigo, $coincidencias)) {
+            return 0;
+        }
+
+        $numero = ltrim($coincidencias[1], '0');
+        $limite = (string) PHP_INT_MAX;
+        if (strlen($numero) > strlen($limite) || (strlen($numero) === strlen($limite) && strcmp($numero, $limite) >= 0)) {
+            throw ValidationException::withMessages([
+                'codigo_barra' => 'El consecutivo de este prefijo excede el límite admitido.',
+            ]);
+        }
+
+        return (int) $numero;
     }
 
     protected function stockDisponible(): Attribute

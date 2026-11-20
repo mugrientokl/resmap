@@ -14,7 +14,7 @@
         </div>
     @endif
 
-    <form action="{{ route('productos.store', absolute: false) }}" method="POST" enctype="multipart/form-data" class="space-y-4" onsubmit="return validateProductForm(this)">
+    <form action="{{ route('productos.store', absolute: false) }}" method="POST" enctype="multipart/form-data" class="space-y-4" data-producto-nuevo="true" onsubmit="return validateProductForm(this)">
         @csrf
 
         <div>
@@ -93,28 +93,6 @@
     </form>
 </div>
 
-<script>
-    function validateProductForm(form) {
-        let errorBox = form.querySelector('.product-validation-error');
-        let errorMessage = form.querySelector('.product-validation-message');
-        let productName = form.querySelector('input[name="nombre"]').value.trim();
-
-        errorBox.classList.add('hidden');
-        errorMessage.textContent = '';
-
-        if (!productName) {
-            errorMessage.textContent = 'El nombre del repuesto es obligatorio.';
-            errorBox.classList.remove('hidden');
-            return false;
-        }
-
-        if (/^\d+$/.test(productName)) {
-            errorMessage.textContent = 'El nombre del repuesto no puede contener únicamente números; debe incluir al menos una letra.';
-            errorBox.classList.remove('hidden');
-            return false;
-        }
-
-        return true;
-    }
-</script>
+<script type="application/json" id="nombres-productos">@json($nombresExistentes)</script>
+<script src="{{ asset('js/producto-form.js') }}"></script>
 @endsection
