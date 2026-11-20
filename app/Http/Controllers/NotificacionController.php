@@ -71,6 +71,13 @@ class NotificacionController extends Controller
         return redirect()->route('notificaciones.trash')->with('success', 'Todos los avisos se restauraron.');
     }
 
+    public function destroyAll(Request $request): RedirectResponse
+    {
+        $request->user()->notifications()->whereNotNull('deleted_at')->delete();
+
+        return redirect()->route('notificaciones.trash')->with('success', 'Los avisos de la papelera se eliminaron definitivamente.');
+    }
+
     public function destroy(Request $request, string $id): RedirectResponse
     {
         $request->user()->notifications()->whereNotNull('deleted_at')->whereKey($id)->firstOrFail()->delete();

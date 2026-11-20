@@ -70,6 +70,7 @@ class SolicitudWebRecibida extends Notification
         return [
             'tipo' => 'solicitud',
             'tipo_solicitud' => $this->solicitud->tipo_solicitud,
+            'solicitud_id' => $this->solicitud->id_solicitud,
             'titulo' => $esServicio ? 'Nuevo servicio solicitado' : 'Nueva cotización web',
             'mensaje' => ($esServicio ? 'Servicio' : 'Cotización').' #'.$this->solicitud->id_solicitud.' de '.Cliente::desdeSnapshot($this->solicitud->snapshotDatosCliente())->nombre.($faltantes ? ' requiere revisar disponibilidad de stock.' : ''),
             'faltantes_stock' => $faltantes,

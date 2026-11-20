@@ -53,7 +53,7 @@ Las cuentas de prueba del `UserSeeder` son `admin` y `vendedor1`, ambas con cont
 - `/usuarios`: creación de usuarios por administradores.
 - `/categorias`: gestión de categorías mediante modales.
 - `/clientes`: gestión de clientes.
-- `/notificaciones`: avisos de stock crítico y solicitudes nuevas.
+- `/notificaciones`: avisos de stock crítico y solicitudes nuevas; la papelera permite restaurar o eliminar definitivamente todos los avisos propios.
 
 ## Estructura principal
 
@@ -119,6 +119,8 @@ Prueba recomendada: crea un backup manual, ejecuta `php artisan app:verify-datab
 ## Cotizaciones B2B y WhatsApp
 
 Las solicitudes públicas de repuestos crean reservas temporales; no reducen `productos.stock`. El POS y los ajustes manuales respetan esas reservas. Aceptar una versión de cotización crea una venta pendiente, pero tampoco descuenta stock. El descuento ocurre una sola vez cuando la facturación simulada termina correctamente en un entorno no productivo. Esa simulación no se conecta al SII ni emite un DTE real. Si la reserva venció antes de aceptar o facturar, el sistema vuelve a comprobar disponibilidad y no continúa si no alcanza.
+
+Al preparar una cotización se muestra el stock físico y la disponibilidad considerando las reservas de otras cotizaciones. El aviso de stock es informativo durante la edición; al crear la versión se vuelve a validar la disponibilidad porque esa operación reserva unidades. Al abrir el detalle de una cotización, sus avisos de solicitud pendientes se marcan como leídos solo para el usuario actual y permanecen en el historial.
 
 El correo usa SMTP configurable; para Mailtrap configura sus credenciales en el `.env` local. Para WhatsApp Cloud API se requieren `WHATSAPP_ENABLED`, la versión de Graph API vigente, el identificador de número, el token, el secreto de aplicación y el token de verificación del webhook. `WHATSAPP_QUOTE_TEMPLATE` debe ser el nombre de una plantilla aprobada que tenga cuatro parámetros de texto en el cuerpo y tres botones de respuesta rápida, en este orden: aceptar, rechazar y solicitar cambios. El idioma debe coincidir con la plantilla aprobada.
 

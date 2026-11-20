@@ -440,7 +440,6 @@
     </nav>
 
     <main class="mx-auto min-h-[calc(100vh-140px)] py-6">
-        @if (filled(session('success')) || filled(session('status')) || filled(session('warning')) || filled(session('error')) || filled(session('rejected')))
             <div id="flash-notifications" class="pointer-events-none fixed right-4 top-20 z-60 flex w-[min(32rem,calc(100vw-2rem))] flex-col gap-3 sm:right-6" aria-live="polite" aria-relevant="additions">
                 @foreach ([
                     'success' => ['Operación completada', 'border-green-600 bg-green-50 text-green-950 ring-green-200', 'status', '✓'],
@@ -460,8 +459,8 @@
                         </div>
                     @endif
                 @endforeach
+                @stack('flash-notifications')
             </div>
-        @endif
         @yield('content')
     </main>
     <footer class="mt-8 border-t border-[#e8c8c3] bg-white px-4 py-8 text-sm text-gray-600">

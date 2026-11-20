@@ -156,6 +156,10 @@ Route::middleware([
         ->middleware('auth')
         ->name('notificaciones.restore-all');
 
+    Route::delete('/notificaciones/papelera/vaciar', [NotificacionController::class, 'destroyAll'])
+        ->middleware('auth')
+        ->name('notificaciones.destroy-all');
+
     Route::post('/notificaciones/{id}/papelera', [NotificacionController::class, 'moveToTrash'])
         ->middleware('auth')
         ->name('notificaciones.move-to-trash');

@@ -148,6 +148,34 @@ class NotificacionTest extends TestCase
         $this->assertDatabaseHas('notifications', ['id' => $aviso, 'read_at' => $leidoEn, 'deleted_at' => null]);
     }
 
+    public function test_emptying_trash_only_deletes_the_users_trashed_alerts_across_pages(): void
+    {
+        $usuario = User::factory()->create();
+        $otroUsuario = User::factory()->create();
+        $enPapelera = [];
+        for ($i = 0; $i < 25; $i++) {
+            $enPapelera[] = $this->crearAviso($usuario, 'Aviso '.$i, deleted: true);
+        }
+        DB::table('notifications')->where('id', $enPapelera[0])->update(['read_at' => now()]);
+        $activo = $this->crearAviso($usuario, 'Activo');
+        $ajeno = $this->crearAviso($otroUsuario, 'Ajeno', deleted: true);
+
+        $this->delete(route('notificaciones.destroy-all'))->assertRedirect(route('login'));
+        $this->actingAs($usuario)->get(route('notificaciones.index'))->assertDontSee('Eliminar todos definitivamente');
+        $this->get(route('notificaciones.trash'))
+            ->assertSee('Eliminar todos definitivamente')
+            ->assertSee('data-confirm-message="¿Eliminar definitivamente todos los avisos de la papelera? Esta acción no se puede deshacer."', false)
+            ->assertSee('action="'.route('notificaciones.destroy-all').'"', false);
+        $this->delete(route('notificaciones.destroy-all'))
+            ->assertRedirect(route('notificaciones.trash'))
+            ->assertSessionHas('success', 'Los avisos de la papelera se eliminaron definitivamente.');
+
+        $this->assertSame(0, DB::table('notifications')->whereIn('id', $enPapelera)->count());
+        $this->assertDatabaseHas('notifications', ['id' => $activo, 'deleted_at' => null]);
+        $this->assertDatabaseHas('notifications', ['id' => $ajeno]);
+        $this->get(route('notificaciones.trash'))->assertSee('La papelera está vacía.');
+    }
+
     public function test_a_trashed_unread_stock_alert_is_not_immediately_recreated(): void
     {
         $usuario = User::factory()->create();

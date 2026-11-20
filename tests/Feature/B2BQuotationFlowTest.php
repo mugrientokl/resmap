@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Mail\CotizacionCliente;
 use App\Models\Cliente;
 use App\Models\CotizacionVersion;
+use App\Models\SolicitudWeb;
 use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\NuevaCotizacionPendiente;
@@ -60,6 +61,57 @@ class B2BQuotationFlowTest extends TestCase
 
         $this->assertDatabaseMissing('notifications', ['id' => $notificationIds[0], 'read_at' => null]);
         $this->assertDatabaseHas('notifications', ['id' => $notificationIds[1], 'read_at' => null]);
+    }
+
+    public function test_opening_a_quote_reads_its_own_new_and_legacy_request_alerts_only(): void
+    {
+        Notification::fake();
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 2);
+        $firstId = (int) DB::table('solicitud_webs')->max('id_solicitud');
+        $this->createProductRequest($productId, 1);
+        $secondId = (int) DB::table('solicitud_webs')->max('id_solicitud');
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $otherSeller = User::factory()->create(['rol' => 'Vendedor']);
+        $alertData = (new SolicitudWebRecibida(SolicitudWeb::findOrFail($firstId)))->toArray($seller);
+        $this->assertSame($firstId, $alertData['solicitud_id']);
+        $legacyData = $alertData;
+        unset($legacyData['solicitud_id']);
+        $legacyData['url'] = 'https://antiguo.example'.route('solicitudes.show', $firstId, false);
+        $otherData = (new SolicitudWebRecibida(SolicitudWeb::findOrFail($secondId)))->toArray($seller);
+        $inconsistentData = $alertData;
+        $inconsistentData['solicitud_id'] = $secondId;
+        $ids = [];
+
+        foreach ([[$seller, $alertData, false], [$seller, $legacyData, false], [$seller, $otherData, false], [$otherSeller, $alertData, false], [$seller, $alertData, true], [$seller, $inconsistentData, false]] as [$owner, $data, $trashed]) {
+            $id = (string) Str::uuid();
+            $ids[] = $id;
+            DB::table('notifications')->insert([
+                'id' => $id,
+                'type' => SolicitudWebRecibida::class,
+                'notifiable_type' => User::class,
+                'notifiable_id' => $owner->id,
+                'data' => json_encode($data, JSON_THROW_ON_ERROR),
+                'read_at' => null,
+                'deleted_at' => $trashed ? now() : null,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $this->get(route('solicitudes.show', $firstId))->assertRedirect(route('login'));
+        $this->actingAs($seller)->get(route('solicitudes.index'))->assertOk();
+        $this->assertSame(4, $seller->unreadNotifications()->whereNull('deleted_at')->count());
+        $this->get(route('solicitudes.show', $firstId))->assertOk()
+            ->assertSee('>2</span>', false);
+
+        $this->assertDatabaseMissing('notifications', ['id' => $ids[0], 'read_at' => null]);
+        $this->assertDatabaseMissing('notifications', ['id' => $ids[1], 'read_at' => null]);
+        foreach (array_slice($ids, 2) as $id) {
+            $this->assertDatabaseHas('notifications', ['id' => $id, 'read_at' => null]);
+        }
+        $this->assertSame(2, $seller->unreadNotifications()->whereNull('deleted_at')->count());
+        $this->assertSame(5, $seller->notifications()->count());
     }
 
     public function test_quote_pdf_shows_the_request_contact_and_optional_cargo_with_historical_customer_data(): void
@@ -465,17 +517,50 @@ class B2BQuotationFlowTest extends TestCase
         $firstId = (int) DB::table('solicitud_webs')->max('id_solicitud');
         $this->createProductRequest($productId, 3);
 
-        $this->actingAs(User::factory()->create(['rol' => 'Vendedor']))
+        $zeroStockId = $this->createProductWithStock(0);
+        $response = $this->actingAs(User::factory()->create(['rol' => 'Vendedor']))
             ->get(route('solicitudes.show', $firstId))
             ->assertOk()
             ->assertViewHas('productosDisponibles', fn ($productos) => $productos->firstWhere('id_producto', $productId)->stock_disponible === 2)
             ->assertSee('data-buscar-producto', false);
 
+        preg_match('/<script type="application\/json" id="productos-cotizacion">(.*?)<\/script>/s', $response->getContent(), $matches);
+        $products = collect(json_decode($matches[1], true, flags: JSON_THROW_ON_ERROR))->keyBy('id');
+        $this->assertSame(5, $products[$productId]['stock']);
+        $this->assertSame(2, $products[$productId]['disponible']);
+        $this->assertSame(0, $products[$zeroStockId]['stock']);
+        $this->assertSame(0, $products[$zeroStockId]['disponible']);
+
         $this->post(route('solicitudes.cotizacion.crear', $firstId), [
             'items_edicion' => 1,
-            'items' => [['id_producto' => $productId, 'cantidad' => 3]],
-        ])->assertSessionHasErrors('detalles_productos');
+            'items' => [
+                ['id_producto' => $productId, 'cantidad' => 3],
+                ['id_producto' => $zeroStockId, 'cantidad' => 1],
+            ],
+        ])->assertSessionHasErrors('detalles_productos')->assertSessionHasInput('items.0.cantidad', 3);
         $this->assertDatabaseHas('reservas_inventario', ['producto_id' => $productId, 'cantidad' => 2, 'estado' => 'activa']);
+        $this->get(route('solicitudes.show', $firstId))
+            ->assertSee('name="items[0][cantidad]" value="3"', false)
+            ->assertSee('name="items[1][id_producto]" value="'.$zeroStockId.'"', false);
+    }
+
+    public function test_quote_stock_error_uses_the_dismissible_notification_without_hiding_other_errors(): void
+    {
+        Notification::fake();
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $response = $this->actingAs(User::factory()->create(['rol' => 'Vendedor']))
+            ->get(route('solicitudes.show', $solicitudId))->assertOk();
+
+        $this->withViewErrors([
+            'detalles_productos' => 'Stock insuficiente para el repuesto.',
+            'cotizacion' => 'Otro error de la cotización.',
+        ])->view('solicitudes.show', $response->original->getData())
+            ->assertSee('Stock insuficiente para el repuesto.')
+            ->assertSee('role="alert" data-auto-dismiss', false)
+            ->assertSee('data-dismiss-notification', false)
+            ->assertSee('No se pudo completar la acción:')
+            ->assertSee('Otro error de la cotización.');
     }
 
     public function test_legacy_request_completion_cannot_bypass_b2b_quote_flow(): void

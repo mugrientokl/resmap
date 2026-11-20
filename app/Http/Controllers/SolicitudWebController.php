@@ -10,6 +10,7 @@ use App\Models\ReservaInventario;
 use App\Models\SolicitudWeb;
 use App\Models\Venta;
 use App\Notifications\NuevaCotizacionPendiente;
+use App\Notifications\SolicitudWebRecibida;
 use App\Services\ResumenInternoVentaPdf;
 use App\Services\SeguimientoCotizacion;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -100,11 +101,28 @@ class SolicitudWebController extends Controller
             'venta.creditoAutorizadoPor',
         ])->findOrFail($id);
 
-        if ($solicitud->cotizacion) {
+        if ($solicitud->tipo_solicitud !== 'servicio') {
             $request->user()->unreadNotifications()
                 ->whereNull('deleted_at')
-                ->where('type', NuevaCotizacionPendiente::class)
-                ->where('data->cotizacion_id', $solicitud->cotizacion->id_cotizacion)
+                ->where(function ($query) use ($solicitud): void {
+                    if ($solicitud->cotizacion) {
+                        $query->where(function ($query) use ($solicitud): void {
+                            $query->where('type', NuevaCotizacionPendiente::class)
+                                ->where('data->cotizacion_id', $solicitud->cotizacion->id_cotizacion);
+                        });
+                    }
+
+                    $query->orWhere(function ($query) use ($solicitud): void {
+                        $query->where('type', SolicitudWebRecibida::class)
+                            ->where(function ($query) use ($solicitud): void {
+                                $query->where('data->solicitud_id', $solicitud->id_solicitud)
+                                    ->orWhere(function ($query) use ($solicitud): void {
+                                        $query->whereNull('data->solicitud_id')
+                                            ->where('data->url', 'like', '%'.route('solicitudes.show', $solicitud->id_solicitud, false));
+                                    });
+                            });
+                    });
+                })
                 ->update(['read_at' => now()]);
         }
 

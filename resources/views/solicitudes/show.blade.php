@@ -1,5 +1,20 @@
 @extends('layouts.app')
 
+@if($errors->has('detalles_productos'))
+    @push('flash-notifications')
+        <div class="pointer-events-auto flex items-start gap-4 rounded-r-xl border-l-[6px] border-red-600 bg-red-50 p-5 text-red-950 shadow-xl ring-1 ring-red-200" role="alert" data-auto-dismiss>
+            <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-2xl font-black shadow-sm" aria-hidden="true">!</span>
+            <div class="min-w-0 flex-1">
+                <p class="text-base font-black">No se pudo completar</p>
+                @foreach($errors->get('detalles_productos') as $error)
+                    <p class="mt-1 wrap-break-word text-sm leading-6">{{ $error }}</p>
+                @endforeach
+            </div>
+            <button type="button" class="-mr-2 -mt-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xl font-bold opacity-70 transition hover:bg-black/5 hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-current" aria-label="Cerrar notificación" data-dismiss-notification>×</button>
+        </div>
+    @endpush
+@endif
+
 @section('content')
 @php
     $esServicio = $solicitud->tipo_solicitud === 'servicio';
@@ -10,8 +25,17 @@
     $itemsEdicion = $ultimaVersion
         ? $ultimaVersion->detalles->map(fn ($item) => ['id_producto' => $item->producto_id, 'nombre' => $item->nombre_producto, 'cantidad' => $item->cantidad])
         : $productos->map(fn ($item) => ['id_producto' => $item['producto']?->id_producto, 'nombre' => $item['producto']?->nombre ?? 'Producto no encontrado', 'cantidad' => $item['cantidad']]);
+    if (is_array(old('items'))) {
+        $productosPorId = $productosDisponibles->keyBy('id_producto');
+        $itemsEdicion = collect(old('items'))->map(fn ($item) => [
+            'id_producto' => $item['id_producto'] ?? '',
+            'nombre' => $productosPorId->get($item['id_producto'] ?? '')?->nombre ?? 'Producto no encontrado',
+            'cantidad' => $item['cantidad'] ?? 1,
+        ])->values();
+    }
     $datosResumen = $venta?->datos_resumen ?? [];
-    $datosProductosCotizacion = $productosDisponibles->map(fn ($p) => ['id' => $p->id_producto, 'nombre' => $p->nombre, 'codigo' => $p->codigo_origen ?: $p->codigo_barra, 'stock' => $p->stock_disponible])->values();
+    $datosProductosCotizacion = $productosDisponibles->map(fn ($p) => ['id' => $p->id_producto, 'nombre' => $p->nombre, 'codigo' => $p->codigo_origen ?: $p->codigo_barra, 'stock' => (int) $p->stock, 'disponible' => $p->stock_disponible])->values();
+    $otrosErrores = collect($errors->getMessages())->except('detalles_productos')->flatten();
 @endphp
 <div class="mx-auto max-w-6xl">
     <div class="flex flex-wrap items-center justify-between gap-4">
@@ -20,10 +44,10 @@
             <a href="{{ route('solicitudes.seguimiento', $solicitud->id_solicitud) }}" class="rounded-md border border-[#b52f25] px-5 py-3 text-sm font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]">Ver seguimiento completo</a>
         @endunless
     </div>
-    @if($errors->any())
+    @if($otrosErrores->isNotEmpty())
         <div class="mt-5 border-l-4 border-red-600 bg-red-50 p-4 text-sm text-red-800" role="alert">
             <p class="font-bold">No se pudo completar la acción:</p>
-            <ul class="mt-1 list-disc pl-5">@foreach($errors->all() as $error)<li>{{ $error }}</li>@endforeach</ul>
+            <ul class="mt-1 list-disc pl-5">@foreach($otrosErrores as $error)<li>{{ $error }}</li>@endforeach</ul>
         </div>
     @endif
     <div class="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.6fr)]">
@@ -166,9 +190,12 @@
                                 <div class="flex flex-wrap items-center gap-2" data-item>
                                     <input type="hidden" name="items[{{ $indice }}][id_producto]" value="{{ $item['id_producto'] }}" data-producto-id>
                                     <span class="min-w-40 flex-1 text-sm">{{ $item['nombre'] }}</span>
-                                    <input type="number" name="items[{{ $indice }}][cantidad]" value="{{ $item['cantidad'] }}" min="1" max="99999" required data-cantidad class="w-24 border p-2" aria-label="Cantidad de {{ $item['nombre'] }}">
+                                    <div class="relative">
+                                        <input type="number" name="items[{{ $indice }}][cantidad]" value="{{ $item['cantidad'] }}" min="1" max="99999" required data-cantidad class="w-24 border p-2" aria-label="Cantidad de {{ $item['nombre'] }}">
+                                        <p data-stock-mensaje role="status" class="absolute left-0 top-full z-20 hidden whitespace-nowrap rounded border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-900 shadow-lg"></p>
+                                    </div>
                                     <button type="button" data-quitar class="rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Quitar</button>
-                                    <p data-stock-mensaje role="status" class="w-full text-sm text-red-700"></p>
+                                    <p data-stock-info class="w-full text-sm text-gray-600"></p>
                                 </div>
                             @endforeach
                         </div>
@@ -179,9 +206,12 @@
                                     <input type="hidden" name="items[__INDEX__][id_producto]" data-producto-id>
                                     <div data-opciones class="absolute z-10 hidden max-h-56 w-full overflow-y-auto border bg-white shadow-lg"></div>
                                 </div>
-                                <input type="number" name="items[__INDEX__][cantidad]" value="1" min="1" max="99999" required data-cantidad class="w-24 border p-2" aria-label="Cantidad">
+                                <div class="relative">
+                                    <input type="number" name="items[__INDEX__][cantidad]" value="1" min="1" max="99999" required data-cantidad class="w-24 border p-2" aria-label="Cantidad">
+                                    <p data-stock-mensaje role="status" class="absolute left-0 top-full z-20 hidden whitespace-nowrap rounded border border-amber-400 bg-amber-50 px-3 py-2 text-sm text-amber-900 shadow-lg"></p>
+                                </div>
                                 <button type="button" data-quitar class="rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Quitar</button>
-                                <p data-stock-mensaje role="status" class="w-full text-sm text-red-700"></p>
+                                <p data-stock-info class="w-full text-sm text-gray-600"></p>
                             </div>
                         </template>
                         <script type="application/json" id="productos-cotizacion">@json($datosProductosCotizacion)</script>
@@ -314,24 +344,27 @@
         const productos = JSON.parse(document.getElementById('productos-cotizacion').textContent);
         const productosPorId = new Map(productos.map(producto => [String(producto.id), producto]));
         const normalizar = texto => texto.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-        const validarItem = (item, limitar = false) => {
+        const temporizadoresStock = new WeakMap();
+        const validarItem = item => {
             const id = item.querySelector('[data-producto-id]').value;
             const producto = productosPorId.get(id);
             const cantidad = item.querySelector('[data-cantidad]');
             const mensaje = item.querySelector('[data-stock-mensaje]');
+            const info = item.querySelector('[data-stock-info]');
             const buscador = item.querySelector('[data-buscar-producto]');
             if (buscador) buscador.setCustomValidity(id ? '' : 'Selecciona un repuesto de las opciones.');
-            if (!id) {
-                cantidad.setCustomValidity('');
-                mensaje.textContent = '';
-                return;
+            clearTimeout(temporizadoresStock.get(item));
+            mensaje.classList.add('hidden');
+            mensaje.textContent = '';
+            info.textContent = producto ? `Stock: ${producto.stock} · Disponible para esta cotización: ${producto.disponible}.` : '';
+            if (producto && cantidad.value !== '' && Number(cantidad.value) >= 1 && Number(cantidad.value) >= producto.disponible) {
+                mensaje.textContent = 'Stock insuficiente';
+                mensaje.classList.remove('hidden');
+                temporizadoresStock.set(item, setTimeout(() => {
+                    mensaje.classList.add('hidden');
+                    mensaje.textContent = '';
+                }, 3000));
             }
-            const stock = producto?.stock ?? 0;
-            const excede = Number(cantidad.value) > stock;
-            if (excede && limitar && stock > 0) cantidad.value = stock;
-            cantidad.max = Math.min(stock, 99999);
-            cantidad.setCustomValidity(stock === 0 ? 'Este repuesto no tiene stock disponible.' : (excede && !limitar ? `Stock disponible: ${stock}.` : ''));
-            mensaje.textContent = stock === 0 ? 'Sin stock disponible. Quita este repuesto.' : (excede && limitar ? `Stock disponible: ${stock}. La cantidad se ajustó al máximo.` : `Stock disponible: ${stock}.`);
         };
         itemsCotizacion.querySelectorAll('[data-item]').forEach(item => validarItem(item));
         let siguienteItem = itemsCotizacion.querySelectorAll('[data-item]').length;
@@ -346,7 +379,7 @@
             const item = event.target.closest('[data-item]');
             if (!item) return;
             if (event.target.matches('[data-cantidad]')) {
-                validarItem(item, true);
+                validarItem(item);
                 return;
             }
             if (!event.target.matches('[data-buscar-producto]')) return;
@@ -366,13 +399,13 @@
                 const opcion = document.createElement('button');
                 opcion.type = 'button';
                 opcion.className = 'block w-full border-b p-2 text-left text-sm hover:bg-gray-100 disabled:text-gray-400';
-                opcion.textContent = `${producto.nombre} · ${producto.codigo} · Stock: ${producto.stock}${seleccionados.has(String(producto.id)) ? ' · Ya agregado' : ''}`;
-                opcion.disabled = producto.stock <= 0 || seleccionados.has(String(producto.id));
+                opcion.textContent = `${producto.nombre} · ${producto.codigo} · Stock: ${producto.stock} · Disponible: ${producto.disponible}${seleccionados.has(String(producto.id)) ? ' · Ya agregado' : ''}`;
+                opcion.disabled = seleccionados.has(String(producto.id));
                 opcion.addEventListener('click', () => {
                     const duplicado = Array.from(itemsCotizacion.querySelectorAll('[data-producto-id]'))
                         .some(input => input !== item.querySelector('[data-producto-id]') && input.value === String(producto.id));
                     if (duplicado) {
-                        item.querySelector('[data-stock-mensaje]').textContent = 'Este repuesto ya fue agregado.';
+                        item.querySelector('[data-stock-info]').textContent = 'Este repuesto ya fue agregado.';
                         opcion.disabled = true;
                         return;
                     }
@@ -380,7 +413,7 @@
                     buscador.value = `${producto.nombre} · ${producto.codigo}`;
                     opciones.classList.add('hidden');
                     buscador.setAttribute('aria-expanded', 'false');
-                    validarItem(item, true);
+                    validarItem(item);
                 });
                 opciones.append(opcion);
             });
