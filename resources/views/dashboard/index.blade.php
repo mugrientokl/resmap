@@ -4,10 +4,13 @@
 
 @section('content')
 @php
-    $parametrosPeriodo = array_filter(['mes' => $seleccion['mes'], 'dia' => $seleccion['dia']]);
+    $parametrosPeriodo = array_filter(['anio' => $seleccion['anio'], 'mes' => $seleccion['mes'], 'dia' => $seleccion['dia']]);
     $dinero = fn (float $monto): string => '$'.number_format($monto, 0, ',', '.');
 @endphp
 <div class="dashboard-container">
+    @if($errors->any())
+        <div class="alert-card" role="alert">{{ $errors->first() }}</div>
+    @endif
     <div class="dashboard-header">
         <div class="header-content">
             <p class="dashboard-eyebrow">Centro de operaciones</p>
@@ -34,7 +37,7 @@
     <div class="alert-card">
         <div class="alert-icon"><i class="fas fa-exclamation-triangle"></i></div>
         <div class="alert-content">
-            <h3>Stock Crítico</h3>
+            <h3>Stock crítico actual</h3>
             <p>{{ number_format($cantidadStockCritico, 0, ',', '.') }} {{ $cantidadStockCritico === 1 ? 'producto con stock bajo' : 'productos con stock bajo' }}</p>
             <a href="{{ route('productos.index', ['stock' => 'critico']) }}" class="btn-alert">Ver stock crítico</a>
         </div>
@@ -43,30 +46,43 @@
 
     <div id="dashboard-live" aria-live="polite">
     @php
-        $datosPanel = ['mes' => $seleccion['mes'], 'dia' => $seleccion['dia'], 'ventasMensuales' => $ventasMensuales, 'ventasDiarias' => $ventasDiarias, 'productos' => $productosMasVendidos, 'pdf' => route('dashboard.exportar.pdf', $parametrosPeriodo)];
+        $datosPanel = ['anio' => $seleccion['anio'], 'mes' => $seleccion['mes'], 'dia' => $seleccion['dia'], 'ventasMensuales' => $ventasMensuales, 'ventasDiarias' => $ventasDiarias, 'productos' => $productosMasVendidos, 'pdf' => route('dashboard.exportar.pdf', $parametrosPeriodo)];
     @endphp
     <script type="application/json" id="dashboard-data">@json($datosPanel)</script>
     <form method="GET" action="{{ route('dashboard') }}" class="period-bar" id="dashboard-period-form">
         <div class="period-current">
             <span class="chart-kicker">Período de los indicadores</span>
             <strong id="dashboard-period-label">{{ ucfirst($seleccion['etiqueta']) }}</strong>
-            <small>Los indicadores, el gráfico diario y el top 10 siguen este período. Haz clic en una barra para cambiarlo.</small>
+            <small>Las ventas y gráficos corresponden a este período. Haz clic en una barra para detallarlo.</small>
         </div>
+        <label class="period-select">
+            <span>Año</span>
+            <select name="anio" id="dashboard-anio" aria-label="Seleccionar año">
+                @foreach($aniosDisponibles as $anio)
+                    <option value="{{ $anio }}" @selected($anio === $seleccion['anio'])>{{ $anio }}</option>
+                @endforeach
+            </select>
+        </label>
         <label class="period-select">
             <span>Mes</span>
             <select name="mes" id="dashboard-mes" aria-label="Seleccionar mes">
-                @foreach($ventasMensuales as $mes)
-                    <option value="{{ $mes['periodo'] }}" @selected($mes['periodo'] === $seleccion['mes'])>{{ ucfirst($mes['etiqueta']) }}</option>
+                <option value="">Todos los meses</option>
+                @foreach(range(1, 12) as $mes)
+                    <option value="{{ $mes }}" @selected($mes === $seleccion['mes'])>{{ ucfirst(\Carbon\Carbon::create(2000, $mes, 1)->locale('es')->isoFormat('MMMM')) }}</option>
                 @endforeach
             </select>
         </label>
         @if($seleccion['dia'])
-            <a href="{{ route('dashboard', ['mes' => $seleccion['mes']]) }}" class="btn-clear-day" id="dashboard-clear-day">
+            <a href="{{ route('dashboard', ['anio' => $seleccion['anio'], 'mes' => $seleccion['mes']]) }}" class="btn-clear-day" id="dashboard-clear-day">
                 <i class="fas fa-times" aria-hidden="true"></i> Ver todo el mes
             </a>
         @endif
+        <noscript><button type="submit" class="btn-clear-day">Aplicar filtros</button></noscript>
     </form>
 
+    @if($resumen['total']['cantidad'] === 0)
+        <p class="chart-empty">No hay ventas completadas para el período seleccionado.</p>
+    @endif
     <div class="stats-grid">
         <div class="stat-card">
             <div class="stat-icon icon-revenue"><i class="fas fa-dollar-sign"></i></div>
@@ -105,29 +121,33 @@
         </div>
     </div>
 
+    @if($seleccion['mes'] === null)
     <div class="chart-card chart-wide">
         <div class="chart-card-heading">
-            <span class="chart-kicker">Últimos 12 meses</span>
+            <span class="chart-kicker">{{ $seleccion['anio'] }}</span>
             <h3>Ventas por mes</h3>
             <p>Monto vendido en cada mes. Haz clic en una barra para filtrar todo el dashboard por ese mes.</p>
         </div>
         <canvas id="ventasMensualesChart" aria-label="Ventas por mes"></canvas>
     </div>
+    @endif
 
     <div class="charts-container">
+        @if($seleccion['mes'] !== null)
         <div class="chart-card">
             <div class="chart-card-heading">
-                <span class="chart-kicker">{{ ucfirst($seleccion['inicioMes']->copy()->locale('es')->isoFormat('MMMM YYYY')) }}</span>
+                <span class="chart-kicker">{{ ucfirst($seleccion['etiqueta']) }}</span>
                 <h3>Ventas por día</h3>
                 <p>Monto vendido cada día del mes. Haz clic en un día para ver solo ese día.</p>
             </div>
             <canvas id="ventasDiariasChart" aria-label="Ventas por día"></canvas>
         </div>
+        @endif
 
         <div class="chart-card">
             <div class="chart-card-heading">
-                <span class="chart-kicker">{{ $seleccion['dia'] ? 'Día seleccionado' : 'Top 10 del mes' }}</span>
-                <h3>{{ $seleccion['dia'] ? 'Top 10 productos del día' : 'Top 10 productos más vendidos del mes' }}</h3>
+                <span class="chart-kicker">Período seleccionado</span>
+                <h3>Top 10 productos más vendidos</h3>
                 <p>Unidades vendidas en {{ $seleccion['etiqueta'] }}.</p>
             </div>
             @if(count($productosMasVendidos) > 0)
@@ -541,23 +561,23 @@
         function montar() {
         graficos.forEach(grafico => grafico.destroy());
         graficos = [];
-        const { mes: mesSeleccionado, dia: diaSeleccionado, ventasMensuales, ventasDiarias, productos, pdf } =
+        const { anio, mes: mesSeleccionado, dia: diaSeleccionado, ventasMensuales, ventasDiarias, productos, pdf } =
             JSON.parse(document.getElementById('dashboard-data').textContent);
         document.getElementById('dashboard-export-pdf').href = pdf;
 
-        graficos.push(graficoBarras(
+        if (document.getElementById('ventasMensualesChart')) graficos.push(graficoBarras(
             'ventasMensualesChart',
             ventasMensuales,
-            d => d.periodo === mesSeleccionado,
-            d => irA({ mes: d.periodo }),
+            () => true,
+            d => irA({ anio, mes: Number(d.periodo.slice(5)) }),
             d => d.cantidad + (d.cantidad === 1 ? ' venta' : ' ventas')
         ));
 
-        graficos.push(graficoBarras(
+        if (document.getElementById('ventasDiariasChart')) graficos.push(graficoBarras(
             'ventasDiariasChart',
             ventasDiarias,
             d => diaSeleccionado === null || d.dia === diaSeleccionado,
-            d => irA({ mes: mesSeleccionado, dia: d.dia }),
+            d => irA({ anio, mes: mesSeleccionado, dia: d.dia }),
             d => d.cantidad + (d.cantidad === 1 ? ' venta' : ' ventas')
         ));
 
@@ -587,8 +607,8 @@
         }
 
         contenedor.addEventListener('change', evento => {
-            if (evento.target.id === 'dashboard-mes') {
-                irA({ mes: evento.target.value });
+            if (evento.target.id === 'dashboard-mes' || evento.target.id === 'dashboard-anio') {
+                irA({ anio: document.getElementById('dashboard-anio').value, mes: document.getElementById('dashboard-mes').value });
             }
         });
 
@@ -596,7 +616,8 @@
             const enlace = evento.target.closest('#dashboard-clear-day');
             if (enlace && !evento.metaKey && !evento.ctrlKey) {
                 evento.preventDefault();
-                irA({ mes: JSON.parse(document.getElementById('dashboard-data').textContent).mes });
+                const { anio, mes } = JSON.parse(document.getElementById('dashboard-data').textContent);
+                irA({ anio, mes });
             }
         });
 

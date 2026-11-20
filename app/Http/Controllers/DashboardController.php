@@ -6,6 +6,7 @@ use App\Models\DetalleVenta;
 use App\Models\Producto;
 use App\Models\SolicitudWeb;
 use App\Models\Venta;
+use App\Support\PeriodoVentas;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -14,11 +15,9 @@ use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    private const MESES_HISTORIAL = 12;
-
     public function index(Request $request): View
     {
-        return view('dashboard.index', $this->obtenerDatosDashboard($request, now()));
+        return view('dashboard.index', $this->obtenerDatosDashboard($request));
     }
 
     public function exportarPdf(Request $request)
@@ -27,23 +26,21 @@ class DashboardController extends Controller
         $logo = file_get_contents(public_path('images/resmap sin fondo.png'));
 
         return Pdf::loadView('dashboard.pdf', [
-            ...$this->obtenerDatosDashboard($request, $ahora),
+            ...$this->obtenerDatosDashboard($request),
             'fechaGeneracion' => $ahora,
             'logoDataUri' => 'data:image/png;base64,'.base64_encode($logo === false ? '' : $logo),
         ])->setPaper('a4')->download('dashboard-resmap-'.$ahora->format('Y-m-d').'.pdf');
     }
 
-    private function obtenerDatosDashboard(Request $request, Carbon $ahora): array
+    private function obtenerDatosDashboard(Request $request): array
     {
-        $inicioMesActual = $ahora->copy()->startOfMonth();
-        $inicioHistorial = $inicioMesActual->copy()->subMonths(self::MESES_HISTORIAL - 1);
-        $ventasMensuales = $this->obtenerVentasMensuales($inicioHistorial, $ahora);
-        $seleccion = $this->resolverSeleccion($request, $ahora, array_column($ventasMensuales, 'periodo'));
+        $seleccion = $this->resolverSeleccion($request);
 
         return [
             'seleccion' => $seleccion,
-            'ventasMensuales' => $ventasMensuales,
-            'ventasDiarias' => $this->obtenerVentasDiarias($seleccion['inicioMes'], $seleccion['finMes']->copy()->min($ahora)),
+            'aniosDisponibles' => collect(PeriodoVentas::aniosDisponibles())->push($seleccion['anio'])->unique()->sortDesc()->values()->all(),
+            'ventasMensuales' => $seleccion['mes'] === null ? $this->obtenerVentasMensuales($seleccion['desde'], $seleccion['hasta']) : [],
+            'ventasDiarias' => $seleccion['mes'] !== null ? $this->obtenerVentasDiarias($seleccion['desde'], $seleccion['hasta']) : [],
             'productosMasVendidos' => $this->obtenerProductosMasVendidos($seleccion['desde'], $seleccion['hasta']),
             'resumen' => $this->obtenerResumen($seleccion['desde'], $seleccion['hasta']),
             'cantidadStockCritico' => Producto::query()->whereColumn('stock', '<=', 'stock_critico')->count(),
@@ -51,45 +48,28 @@ class DashboardController extends Controller
     }
 
     /**
-     * @param  array<int, string>  $periodosDisponibles
-     * @return array{mes: string, dia: ?int, etiqueta: string, descripcion: string, inicioMes: Carbon, finMes: Carbon, desde: Carbon, hasta: Carbon}
+     * @return array{anio: int, mes: ?int, dia: ?int, etiqueta: string, descripcion: string, desde: Carbon, hasta: Carbon}
      */
-    private function resolverSeleccion(Request $request, Carbon $ahora, array $periodosDisponibles): array
+    private function resolverSeleccion(Request $request): array
     {
-        $mes = (string) $request->query('mes');
-        $mes = in_array($mes, $periodosDisponibles, true) ? $mes : $ahora->format('Y-m');
-        $inicioMes = Carbon::createFromFormat('Y-m-d', $mes.'-01')->startOfDay();
-        $finMes = $inicioMes->copy()->endOfMonth();
-        $dia = filter_var($request->query('dia'), FILTER_VALIDATE_INT);
-        $dia = $dia !== false && $dia >= 1 && $dia <= $inicioMes->daysInMonth && $inicioMes->copy()->day($dia)->lte($ahora)
-            ? $dia
-            : null;
-        $etiquetaMes = $inicioMes->copy()->locale('es')->isoFormat('MMMM YYYY');
-
-        if ($dia === null) {
-            return [
-                'mes' => $mes,
-                'dia' => null,
-                'etiqueta' => $etiquetaMes,
-                'descripcion' => 'Ventas completadas de '.$etiquetaMes,
-                'inicioMes' => $inicioMes,
-                'finMes' => $finMes,
-                'desde' => $inicioMes,
-                'hasta' => $finMes,
-            ];
+        $periodo = PeriodoVentas::resolver($request);
+        $dia = null;
+        if ($request->filled('dia')) {
+            $dia = filter_var($request->query('dia'), FILTER_VALIDATE_INT);
+            abort_if($periodo['mes'] === null || $dia === false || $dia < 1 || $dia > $periodo['desde']->daysInMonth, 422, 'El día seleccionado no es válido.');
+            $periodo['desde']->day($dia)->startOfDay();
+            $periodo['hasta'] = $periodo['desde']->copy()->endOfDay();
         }
 
-        $fecha = $inicioMes->copy()->day($dia);
+        $etiqueta = $dia !== null
+            ? $periodo['desde']->copy()->locale('es')->isoFormat('D [de] MMMM YYYY')
+            : ($periodo['mes'] !== null ? $periodo['desde']->copy()->locale('es')->isoFormat('MMMM YYYY') : (string) $periodo['anio']);
 
         return [
-            'mes' => $mes,
+            ...$periodo,
             'dia' => $dia,
-            'etiqueta' => $fecha->copy()->locale('es')->isoFormat('D [de] MMMM YYYY'),
-            'descripcion' => 'Ventas completadas del '.$fecha->copy()->locale('es')->isoFormat('D [de] MMMM YYYY'),
-            'inicioMes' => $inicioMes,
-            'finMes' => $finMes,
-            'desde' => $fecha->copy()->startOfDay(),
-            'hasta' => $fecha->copy()->endOfDay(),
+            'etiqueta' => $etiqueta,
+            'descripcion' => 'Ventas completadas de '.$etiqueta,
         ];
     }
 
@@ -161,7 +141,7 @@ class DashboardController extends Controller
             ->groupBy(fn (Venta $venta): int => $venta->fecha->day);
         $ventasDiarias = [];
 
-        for ($dia = 1; $dia <= $hasta->day; $dia++) {
+        for ($dia = $inicioMes->day; $dia <= $hasta->day; $dia++) {
             $ventas = $ventasPorDia->get($dia, collect());
 
             $ventasDiarias[] = [

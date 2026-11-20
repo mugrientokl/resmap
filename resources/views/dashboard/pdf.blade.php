@@ -59,7 +59,7 @@
     <div class="period">
         <span class="muted">Período de los indicadores</span><br>
         <strong>{{ ucfirst($seleccion['etiqueta']) }}</strong><br>
-        <span class="muted">Todos los indicadores y gráficos de este documento corresponden a este período, salvo "Ventas por mes", que muestra los últimos 12 meses.</span>
+        <span class="muted">Las ventas y gráficos corresponden a este período. El stock crítico indica el estado actual.</span>
     </div>
 
     <table class="cards">
@@ -88,17 +88,21 @@
     </table>
 
     @if($cantidadStockCritico > 0)
-        <p style="color: #9a3412; margin-top: 12px;"><strong>Stock crítico:</strong> {{ number_format($cantidadStockCritico, 0, ',', '.') }} {{ $cantidadStockCritico === 1 ? 'producto con stock bajo' : 'productos con stock bajo' }}.</p>
+        <p style="color: #9a3412; margin-top: 12px;"><strong>Stock crítico actual:</strong> {{ number_format($cantidadStockCritico, 0, ',', '.') }} {{ $cantidadStockCritico === 1 ? 'producto con stock bajo' : 'productos con stock bajo' }}.</p>
     @endif
 
+    @if($resumen['total']['cantidad'] === 0)
+        <div class="empty">No hay ventas completadas para el período seleccionado.</div>
+    @endif
+    @if($seleccion['mes'] === null)
     <div class="chart">
-        <h2>Ventas por mes (últimos 12 meses)</h2>
+        <h2>Ventas por mes — {{ $seleccion['anio'] }}</h2>
         <table class="bars">
             <tr>
                 @foreach($ventasMensuales as $mes)
                     <td>
                         <div class="value-label">{{ $mes['total'] > 0 ? number_format($mes['total'] / 1000, 0, ',', '.').'k' : '' }}</div>
-                        <div class="{{ $mes['periodo'] === $seleccion['mes'] ? 'bar' : 'bar-light' }}" style="height: {{ max(1, (int) round(($mes['total'] / $maxMensual) * 80)) }}px;"></div>
+                        <div class="bar" style="height: {{ max(1, (int) round(($mes['total'] / $maxMensual) * 80)) }}px;"></div>
                     </td>
                 @endforeach
             </tr>
@@ -110,11 +114,11 @@
                 @endforeach
             </tr>
         </table>
-        <p class="muted" style="font-size: 7px;">Montos en miles de pesos (k). El mes seleccionado se destaca en rojo oscuro.</p>
+        <p class="muted" style="font-size: 7px;">Montos en miles de pesos (k).</p>
     </div>
-
+    @else
     <div class="chart">
-        <h2>Ventas por día — {{ ucfirst($seleccion['inicioMes']->copy()->locale('es')->isoFormat('MMMM YYYY')) }}</h2>
+        <h2>Ventas por día — {{ ucfirst($seleccion['etiqueta']) }}</h2>
         <table class="bars">
             <tr>
                 @foreach($ventasDiarias as $dia)
@@ -132,9 +136,10 @@
             </tr>
         </table>
     </div>
+    @endif
 
     <div class="chart">
-        <h2>{{ $seleccion['dia'] ? 'Top 10 productos del día' : 'Top 10 productos más vendidos del mes' }}</h2>
+        <h2>Top 10 productos más vendidos</h2>
         @if(count($productosMasVendidos) > 0)
             <table class="top">
                 @foreach($productosMasVendidos as $indice => $producto)

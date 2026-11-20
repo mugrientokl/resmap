@@ -8,7 +8,9 @@ use App\Models\User;
 use App\Models\Venta;
 use App\Services\RegistroActividad;
 use App\Services\ResumenInternoVentaPdf;
+use App\Support\PeriodoVentas;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -17,8 +19,9 @@ class ReporteController extends Controller
 {
     public function index(Request $request)
     {
-        $desde = $request->date('desde')?->startOfDay() ?? now()->startOfMonth();
-        $hasta = $request->date('hasta')?->endOfDay() ?? now()->endOfDay();
+        $periodo = PeriodoVentas::resolver($request);
+        [$desde, $hasta] = $this->limitesAplicados($request, $periodo);
+        $aniosDisponibles = collect(PeriodoVentas::aniosDisponibles())->push($periodo['anio'])->unique()->sortDesc()->values()->all();
 
         $ventasQuery = $this->ventasQuery($request, $desde, $hasta);
 
@@ -44,6 +47,8 @@ class ReporteController extends Controller
             'usuarios',
             'desde',
             'hasta',
+            'periodo',
+            'aniosDisponibles',
             'panel'
         ));
     }
@@ -127,10 +132,8 @@ class ReporteController extends Controller
     {
         abort_unless(in_array($formato, ['csv', 'pdf'], true), 404);
 
-        $desde = $request->date('desde')?->startOfDay() ?? now()->startOfMonth();
-        $hasta = $request->date('hasta')?->endOfDay() ?? now()->endOfDay();
-
-        abort_if($desde->gt($hasta), 422, 'La fecha inicial no puede ser posterior a la fecha final.');
+        $periodo = PeriodoVentas::resolver($request);
+        [$desde, $hasta] = $this->limitesAplicados($request, $periodo);
 
         app(RegistroActividad::class)->evento('exportacion', 'exportado', 'Exportó el reporte de ventas ('.strtoupper($formato).')', 'Venta', nuevos: ['desde' => $desde->toDateString(), 'hasta' => $hasta->toDateString()]);
 
@@ -143,8 +146,11 @@ class ReporteController extends Controller
             : null;
 
         $filtros = [
-            'Fecha desde' => $desde->format('d/m/Y'),
-            'Fecha hasta' => $hasta->format('d/m/Y'),
+            'Año' => $periodo['anio'],
+            'Mes' => $periodo['mes'] === null ? 'Todos los meses' : ucfirst($periodo['desde']->copy()->locale('es')->isoFormat('MMMM')),
+            'Período aplicado' => $desde->lte($hasta) ? $desde->format('d/m/Y').' - '.$hasta->format('d/m/Y') : 'Sin coincidencia entre el período y el rango de fechas',
+            'Fecha desde' => $request->filled('desde') ? Carbon::parse($request->input('desde'))->format('d/m/Y') : 'Sin límite adicional',
+            'Fecha hasta' => $request->filled('hasta') ? Carbon::parse($request->input('hasta'))->format('d/m/Y') : 'Sin límite adicional',
             'Número de venta' => $request->filled('venta_id')
                 ? $request->input('venta_id')
                 : 'Todas',
@@ -216,7 +222,18 @@ class ReporteController extends Controller
         ))->download('reporte-ventas-'.$desde->format('Y-m-d').'.pdf');
     }
 
-    private function ventasQuery(Request $request, $desde, $hasta): Builder
+    /** @param  array{desde: Carbon, hasta: Carbon}  $periodo
+     * @return array{Carbon, Carbon}
+     */
+    private function limitesAplicados(Request $request, array $periodo): array
+    {
+        $desde = $request->filled('desde') ? Carbon::createFromFormat('Y-m-d', $request->input('desde'))->startOfDay() : $periodo['desde']->copy();
+        $hasta = $request->filled('hasta') ? Carbon::createFromFormat('Y-m-d', $request->input('hasta'))->endOfDay() : $periodo['hasta']->copy();
+
+        return [$desde->max($periodo['desde']), $hasta->min($periodo['hasta'])];
+    }
+
+    private function ventasQuery(Request $request, Carbon $desde, Carbon $hasta): Builder
     {
         return $this->ventasCompletadasQuery()->with(['cliente', 'user'])
             ->whereBetween('fecha', [$desde, $hasta])

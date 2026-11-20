@@ -23,7 +23,7 @@ class DashboardPdfTest extends TestCase
             ->get(route('dashboard', ['mes' => $mes]))
             ->assertOk()
             ->assertSee('id="dashboard-export-pdf"', false)
-            ->assertSee(e(route('dashboard.exportar.pdf', ['mes' => $mes])), false);
+            ->assertSee(e(route('dashboard.exportar.pdf', ['anio' => (int) substr($mes, 0, 4), 'mes' => (int) substr($mes, 5, 2)])), false);
     }
 
     public function test_dashboard_pdf_view_renders_charts_and_selected_period(): void
@@ -62,8 +62,8 @@ class DashboardPdfTest extends TestCase
         ])->render();
 
         $this->assertStringContainsString('Ventas por mes', $html);
-        $this->assertStringContainsString('Ventas por día', $html);
-        $this->assertStringContainsString('Top 10 productos más vendidos del mes', $html);
+        $this->assertStringNotContainsString('Ventas por día', $html);
+        $this->assertStringContainsString('Top 10 productos más vendidos', $html);
         $this->assertStringContainsString('Producto para PDF', $html);
         $this->assertStringContainsString('$2.380', $html);
         $this->assertStringNotContainsString('según corresponda', $html);

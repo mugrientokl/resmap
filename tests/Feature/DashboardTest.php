@@ -71,14 +71,13 @@ class DashboardTest extends TestCase
             ->assertSee('Ventas por cotización')
             ->assertSee('$2.380')
             ->assertSee('Período de los indicadores')
-            ->assertSee(ucfirst(now()->locale('es')->isoFormat('MMMM YYYY')))
+            ->assertSee((string) now()->year)
             ->assertDontSee('Accesos rápidos')
             ->assertDontSee('Monto vendido hoy')
             ->assertDontSee('Total de cotizaciones')
             ->assertDontSee('Productos más vendidos esta semana')
-            ->assertSee('Top 10 productos más vendidos del mes')
-            ->assertSee('ventasMensualesChart', false)
-            ->assertSee('ventasDiariasChart', false);
+            ->assertSee('Top 10 productos más vendidos')
+            ->assertSee('ventasMensualesChart', false);
     }
 
     public function test_selecting_a_month_filters_cards_charts_and_top_products(): void
@@ -86,7 +85,7 @@ class DashboardTest extends TestCase
         $admin = User::factory()->create(['rol' => 'Administrador']);
         $actual = $this->producto('DASH-001', 'Producto del mes actual');
         $anterior = $this->producto('DASH-002', 'Producto del mes anterior');
-        $fechaAnterior = now()->subMonthNoOverflow()->startOfMonth()->addDays(2)->setTime(11, 0);
+        $fechaAnterior = now()->subYear()->startOfYear()->addMonths(2)->addDays(2)->setTime(11, 0);
 
         $ventaActual = $this->venta($admin, 2380, now()->startOfMonth()->setTime(10, 0));
         $ventaAnterior = $this->venta($admin, 5950, $fechaAnterior);
@@ -101,7 +100,7 @@ class DashboardTest extends TestCase
             ->assertDontSee('Producto del mes anterior');
 
         $this->actingAs($admin)
-            ->get(route('dashboard', ['mes' => $fechaAnterior->format('Y-m')]))
+            ->get(route('dashboard', ['anio' => $fechaAnterior->year, 'mes' => $fechaAnterior->month]))
             ->assertOk()
             ->assertViewHas('resumen', fn (array $r): bool => $r['total'] === ['cantidad' => 1, 'monto' => 5950.0])
             ->assertViewHas('ventasDiarias', fn (array $d): bool => count($d) === $fechaAnterior->daysInMonth
@@ -127,18 +126,44 @@ class DashboardTest extends TestCase
             ->assertOk()
             ->assertViewHas('resumen', fn (array $r): bool => $r['total'] === ['cantidad' => 1, 'monto' => 1190.0])
             ->assertViewHas('productosMasVendidos', fn (array $p): bool => count($p) === 1 && $p[0]['etiqueta'] === 'Producto de un día')
-            ->assertSee('Top 10 productos del día')
+            ->assertViewHas('ventasDiarias', fn (array $d): bool => count($d) === 1 && $d[0]['total'] === 1190.0)
+            ->assertSee('Top 10 productos más vendidos')
             ->assertSee('Ver todo el mes');
     }
 
-    public function test_invalid_filters_fall_back_to_the_current_month(): void
+    public function test_invalid_filters_are_rejected(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
 
         $this->actingAs($admin)
-            ->get(route('dashboard', ['mes' => '1999-01', 'dia' => '99']))
-            ->assertOk()
-            ->assertViewHas('seleccion', fn (array $s): bool => $s['mes'] === now()->format('Y-m') && $s['dia'] === null);
+            ->getJson(route('dashboard', ['anio' => now()->year, 'mes' => 13]))
+            ->assertUnprocessable();
+    }
+
+    public function test_year_and_month_charts_do_not_mix_periods(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $this->travelTo(now()->setDate(2025, 6, 15)->startOfDay());
+        $this->venta($admin, 1000, now()->setDate(2025, 1, 10));
+        $this->venta($admin, 2000, now()->setDate(2025, 2, 20));
+        $this->venta($admin, 4000, now()->setDate(2024, 1, 10));
+
+        $this->actingAs($admin)->get(route('dashboard'))
+            ->assertViewHas('resumen', fn (array $r): bool => $r['total']['monto'] === 3000.0)
+            ->assertViewHas('ventasMensuales', fn (array $v): bool => count($v) === 12 && $v[0]['total'] === 1000.0 && $v[1]['total'] === 2000.0)
+            ->assertViewHas('aniosDisponibles', fn (array $a): bool => in_array(2024, $a, true));
+
+        $this->get(route('dashboard', ['anio' => 2025, 'mes' => 2]))
+            ->assertViewHas('resumen', fn (array $r): bool => $r['total']['monto'] === 2000.0)
+            ->assertViewHas('ventasMensuales', [])
+            ->assertViewHas('ventasDiarias', fn (array $v): bool => count($v) === 28 && $v[19]['total'] === 2000.0);
+
+        $this->get(route('dashboard', ['mes' => '2025-02']))
+            ->assertViewHas('resumen', fn (array $r): bool => $r['total']['monto'] === 2000.0);
+
+        $this->get(route('dashboard', ['anio' => 2024, 'mes' => 2]))
+            ->assertSee('No hay ventas completadas para el período seleccionado.')
+            ->assertViewHas('ventasDiarias', fn (array $v): bool => count($v) === 29);
     }
 
     public function test_top_products_are_limited_to_ten(): void
