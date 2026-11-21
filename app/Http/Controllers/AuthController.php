@@ -29,7 +29,7 @@ class AuthController extends Controller
     public function store(Request $request): RedirectResponse|Response
     {
         if (Auth::check()) {
-            return redirect()->route('dashboard');
+            return redirect()->route(Auth::user()->tienePermiso('dashboard.ver') ? 'dashboard' : 'perfil.show');
         }
 
         $credentials = $request->validate([
@@ -105,7 +105,7 @@ class AuthController extends Controller
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended(route($user->tienePermiso('dashboard.ver') ? 'dashboard' : 'perfil.show'));
     }
 
     public function destroy(Request $request): RedirectResponse

@@ -113,7 +113,7 @@
                                     Ver historial
                                 </a>
 
-                                @if(auth()->user()->rol === 'Administrador')
+                                @if(auth()->user()->tienePermiso('clientes.editar'))
                                     <a
                                         href="{{ route('clientes.edit', $cliente->id_cliente) }}"
                                         title="Editar cliente"
@@ -136,6 +136,8 @@
                                         </svg>
                                     </a>
 
+                                @endif
+                                @if(auth()->user()->tienePermiso('clientes.eliminar'))
                                     <form
                                         action="{{ route('clientes.destroy', $cliente->id_cliente) }}"
                                         method="POST"

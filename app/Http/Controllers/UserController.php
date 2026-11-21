@@ -8,10 +8,12 @@ use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class UserController extends Controller
@@ -32,36 +34,78 @@ class UserController extends Controller
             : view('usuarios.index', compact('usuarios', 'archivados'));
     }
 
-    public function store(Request $request): RedirectResponse|JsonResponse
+    public function store(Request $request): Response|JsonResponse
     {
         $validated = $request->validate([
             'username' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', 'unique:users,username'],
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'rol' => 'required|in:Administrador,Vendedor',
+            'permisos_configurados' => ['sometimes', 'boolean'],
+            'permisos' => ['sometimes', 'array'],
+            'permisos.*' => ['string', 'distinct', Rule::in(array_keys(config('permisos.opciones')))],
         ]);
 
-        $user = User::create([
-            ...$validated,
-            'password' => Str::random(64),
-        ]);
-        $enlaceEnviado = $this->enviarEnlaceRestablecimiento($user);
-        $message = $enlaceEnviado
-            ? 'Cuenta creada. Enviamos al usuario un enlace para que defina su contraseña.'
-            : 'Cuenta creada, pero no se pudo enviar el enlace. El usuario puede solicitarlo desde “Olvidé mi contraseña”.';
+        $contrasenaInicial = Str::random(32);
+        $user = DB::transaction(function () use ($validated, $contrasenaInicial): User {
+            $user = User::create([
+                'username' => $validated['username'],
+                'name' => $validated['name'],
+                'email' => $validated['email'],
+                'rol' => $validated['rol'],
+                'password' => $contrasenaInicial,
+            ]);
+
+            if ($user->rol === 'Vendedor' && (isset($validated['permisos']) || ($validated['permisos_configurados'] ?? false))) {
+                $user->forceFill(['permisos' => $this->normalizarPermisos($validated['permisos'] ?? [])])->save();
+            }
+
+            return $user;
+        });
 
         if (! $request->expectsJson()) {
-            return redirect()->route('usuarios.index')->with(
-                $enlaceEnviado ? 'success' : 'warning',
-                $message,
-            );
+            return response()->view('usuarios.contrasena-inicial', compact('user', 'contrasenaInicial'));
         }
 
         return response()->json([
-            'message' => $message,
-            'password_setup_link_sent' => $enlaceEnviado,
+            'message' => 'Cuenta creada. La contraseña inicial se muestra una sola vez.',
+            'initial_password' => $contrasenaInicial,
             'user' => $user,
         ], 201);
+    }
+
+    public function actualizarPermisos(Request $request, User $user): RedirectResponse|JsonResponse
+    {
+        abort_unless($user->rol === 'Vendedor', 403);
+
+        $validated = $request->validate([
+            'permisos' => ['sometimes', 'array'],
+            'permisos.*' => ['string', 'distinct', Rule::in(array_keys(config('permisos.opciones')))],
+        ]);
+        $user->forceFill(['permisos' => $this->normalizarPermisos($validated['permisos'] ?? [])])->save();
+
+        if ($request->expectsJson()) {
+            return response()->json(['message' => 'Permisos actualizados.', 'user' => $user]);
+        }
+
+        return redirect()->route('usuarios.index')->with('success', 'Permisos actualizados.');
+    }
+
+    /**
+     * @param  array<int, string>  $permisos
+     * @return array<int, string>
+     */
+    private function normalizarPermisos(array $permisos): array
+    {
+        foreach ($permisos as $permiso) {
+            [$modulo, $accion] = explode('.', $permiso, 2);
+            $permisoVer = $modulo.'.ver';
+            if ($accion !== 'ver' && array_key_exists($permisoVer, config('permisos.opciones'))) {
+                $permisos[] = $permisoVer;
+            }
+        }
+
+        return array_values(array_unique($permisos));
     }
 
     public function actualizarEstado(Request $request, User $user): RedirectResponse|JsonResponse

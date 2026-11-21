@@ -39,7 +39,9 @@
         <div class="alert-content">
             <h3>Stock crítico actual</h3>
             <p>{{ number_format($cantidadStockCritico, 0, ',', '.') }} {{ $cantidadStockCritico === 1 ? 'producto con stock bajo' : 'productos con stock bajo' }}</p>
-            <a href="{{ route('productos.index', ['stock' => 'critico']) }}" class="btn-alert">Ver stock crítico</a>
+            @if(auth()->user()->tienePermiso('productos.ver'))
+                <a href="{{ route('productos.index', ['stock' => 'critico']) }}" class="btn-alert">Ver stock crítico</a>
+            @endif
         </div>
     </div>
     @endif

@@ -85,7 +85,7 @@
                         'Rechazado' => [],
                     ][$solicitud->estado] ?? [];
                 @endphp
-                @if($transicionesPermitidas)
+                @if($transicionesPermitidas && auth()->user()->tienePermiso('cotizaciones.editar'))
                     <form method="POST" action="{{ route('solicitudes.estado', $solicitud->id_solicitud) }}" class="mt-6 border-t pt-6" data-confirm-message="¿Confirmas guardar el nuevo estado de este servicio?">
                         @csrf @method('PATCH')
                         <label class="block text-sm font-bold">Siguiente estado
@@ -95,7 +95,7 @@
                         <button class="mt-4 rounded-md bg-[#b52f25] px-5 py-3 font-bold text-white shadow-sm hover:bg-[#8f241d]">Guardar estado</button>
                     </form>
                 @endif
-                @if(! $solicitud->venta_id && ! in_array($solicitud->estado, ['Entregado y completado', 'Rechazado'], true))
+                @if(auth()->user()->tienePermiso('cotizaciones.editar') && auth()->user()->tienePermiso('ventas.crear') && ! $solicitud->venta_id && ! in_array($solicitud->estado, ['Entregado y completado', 'Rechazado'], true))
                     <form method="POST" action="{{ route('solicitudes.registrar-servicio', $solicitud->id_solicitud) }}" class="mt-6 space-y-4 border-t pt-6" data-confirm-message="¿Registrar el servicio como pagado y descontar los repuestos seleccionados?">
                         @csrf
                         <h3 class="text-lg font-black">Registrar servicio completado</h3>
@@ -163,7 +163,7 @@
                             <span>Versión {{ $version->numero_version }} · {{ ucfirst(str_replace('_', ' ', $version->estado)) }} · ${{ number_format($version->total, 0, ',', '.') }} · válida hasta {{ $version->vigente_hasta?->format('d/m/Y H:i') }}</span>
                             <div class="flex flex-wrap gap-3">
                                 <a class="inline-block rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]" href="{{ route('cotizaciones.pdf', $version->id_version) }}">Descargar cotización PDF</a>
-                                @if($version->estado === 'borrador')
+                                @if($version->estado === 'borrador' && auth()->user()->tienePermiso('cotizaciones.editar'))
                                     <form method="POST" action="{{ route('cotizaciones.enviar', $version->id_version) }}" data-confirm-message="¿Enviar esta cotización al cliente?">@csrf<button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Enviar al cliente</button></form>
                                 @endif
                             </div>
@@ -179,7 +179,7 @@
                     </div>
                 @endforeach
 
-                @if(! $solicitud->cotizacion || in_array($solicitud->cotizacion->estado, ['pendiente_revision', 'borrador', 'cambios_solicitados', 'vencida'], true) || ($solicitud->cotizacion->estado === 'enviada' && in_array('fallido', [$ultimaVersion?->email_estado, $ultimaVersion?->whatsapp_estado], true)))
+                @if(auth()->user()->tienePermiso('cotizaciones.crear') && (! $solicitud->cotizacion || in_array($solicitud->cotizacion->estado, ['pendiente_revision', 'borrador', 'cambios_solicitados', 'vencida'], true) || ($solicitud->cotizacion->estado === 'enviada' && in_array('fallido', [$ultimaVersion?->email_estado, $ultimaVersion?->whatsapp_estado], true))))
                     <form method="POST" action="{{ route('solicitudes.cotizacion.crear', $solicitud->id_solicitud) }}" class="mt-6 space-y-3 border-t pt-5" data-confirm-message="Se reservarán las unidades de esta versión. ¿Continuar?">
                         @csrf
                         <input type="hidden" name="items_edicion" value="1">
@@ -225,7 +225,7 @@
                     </form>
                 @endif
 
-                @if($ultimaVersion?->estado === 'enviada' && $solicitud->cotizacion?->estado === 'enviada')
+                @if(auth()->user()->tienePermiso('cotizaciones.editar') && $ultimaVersion?->estado === 'enviada' && $solicitud->cotizacion?->estado === 'enviada')
                     <form method="POST" action="{{ route('cotizaciones.respuesta-interna', $ultimaVersion->id_version) }}" class="mt-6 space-y-3 border-t pt-5" data-confirm-message="¿Registrar esta respuesta comunicada por el cliente?">
                         @csrf
                         <h3 class="font-black">Registrar respuesta del cliente</h3>
@@ -241,7 +241,7 @@
                         <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Registrar respuesta</button>
                     </form>
                 @endif
-                @if($ultimaVersion?->estado === 'aceptada' && ! $ventaCompleta)
+                @if(auth()->user()->tienePermiso('cotizaciones.editar') && auth()->user()->tienePermiso('ventas.crear') && $ultimaVersion?->estado === 'aceptada' && ! $ventaCompleta)
                     <form method="POST" action="{{ route('cotizaciones.convertir-venta', $ultimaVersion->id_version) }}" class="mt-6 border-t pt-5" data-confirm-message="¿Confirmas que se registre la venta y se descuente el stock?">
                         @csrf
                         <p class="mb-3 text-sm">Puedes convertir la cotización aceptada en venta sin adjuntar una orden de compra.</p>
@@ -262,7 +262,7 @@
                     </div>
                 @endif
             @endif
-                @if($ventaCompleta && ($esServicio || (empty($venta->datos_resumen) && $venta->resumen_interno_pdf === null)))
+                @if(auth()->user()->tienePermiso('cotizaciones.editar') && $ventaCompleta && ($esServicio || (empty($venta->datos_resumen) && $venta->resumen_interno_pdf === null)))
                     <form id="form-resumen" method="POST" action="{{ route('ventas.generar-resumen', $venta->id_venta) }}" class="mt-6 space-y-4 border-t pt-5" @unless($esServicio) data-confirm-message="El resumen no podrá modificarse ni generarse nuevamente. ¿Confirmas que los datos son correctos?" data-confirm-title="Confirmar resumen interno" data-confirm-text="Generar resumen" @endunless>
                         @csrf
                         <h3 class="text-lg font-black">Generar resumen interno · Venta #{{ $venta->id_venta }}</h3>
@@ -314,7 +314,7 @@
                         </label>
                         <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Generar resumen interno</button>
                     </form>
-                @elseif($ventaCompleta)
+                @elseif($ventaCompleta && ! empty($venta->datos_resumen))
                     <p class="mt-6 border-t pt-5 text-sm">El resumen interno ya fue generado y no puede modificarse. Su descarga está disponible en Reportes para administradores.</p>
                 @endif
         </section>

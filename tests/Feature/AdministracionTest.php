@@ -82,4 +82,24 @@ class AdministracionTest extends TestCase
         $this->assertSame(1, substr_count($response->getContent(), 'Cuenta creada correctamente.'));
         $this->assertSame(1, substr_count($response->getContent(), 'Revisa el correo enviado.'));
     }
+
+    public function test_permission_panels_start_collapsed_and_preserve_each_users_selections(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $seller->forceFill(['permisos' => ['reportes.ver']])->save();
+
+        $response = $this->actingAs($admin)->get(route('usuarios.index'))->assertOk()
+            ->assertSee('Permisos del vendedor')
+            ->assertSee('Configurar permisos')
+            ->assertSee('1 seleccionado');
+
+        $content = $response->getContent();
+        $this->assertMatchesRegularExpression('/<details data-permissions class="[^"]+"\\s*>/', $content);
+        $this->assertStringContainsString('name="permisos[]" value="productos.ver" checked', $content);
+        $this->assertStringContainsString('name="permisos[]" value="reportes.ver" checked', $content);
+        foreach (array_keys(config('permisos.opciones')) as $permiso) {
+            $this->assertSame(2, substr_count($content, 'name="permisos[]" value="'.$permiso.'"'));
+        }
+    }
 }

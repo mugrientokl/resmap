@@ -11,13 +11,13 @@
 
         <div class="flex flex-wrap gap-2">
 
-            @if(auth()->user()->rol === 'Administrador')
-
+            @if(auth()->user()->tienePermiso('movimientos.ver'))
                 <a href="{{ route('inventario.movimientos') }}"
                    class="rounded-md border border-[#b52f25] px-4 py-2 font-medium text-[#9f2f25] hover:bg-[#f7e8e6]">
                     Movimientos de Inventario
                 </a>
-
+            @endif
+            @if(auth()->user()->tienePermiso('productos.crear'))
                 <a href="{{ route('productos.create') }}"
                    class="bg-[#b52f25] text-white px-4 py-2 rounded-md hover:bg-[#8f241d] font-medium">
                     + Nuevo Repuesto
@@ -211,7 +211,7 @@
 
                         <td class="space-x-2 whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
 
-                            @if(auth()->user()->rol === 'Administrador')
+                            @if(auth()->user()->tienePermiso('productos.editar'))
 
                                 <a
                                     href="{{ route('productos.edit', $producto->id_producto) }}"
@@ -236,6 +236,8 @@
 
                                 </a>
 
+                            @endif
+                            @if(auth()->user()->tienePermiso('productos.eliminar'))
                                 <form
                                     action="{{ route('productos.destroy', $producto->id_producto, absolute: false) }}"
                                     method="POST"

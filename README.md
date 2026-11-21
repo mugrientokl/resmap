@@ -44,16 +44,21 @@ Las cuentas de prueba del `UserSeeder` son `admin` y `vendedor1`, ambas con cont
 - `/productos`: inventario paginado, etiquetas, búsqueda y exportación CSV/PDF.
 - `/pos`: búsqueda por código de barras, carrito y registro de ventas.
 - `/solicitudes-web`: gestión de solicitudes por administrador y vendedor.
-- `/inventario/movimientos`: ajustes y trazabilidad del stock para administradores; permite registrar proveedores al ingresar una adquisición.
+- `/inventario/movimientos`: ajustes y trazabilidad del stock; permite registrar proveedores al ingresar una adquisición cuando se cuenta con los permisos correspondientes.
 - `/proveedores`: gestión de proveedores con teléfono móvil chileno (`+56 9` y ocho dígitos), correo electrónico y página web opcional. Los proveedores anteriores sin estos datos se conservan y deben completarse al editarlos.
 - `/reportes`: ventas por período, total, IVA, stock crítico y productos más vendidos.
 - `/auditoria`: altas, modificaciones y eliminaciones con usuario, IP y fecha.
 - `/administracion`: acceso desde «Administración» en la navegación para administrar categorías, proveedores, usuarios y backups; permite elegir la navegación superior o lateral para todos los usuarios autenticados, sin modificar la navegación pública. En móviles se mantiene el menú superior.
 - `/backups`: listado y descarga de respaldos para administradores.
-- `/usuarios`: creación de usuarios por administradores.
+- `/usuarios`: creación de usuarios por administradores. La contraseña inicial aleatoria se muestra una sola vez y debe entregarse por un medio seguro.
+- `/perfil`: permite cambiar la contraseña indicando la contraseña actual.
 - `/categorias`: gestión de categorías mediante modales.
 - `/clientes`: gestión de clientes.
 - `/notificaciones`: avisos de stock crítico y solicitudes nuevas; la papelera permite restaurar o eliminar definitivamente todos los avisos propios.
+
+Los administradores pueden configurar permisos individuales de vendedores en `/usuarios`; las cuentas existentes conservan sus accesos anteriores hasta que se guarden sus permisos. Al habilitar una acción se habilita también la visualización del módulo. El dashboard incluye indicadores de ventas y stock; los reportes incluyen ventas y stock. El POS y las cotizaciones usan datos de clientes y productos, y registrar una venta puede actualizar clientes y descontar inventario. Registrar una venta desde una cotización o servicio requiere permisos de gestión de cotizaciones y de registro de ventas. Usuarios, respaldos y actividad siguen reservados a administradores.
+
+Después de actualizar el código, ejecuta `php artisan migrate` para agregar los permisos a las cuentas.
 
 ## Estructura principal
 

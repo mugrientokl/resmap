@@ -10,12 +10,14 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
 class FaceRecognitionController extends Controller
@@ -28,6 +30,31 @@ class FaceRecognitionController extends Controller
             'faceRegistered' => $request->user()->face_descriptor !== null,
             'faceConsentAt' => $request->user()->face_consent_at,
         ]);
+    }
+
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'confirmed', 'max:255', PasswordRule::min(12)],
+        ], [
+            'current_password.required' => 'Ingresa tu contraseña actual.',
+            'current_password.current_password' => 'La contraseña actual no es correcta.',
+            'password.required' => 'Ingresa una nueva contraseña.',
+            'password.confirmed' => 'Las contraseñas no coinciden.',
+            'password.min' => 'La contraseña debe tener al menos 12 caracteres.',
+            'password.max' => 'La contraseña no puede superar los 255 caracteres.',
+        ]);
+
+        $user = $request->user();
+        DB::transaction(function () use ($request, $user, $validated): void {
+            $user->forceFill(['password' => $validated['password'], 'remember_token' => null])->save();
+            DB::table(config('session.table'))->where('user_id', $user->id)
+                ->where('id', '!=', $request->session()->getId())->delete();
+            DB::table(config('auth.passwords.users.table'))->where('email', $user->email)->delete();
+        });
+
+        return redirect()->route('perfil.show')->with('success', 'Tu contraseña fue actualizada.');
     }
 
     public function login(Request $request): RedirectResponse|Response
@@ -115,7 +142,7 @@ class FaceRecognitionController extends Controller
             modeloId: $user->id,
         );
 
-        return redirect()->intended(route('dashboard'))->with('status', 'Acceso autorizado.');
+        return redirect()->intended(route($user->tienePermiso('dashboard.ver') ? 'dashboard' : 'perfil.show'))->with('status', 'Acceso autorizado.');
     }
 
     public function enroll(Request $request): RedirectResponse

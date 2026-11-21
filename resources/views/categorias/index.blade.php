@@ -4,7 +4,9 @@
 <div class="bg-white shadow-md rounded-lg overflow-hidden p-6">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-2xl font-bold text-gray-800">Categorías de Repuestos</h2>
-        <button onclick="openCreateModal()" class="bg-[#b52f25] text-white px-4 py-2 rounded-md hover:bg-[#8f241d] font-medium">+ Nueva Categoría</button>
+        @if(auth()->user()->tienePermiso('categorias.crear'))
+            <button onclick="openCreateModal()" class="bg-[#b52f25] text-white px-4 py-2 rounded-md hover:bg-[#8f241d] font-medium">+ Nueva Categoría</button>
+        @endif
     </div>
 
     @if(session('validation_error'))
@@ -31,13 +33,17 @@
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ $cat->nombre_categoria }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ $cat->descripcion ?? 'Sin descripción' }}</td>
                     <td class="space-x-2 whitespace-nowrap px-6 py-4 text-center text-sm font-medium">
-                        <button onclick="openEditModal('{{ $cat->id_categoria }}', '{{ addslashes($cat->nombre_categoria) }}', '{{ addslashes($cat->descripcion ?? '') }}')" title="Editar categoría" aria-label="Editar categoría" class="inline-flex rounded-md p-2 text-[#9f2f25] hover:bg-[#f7e8e6] hover:text-[#721d18]"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 3.487 3.651 3.651M4 20h4l10.862-10.862a2.587 2.587 0 0 0-3.651-3.651L4.349 16.349A2 2 0 0 0 4 17.763V20Z" /></svg></button>
+                        @if(auth()->user()->tienePermiso('categorias.editar'))
+                            <button onclick="openEditModal('{{ $cat->id_categoria }}', '{{ addslashes($cat->nombre_categoria) }}', '{{ addslashes($cat->descripcion ?? '') }}')" title="Editar categoría" aria-label="Editar categoría" class="inline-flex rounded-md p-2 text-[#9f2f25] hover:bg-[#f7e8e6] hover:text-[#721d18]"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m16.862 3.487 3.651 3.651M4 20h4l10.862-10.862a2.587 2.587 0 0 0-3.651-3.651L4.349 16.349A2 2 0 0 0 4 17.763V20Z" /></svg></button>
+                        @endif
                         
+                        @if(auth()->user()->tienePermiso('categorias.eliminar'))
                         <form action="{{ route('categorias.destroy', $cat->id_categoria, absolute: false) }}" method="POST" class="inline-block" data-confirm-message="¿Seguro que deseas eliminar esta categoría? Esta acción no se puede deshacer.">
                             @csrf
                             @method('DELETE')
                             <button type="submit" title="Eliminar categoría" aria-label="Eliminar categoría" class="inline-flex rounded-md p-2 text-red-600 hover:bg-red-50 hover:text-red-900"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m6 6 12 12M18 6 6 18" /></svg></button>
                         </form>
+                        @endif
                     </td>
                 </tr>
                 @endforeach

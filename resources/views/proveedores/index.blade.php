@@ -4,7 +4,9 @@
 <div class="rounded-lg bg-white p-6 shadow-md">
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h1 class="text-2xl font-bold text-gray-800">Proveedores</h1>
-        <button type="button" id="create-provider" class="rounded-md bg-[#b52f25] px-4 py-2 font-medium text-white hover:bg-[#8f241d]">+ Nuevo proveedor</button>
+        @if(auth()->user()->tienePermiso('proveedores.crear'))
+            <button type="button" id="create-provider" class="rounded-md bg-[#b52f25] px-4 py-2 font-medium text-white hover:bg-[#8f241d]">+ Nuevo proveedor</button>
+        @endif
     </div>
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 text-center text-sm">
@@ -25,7 +27,9 @@
                         <td class="px-6 py-4">{{ $proveedor->correo ?: '—' }}</td>
                         <td class="px-6 py-4">{{ $proveedor->pagina_web ?: '—' }}</td>
                         <td class="px-6 py-4">
-                            <button type="button" data-edit-provider data-id="{{ $proveedor->id }}" data-nombre="{{ $proveedor->nombre }}" data-contacto="{{ $proveedor->contacto }}" data-telefono="{{ $proveedor->telefono }}" data-correo="{{ $proveedor->correo }}" data-pagina-web="{{ $proveedor->pagina_web }}" class="rounded-md border border-[#d9aaa3] px-3 py-2 font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Editar</button>
+                            @if(auth()->user()->tienePermiso('proveedores.editar'))
+                                <button type="button" data-edit-provider data-id="{{ $proveedor->id }}" data-nombre="{{ $proveedor->nombre }}" data-contacto="{{ $proveedor->contacto }}" data-telefono="{{ $proveedor->telefono }}" data-correo="{{ $proveedor->correo }}" data-pagina-web="{{ $proveedor->pagina_web }}" class="rounded-md border border-[#d9aaa3] px-3 py-2 font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Editar</button>
+                            @endif
                         </td>
                     </tr>
                 @empty
@@ -100,7 +104,7 @@
             modal.classList.remove('flex');
             previousFocus?.focus();
         };
-        document.getElementById('create-provider').addEventListener('click', () => open('', '', ''));
+        document.getElementById('create-provider')?.addEventListener('click', () => open('', '', ''));
         document.querySelectorAll('[data-edit-provider]').forEach(button => {
             button.addEventListener('click', () => open(button.dataset.id, button.dataset.nombre, button.dataset.contacto, button.dataset.telefono, button.dataset.correo, button.dataset.paginaWeb));
         });

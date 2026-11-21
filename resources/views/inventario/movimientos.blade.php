@@ -4,7 +4,7 @@
 <div class="bg-white shadow-md rounded-lg p-6">
     <div class="mb-6 flex flex-wrap items-center justify-between gap-4">
         <h2 class="text-2xl font-bold text-gray-800">Movimientos de Inventario</h2>
-        <button type="button" id="open-movement-modal" class="rounded-md bg-[#b52f25] px-4 py-2 font-medium text-white hover:bg-[#8f241d]">
+        <button type="button" id="open-movement-modal" @unless(auth()->user()->tienePermiso('movimientos.crear')) hidden @endunless class="rounded-md bg-[#b52f25] px-4 py-2 font-medium text-white hover:bg-[#8f241d]">
             Registrar Movimiento
         </button>
     </div>
@@ -171,10 +171,10 @@
                             <option value="{{ $proveedor->id }}" @selected((string) old('proveedor_id') === (string) $proveedor->id)>{{ $proveedor->nombre }} · {{ $proveedor->contacto }}</option>
                         @endforeach
                     </select>
-                    <button id="movement-new-provider" type="button" class="hidden rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Nuevo proveedor</button>
+                    <button id="movement-new-provider" type="button" @unless(auth()->user()->tienePermiso('proveedores.crear')) hidden @endunless class="hidden rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Nuevo proveedor</button>
                 </div>
                 <p id="movement-provider-success" class="mt-1 text-sm text-green-700" role="status"></p>
-                <p class="mt-1 text-xs text-gray-600">La compra es un ingreso y la devolución al proveedor es un egreso. <a href="{{ route('proveedores.index') }}" class="font-bold text-[#9f2f25] underline">Administrar proveedores</a></p>
+                <p class="mt-1 text-xs text-gray-600">La compra es un ingreso y la devolución al proveedor es un egreso. @if(auth()->user()->tienePermiso('proveedores.ver'))<a href="{{ route('proveedores.index') }}" class="font-bold text-[#9f2f25] underline">Administrar proveedores</a>@endif</p>
             </div>
             <div>
                 <label for="movement-event-date" class="mb-1 block text-sm font-medium text-gray-700">Fecha del evento</label>

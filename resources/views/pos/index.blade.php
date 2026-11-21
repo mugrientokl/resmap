@@ -190,10 +190,12 @@
                 </div>
             </div>
 
+            @if(auth()->user()->tienePermiso('ventas.crear'))
             <button type="button" id="registrar-venta" onclick="procesarVenta()"
                 class="w-full rounded-md bg-[#8f241d] px-4 py-3 text-base font-bold text-white shadow-sm hover:bg-[#721d18] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d] disabled:opacity-50">
                 Registrar venta
             </button>
+            @endif
 
             @if (session('resumen_venta_id'))
                 <a href="{{ route('ventas.resumen-interno', session('resumen_venta_id')) }}"

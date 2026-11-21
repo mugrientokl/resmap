@@ -192,18 +192,19 @@ class VentaController extends Controller
 
             foreach ($resultado['venta']->detalles as $detalle) {
                 if ($detalle->producto->stock <= $detalle->producto->stock_critico) {
-                    User::whereIn('rol', ['Administrador', 'Vendedor'])->get()->each(function (User $user) use ($detalle): void {
-                        try {
-                            $user->notify(new ProductoStockCritico($detalle->producto));
-                        } catch (\Throwable $exception) {
-                            Log::warning('La venta se registró, pero no se pudo enviar un aviso de stock crítico.', [
-                                'venta_id' => $detalle->id_venta,
-                                'producto_id' => $detalle->id_producto,
-                                'usuario_id' => $user->id,
-                                'error' => $exception->getMessage(),
-                            ]);
-                        }
-                    });
+                    User::whereIn('rol', ['Administrador', 'Vendedor'])->get()
+                        ->filter(fn (User $user): bool => $user->tienePermiso('productos.ver'))->each(function (User $user) use ($detalle): void {
+                            try {
+                                $user->notify(new ProductoStockCritico($detalle->producto));
+                            } catch (\Throwable $exception) {
+                                Log::warning('La venta se registró, pero no se pudo enviar un aviso de stock crítico.', [
+                                    'venta_id' => $detalle->id_venta,
+                                    'producto_id' => $detalle->id_producto,
+                                    'usuario_id' => $user->id,
+                                    'error' => $exception->getMessage(),
+                                ]);
+                            }
+                        });
                 }
             }
 

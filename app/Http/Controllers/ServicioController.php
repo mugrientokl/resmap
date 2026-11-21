@@ -87,7 +87,8 @@ class ServicioController extends Controller
             ]);
         });
 
-        $destinatarios = User::whereIn('rol', ['Administrador', 'Vendedor'])->get();
+        $destinatarios = User::whereIn('rol', ['Administrador', 'Vendedor'])->get()
+            ->filter(fn (User $user): bool => $user->tienePermiso('cotizaciones.ver'));
         $fallosNotificacion = $destinatarios->isEmpty();
         if ($fallosNotificacion) {
             Log::warning('La solicitud de servicio quedó registrada sin destinatarios para el correo interno.', [

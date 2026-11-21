@@ -295,6 +295,7 @@ class CatalogoController extends Controller
 
         User::whereIn('rol', ['Administrador', 'Vendedor'])
             ->get()
+            ->filter(fn (User $user): bool => $user->tienePermiso('cotizaciones.ver'))
             ->each(function (User $user) use (
                 $notificacion,
                 $solicitud

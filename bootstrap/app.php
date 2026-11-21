@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureActiveUser;
+use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\NoStoreMiddleware;
 use App\Http\Middleware\RoleMiddleware;
@@ -54,7 +55,7 @@ return Application::configure(basePath: dirname(__DIR__))
             NoStoreMiddleware::class,
             EnsureActiveUser::class,
         ]);
-        $middleware->alias(['role' => RoleMiddleware::class]);
+        $middleware->alias(['role' => RoleMiddleware::class, 'permiso' => EnsurePermission::class]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

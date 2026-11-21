@@ -23,6 +23,47 @@ class B2BQuotationFlowTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_quote_actions_and_conversion_require_their_individual_permissions(): void
+    {
+        Notification::fake();
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $this->actingAs($admin)->post(route('solicitudes.cotizacion.crear', $solicitudId))
+            ->assertSessionHasNoErrors();
+        $version = CotizacionVersion::firstOrFail();
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $seller->forceFill(['permisos' => ['cotizaciones.ver']])->save();
+
+        $this->actingAs($seller->fresh())->get(route('solicitudes.show', $solicitudId))
+            ->assertOk()->assertDontSee('Crear nueva versión')->assertDontSee('Enviar al cliente');
+        $this->post(route('solicitudes.cotizacion.crear', $solicitudId))->assertForbidden();
+        $this->post(route('cotizaciones.enviar', $version))->assertForbidden();
+        $this->post(route('cotizaciones.convertir-venta', $version))->assertForbidden();
+
+        $seller->forceFill(['permisos' => ['cotizaciones.ver', 'cotizaciones.editar']])->save();
+        $this->actingAs($seller->fresh())->post(route('cotizaciones.convertir-venta', $version))->assertForbidden();
+        $seller->forceFill(['permisos' => ['ventas.ver', 'ventas.crear']])->save();
+        $this->actingAs($seller->fresh())->post(route('cotizaciones.convertir-venta', $version))->assertForbidden();
+        $this->assertDatabaseCount('ventas', 0);
+    }
+
+    public function test_new_quote_notifications_are_sent_only_to_users_with_access(): void
+    {
+        Notification::fake();
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $allowed = User::factory()->create(['rol' => 'Vendedor']);
+        $denied = User::factory()->create(['rol' => 'Vendedor']);
+        $allowed->forceFill(['permisos' => ['cotizaciones.ver']])->save();
+        $denied->forceFill(['permisos' => []])->save();
+
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+
+        Notification::assertSentTo($admin, SolicitudWebRecibida::class);
+        Notification::assertSentTo($allowed, SolicitudWebRecibida::class);
+        Notification::assertNotSentTo($denied, SolicitudWebRecibida::class);
+    }
+
     public function test_opening_a_quote_marks_only_its_pending_notification_as_read(): void
     {
         Notification::fake();

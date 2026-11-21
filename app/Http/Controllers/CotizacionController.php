@@ -691,20 +691,21 @@ class CotizacionController extends Controller
             ])->findOrFail($ordenCompraId);
             $falloEnvioCorreo = false;
 
-            User::query()->whereIn('rol', ['Administrador', 'Vendedor'])->get()->each(
-                function (User $usuario) use ($ordenCompra, &$falloEnvioCorreo): void {
-                    try {
-                        $usuario->notify(new OrdenCompraRecibida($ordenCompra));
-                    } catch (TransportExceptionInterface|RuntimeException $exception) {
-                        Log::error('La orden de compra quedó registrada, pero no se pudo enviar el aviso al equipo por correo.', [
-                            'orden_compra_id' => $ordenCompra->id_orden_compra,
-                            'user_id' => $usuario->id,
-                            'error' => $exception->getMessage(),
-                        ]);
-                        $falloEnvioCorreo = true;
-                    }
-                },
-            );
+            User::query()->whereIn('rol', ['Administrador', 'Vendedor'])->get()
+                ->filter(fn (User $user): bool => $user->tienePermiso('cotizaciones.ver'))->each(
+                    function (User $usuario) use ($ordenCompra, &$falloEnvioCorreo): void {
+                        try {
+                            $usuario->notify(new OrdenCompraRecibida($ordenCompra));
+                        } catch (TransportExceptionInterface|RuntimeException $exception) {
+                            Log::error('La orden de compra quedó registrada, pero no se pudo enviar el aviso al equipo por correo.', [
+                                'orden_compra_id' => $ordenCompra->id_orden_compra,
+                                'user_id' => $usuario->id,
+                                'error' => $exception->getMessage(),
+                            ]);
+                            $falloEnvioCorreo = true;
+                        }
+                    },
+                );
 
             if ($falloEnvioCorreo) {
                 return redirect()->route('home')

@@ -110,12 +110,16 @@ Route::middleware([
         ->name('logout');
 
     Route::get('/dashboard', [DashboardController::class, 'index'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:dashboard.ver'])
         ->name('dashboard');
 
     Route::get('/perfil', [FaceRecognitionController::class, 'showProfile'])
         ->middleware(['auth', 'role:Administrador,Vendedor'])
         ->name('perfil.show');
+
+    Route::put('/perfil/contrasena', [FaceRecognitionController::class, 'updatePassword'])
+        ->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:10,1'])
+        ->name('perfil.contrasena.update');
 
     Route::post('/perfil/rostro', [FaceRecognitionController::class, 'enroll'])
         ->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:10,1'])
@@ -126,7 +130,7 @@ Route::middleware([
         ->name('perfil.rostro.destroy');
 
     Route::get('/dashboard/exportar/pdf', [DashboardController::class, 'exportarPdf'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:dashboard.ver'])
         ->name('dashboard.exportar.pdf');
 
     Route::get('/notificaciones', [NotificacionController::class, 'index'])
@@ -170,7 +174,7 @@ Route::middleware([
         ->name('notificaciones.destroy');
 
     Route::get('/categorias', [CategoriaController::class, 'index'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:categorias.ver'])
         ->name('categorias.index');
 
     Route::get('/categorias/crear', fn () => abort(404))
@@ -178,7 +182,7 @@ Route::middleware([
         ->name('categorias.create');
 
     Route::post('/categorias', [CategoriaController::class, 'store'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:categorias.crear'])
         ->name('categorias.store');
 
     Route::get('/categorias/{id}/editar', fn () => abort(404))
@@ -186,117 +190,117 @@ Route::middleware([
         ->name('categorias.edit');
 
     Route::put('/categorias/{id}', [CategoriaController::class, 'update'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:categorias.editar'])
         ->name('categorias.update');
 
     Route::delete('/categorias/{id}', [CategoriaController::class, 'destroy'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:categorias.eliminar'])
         ->name('categorias.destroy');
 
     Route::get('/proveedores', [ProveedorController::class, 'index'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:proveedores.ver'])
         ->name('proveedores.index');
 
     Route::post('/proveedores', [ProveedorController::class, 'store'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:proveedores.crear'])
         ->name('proveedores.store');
 
     Route::put('/proveedores/{proveedor}', [ProveedorController::class, 'update'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:proveedores.editar'])
         ->name('proveedores.update');
 
     Route::get('/productos', [ProductoController::class, 'index'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:productos.ver'])
         ->name('productos.index');
 
     Route::get('/productos/exportar/excel', [ProductoController::class, 'exportarExcel'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:productos.ver'])
         ->name('productos.exportar.excel');
 
     Route::get('/productos/exportar/pdf', [ProductoController::class, 'exportarPdf'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:productos.ver'])
         ->name('productos.exportar.pdf');
 
     Route::get('/pos/producto-por-codigo', [ProductoController::class, 'buscarPorCodigo'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:ventas.ver'])
         ->name('pos.producto.codigo');
 
     Route::get('/pos/productos/buscar', [ProductoController::class, 'buscarParaPos'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:ventas.ver'])
         ->name('pos.productos.buscar');
 
     Route::get('/pos/cliente-por-rut', [ClienteController::class, 'buscarPorRut'])
         ->middleware([
             'auth',
-            'role:Administrador,Vendedor',
+            'permiso:ventas.ver,cotizaciones.ver',
             'throttle:60,1',
         ])
         ->name('pos.cliente.rut');
 
     Route::get('/productos/{id}/etiqueta', [ProductoController::class, 'etiqueta'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:productos.ver'])
         ->name('productos.etiqueta');
 
     Route::get('/productos/crear', [ProductoController::class, 'create'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:productos.crear'])
         ->name('productos.create');
 
     Route::post('/productos', [ProductoController::class, 'store'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:productos.crear'])
         ->name('productos.store');
 
     Route::get('/productos/{id}/editar', [ProductoController::class, 'edit'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:productos.editar'])
         ->name('productos.edit');
 
     Route::put('/productos/{id}', [ProductoController::class, 'update'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:productos.editar'])
         ->name('productos.update');
 
     Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:productos.eliminar'])
         ->name('productos.destroy');
 
     Route::get('/clientes', [ClienteController::class, 'index'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:clientes.ver'])
         ->name('clientes.index');
 
     Route::get('/clientes/sugerencias', [ClienteController::class, 'sugerencias'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:clientes.ver'])
         ->name('clientes.sugerencias');
 
     Route::get('/clientes/{id}/historial', [ClienteController::class, 'historial'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:clientes.ver'])
         ->name('clientes.historial');
 
     Route::get('/clientes/{id}/ventas/pdf', [ClienteController::class, 'ventasPdf'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:clientes.ver'])
         ->name('clientes.ventas.pdf');
 
     Route::get('/clientes/{id}/ventas/{ventaId}/resumen', [ClienteController::class, 'resumenVenta'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:clientes.ver'])
         ->name('clientes.ventas.resumen');
 
     Route::get('/clientes/{id}/editar', [ClienteController::class, 'edit'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:clientes.editar'])
         ->name('clientes.edit');
 
     Route::put('/clientes/{id}', [ClienteController::class, 'update'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:clientes.editar'])
         ->name('clientes.update');
 
     Route::delete('/clientes/{id}', [ClienteController::class, 'destroy'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:clientes.eliminar'])
         ->name('clientes.destroy');
 
     Route::get('/pos', fn () => view('pos.index'))
-        ->middleware(['auth', 'role:Administrador,Vendedor'])->name('pos.index');
+        ->middleware(['auth', 'permiso:ventas.ver'])->name('pos.index');
 
     Route::post('/ventas', [VentaController::class, 'store'])
-        ->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:30,1']);
+        ->middleware(['auth', 'permiso:ventas.crear', 'throttle:30,1']);
 
     Route::get('/ventas/{venta}/resumen-interno', [VentaController::class, 'resumenInterno'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:ventas.ver,cotizaciones.ver'])
         ->whereNumber('venta')
         ->name('ventas.resumen-interno');
 
@@ -317,51 +321,51 @@ Route::middleware([
         ->name('ventas.registrar-entrega');
 
     Route::get('/cotizaciones/ordenes-compra/{ordenCompra}', [CotizacionController::class, 'descargarOrdenCompra'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.ver'])
         ->name('cotizaciones.orden-compra');
 
     Route::get('/cotizaciones/ordenes-compra/{ordenCompra}/ver', [CotizacionController::class, 'verOrdenCompra'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.ver'])
         ->name('cotizaciones.orden-compra.ver');
 
     Route::get('/cotizaciones/versiones/{version}/pdf', [CotizacionController::class, 'pdf'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.ver'])
         ->name('cotizaciones.pdf');
 
     Route::post('/cotizaciones/versiones/{version}/enviar', [CotizacionController::class, 'enviar'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.editar'])
         ->name('cotizaciones.enviar');
 
     Route::post('/cotizaciones/versiones/{version}/respuesta-interna', [CotizacionController::class, 'registrarRespuesta'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.editar'])
         ->name('cotizaciones.respuesta-interna');
 
     Route::post('/cotizaciones/versiones/{version}/convertir-venta', [CotizacionController::class, 'convertirEnVenta'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.editar', 'permiso:ventas.crear'])
         ->name('cotizaciones.convertir-venta');
 
     Route::post('/ventas/{venta}/generar-resumen', [CotizacionController::class, 'generarResumen'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.editar'])
         ->name('ventas.generar-resumen');
 
     Route::get('/inventario/movimientos', [InventarioMovimientoController::class, 'index'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:movimientos.ver'])
         ->name('inventario.movimientos');
 
     Route::get('/inventario/movimientos/{movimiento}', [InventarioMovimientoController::class, 'show'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:movimientos.ver'])
         ->name('inventario.movimientos.show');
 
     Route::post('/inventario/movimientos', [InventarioMovimientoController::class, 'store'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:movimientos.crear'])
         ->name('inventario.movimientos.store');
 
     Route::get('/reportes', [ReporteController::class, 'index'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:reportes.ver'])
         ->name('reportes.index');
 
     Route::get('/reportes/exportar/{formato}', [ReporteController::class, 'exportar'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:reportes.ver'])
         ->name('reportes.exportar');
 
     Route::middleware(['auth', 'can:ver-actividad', 'throttle:60,1'])->prefix('actividad')->name('actividad.')->group(function (): void {
@@ -376,19 +380,19 @@ Route::middleware([
     Route::redirect('/reportes/auditoria/exportar/{formato}', '/actividad', 301);
 
     Route::get('/reportes/ventas/{id}', [ReporteController::class, 'detalleVenta'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:reportes.ver'])
         ->name('reportes.ventas.detalle');
 
     Route::get('/reportes/ventas/{id}/factura', [ReporteController::class, 'facturaVenta'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:reportes.ver'])
         ->name('reportes.ventas.factura');
 
     Route::get('/reportes/ventas/{id}/resumen-interno', [ReporteController::class, 'facturaVenta'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:reportes.ver'])
         ->name('reportes.ventas.resumen');
 
     Route::get('/reportes/ordenes-compra/{ordenCompra}', [ReporteController::class, 'descargarOrdenCompra'])
-        ->middleware(['auth', 'role:Administrador'])
+        ->middleware(['auth', 'permiso:reportes.ver'])
         ->name('reportes.orden-compra');
 
     Route::get('/auditoria', fn () => redirect()->route('actividad.index', [], 301))
@@ -407,38 +411,38 @@ Route::middleware([
         ->name('backups.download');
 
     Route::get('/detalle-ventas', [DetalleVentaController::class, 'index'])
-        ->middleware(['auth', 'role:Administrador']);
+        ->middleware(['auth', 'permiso:reportes.ver']);
 
     Route::get('/detalle-ventas/{id}', [DetalleVentaController::class, 'show'])
-        ->middleware(['auth', 'role:Administrador']);
+        ->middleware(['auth', 'permiso:reportes.ver']);
 
     Route::get('/solicitudes-web', [SolicitudWebController::class, 'index'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.ver'])
         ->name('solicitudes.index');
 
     Route::get('/solicitudes-web/{id}', [SolicitudWebController::class, 'show'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.ver'])
         ->name('solicitudes.show');
 
     Route::get('/solicitudes-web/{id}/seguimiento', [SolicitudWebController::class, 'seguimiento'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.ver'])
         ->whereNumber('id')
         ->name('solicitudes.seguimiento');
 
     Route::get('/solicitudes-web/{id}/pdf', [SolicitudWebController::class, 'descargarSolicitudPdf'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.ver'])
         ->name('solicitudes.pdf');
 
     Route::patch('/solicitudes-web/{id}/estado', [SolicitudWebController::class, 'actualizarEstado'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.editar'])
         ->name('solicitudes.estado');
 
     Route::post('/solicitudes-web/{id}/registrar-servicio', [SolicitudWebController::class, 'registrarServicio'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.editar', 'permiso:ventas.crear'])
         ->name('solicitudes.registrar-servicio');
 
     Route::post('/solicitudes-web/{solicitud}/cotizacion', [CotizacionController::class, 'crearVersion'])
-        ->middleware(['auth', 'role:Administrador,Vendedor'])
+        ->middleware(['auth', 'permiso:cotizaciones.crear'])
         ->name('solicitudes.cotizacion.crear');
 
     Route::get('/usuarios', [UserController::class, 'index'])
@@ -448,6 +452,10 @@ Route::middleware([
     Route::post('/usuarios', [UserController::class, 'store'])
         ->middleware(['auth', 'role:Administrador'])
         ->name('usuarios.store');
+
+    Route::put('/usuarios/{user}/permisos', [UserController::class, 'actualizarPermisos'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('usuarios.permisos.update');
 
     Route::patch('/usuarios/{user}/estado', [UserController::class, 'actualizarEstado'])
         ->middleware(['auth', 'role:Administrador'])
