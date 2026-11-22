@@ -59,8 +59,8 @@ class AuthSecurityTest extends TestCase
     {
         $this->get(route('login'))
             ->assertOk()
-            ->assertSee('No necesitas ingresar usuario ni contraseña.')
-            ->assertSee('Ingresar con reconocimiento facial')
+            ->assertSee('También puedes agregar verificación facial como segundo factor.')
+            ->assertSee('Verificar rostro e ingresar')
             ->assertSee('name="login"', false)
             ->assertSee('name="password"', false);
     }

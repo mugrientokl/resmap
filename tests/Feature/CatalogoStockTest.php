@@ -349,6 +349,22 @@ class CatalogoStockTest extends TestCase
         ])->assertSessionHasErrors('detalles_productos');
     }
 
+    public function test_home_escapes_product_names_before_client_side_rendering(): void
+    {
+        $productId = $this->createProductWithStock(1);
+        $maliciousName = 'Kit <img src=x onerror=alert(1)>';
+        DB::table('productos')->where('id_producto', $productId)->update([
+            'nombre' => $maliciousName,
+            'id_categoria' => DB::table('categorias')->where('nombre_categoria', 'KITS Y SETS')->value('id_categoria'),
+        ]);
+
+        $this->get(route('home'))
+            ->assertOk()
+            ->assertDontSee($maliciousName, false)
+            ->assertSee(e($maliciousName), false)
+            ->assertSee('escaparHTML(item.nombre)', false);
+    }
+
     public function test_zero_stock_products_are_critical_and_visible_in_the_catalog(): void
     {
         $unavailableProductId = $this->createProductWithStock(0);

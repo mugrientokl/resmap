@@ -33,6 +33,9 @@ class AccessControlTest extends TestCase
 
         $response->assertOk();
         $this->assertStringContainsString('no-store', $response->headers->get('Cache-Control'));
+        $response->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertHeader('X-Frame-Options', 'SAMEORIGIN')
+            ->assertHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
         $this->actingAs($admin)->post('/logout')->assertRedirect('/');
         $this->get('/productos')->assertRedirect('/login');

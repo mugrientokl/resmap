@@ -69,7 +69,7 @@ class ContactoClienteTest extends TestCase
         ])->assertCreated();
 
         $this->assertSame('Ana', $cliente->fresh()->contacto);
-        $this->assertSame(['Ana', 'Beatriz'], DB::table('cliente_contactos_historial')->orderBy('id')->pluck('contacto')->all());
+        $this->assertDatabaseCount('cliente_contactos_historial', 0);
         $this->assertDatabaseHas('solicitud_webs', [
             'tipo_solicitud' => 'servicio',
             'contacto' => 'Beatriz',
@@ -83,25 +83,24 @@ class ContactoClienteTest extends TestCase
             'nombre' => $datos['nombre'],
             'contacto' => 'Ana',
         ])->assertRedirect(route('clientes.index'))->assertSessionHasNoErrors();
-        $this->assertDatabaseCount('cliente_contactos_historial', 2);
+        $this->assertDatabaseCount('cliente_contactos_historial', 0);
 
         $this->getJson(route('pos.cliente.rut', ['rut' => $datos['rut']]))
             ->assertOk()->assertJsonPath('cliente.contacto', 'Ana');
-        $this->getJson(route('catalogo.cliente.rut', ['rut' => $datos['rut']]))
-            ->assertOk()->assertJsonPath('cliente.contacto', 'Ana');
+        $this->getJson('/catalogo/cliente-por-rut?rut='.$datos['rut'])->assertNotFound();
 
         $this->put(route('clientes.update', $cliente->id_cliente), [
             'rut' => $datos['rut'],
             'nombre' => $datos['nombre'],
             'contacto' => 'Camila',
         ])->assertRedirect(route('clientes.index'))->assertSessionHasNoErrors();
-        $this->assertSame(['Ana', 'Beatriz', 'Ana'], DB::table('cliente_contactos_historial')->orderBy('id')->pluck('contacto')->all());
+        $this->assertSame(['Ana'], DB::table('cliente_contactos_historial')->orderBy('id')->pluck('contacto')->all());
 
         $this->get(route('clientes.historial', $cliente->id_cliente))
             ->assertOk()
             ->assertSee('Contacto actual:')
             ->assertSee('Camila')
-            ->assertSee('Beatriz')
+            ->assertDontSee('Beatriz')
             ->assertDontSee('OT-101')
             ->assertDontSee('Patente ABCD12');
     }
@@ -196,7 +195,7 @@ class ContactoClienteTest extends TestCase
         $this->assertDatabaseCount('solicitud_webs', 1);
     }
 
-    public function test_customer_changes_from_new_requests_are_audited_and_do_not_rewrite_old_snapshots(): void
+    public function test_public_requests_keep_their_snapshot_without_rewriting_master_customer_data(): void
     {
         Notification::fake();
         $producto = $this->crearProducto();
@@ -227,19 +226,8 @@ class ContactoClienteTest extends TestCase
         $this->assertSame('Ana', $snapshotAnterior['contacto']);
         $this->assertSame('Empresa actualizada', $snapshotNuevo['nombre']);
         $this->assertSame('Beatriz', $snapshotNuevo['contacto']);
-        $this->assertSame('nuevo@example.test', $cliente->correo);
-        $this->assertSame('Beatriz', $cliente->contacto);
-
-        $auditoria = DB::table('auditorias')
-            ->where('modelo', Cliente::class)
-            ->where('modelo_id', $cliente->id_cliente)
-            ->where('actor_nombre', 'Cliente')
-            ->where('accion', 'editado')
-            ->latest('id_auditoria')
-            ->first();
-        $this->assertNotNull($auditoria);
-        $this->assertStringContainsString('solicitud de cotización web', $auditoria->descripcion);
-        $this->assertSame('Empresa de prueba', json_decode($auditoria->datos_anteriores, true)['nombre']);
+        $this->assertSame('cliente@example.test', $cliente->correo);
+        $this->assertSame('Ana', $cliente->contacto);
     }
 
     private function datosCliente(): array

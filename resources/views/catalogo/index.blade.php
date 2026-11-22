@@ -253,7 +253,7 @@
                     placeholder="12.345.678-5" data-rut maxlength="12"
                     autocomplete="off"
                     class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
-                <p id="mensaje-cliente-solicitud" class="mt-1 text-xs text-gray-600"
+                <p class="mt-1 text-xs text-gray-600"
                     role="status" aria-live="polite"></p>
             </div>
 
@@ -303,7 +303,6 @@
 
 <script src="{{ asset('js/rut.js') }}"></script>
 <script src="{{ asset('js/chile-location.js') }}"></script>
-<script src="{{ asset('js/cliente-por-rut.js') }}"></script>
 
 <script>
 (() => {
@@ -749,8 +748,6 @@ inicializarFormularioCatalogo();
 const solicitudForm = document.querySelector('#solicitud-modal form');
 
 if (solicitudForm) {
-    inicializarBusquedaClientePorRut(solicitudForm, '{{ route('catalogo.cliente.rut') }}', 'la cotización');
-
     const obligatorioLabel = (id, texto) => {
         const label = document.createElement('label');
         label.htmlFor = id;

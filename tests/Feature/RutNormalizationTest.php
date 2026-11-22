@@ -83,15 +83,15 @@ class RutNormalizationTest extends TestCase
         $vendedor = User::factory()->create(['rol' => 'Administrador']);
         $cliente = Cliente::create(['rut' => '12345678-5', 'nombre' => 'Cliente']);
 
-        $this->getJson(route('catalogo.cliente.rut', ['rut' => '12.345.678-5']))
+        $this->actingAs($vendedor)
+            ->getJson(route('pos.cliente.rut', ['rut' => '12.345.678-5']))
             ->assertOk()
             ->assertJsonPath('encontrado', true);
 
-        $this->actingAs($vendedor)
-            ->put(route('clientes.update', $cliente->id_cliente), [
-                'rut' => '11.111.111-1',
-                'nombre' => 'Cliente',
-            ])
+        $this->put(route('clientes.update', $cliente->id_cliente), [
+            'rut' => '11.111.111-1',
+            'nombre' => 'Cliente',
+        ])
             ->assertSessionHasNoErrors();
 
         $this->assertSame('11111111-1', $cliente->fresh()->rut);

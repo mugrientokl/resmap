@@ -53,12 +53,11 @@ class ServicioFlowTest extends TestCase
         }
     }
 
-    public function test_service_requires_address_and_provides_rut_lookup(): void
+    public function test_service_requires_address_without_public_rut_lookup(): void
     {
         $this->get(route('servicios.index'))->assertOk()
-            ->assertSee('id="mensaje-cliente-solicitud"', false)
-            ->assertSee(asset('js/cliente-por-rut.js'), false)
-            ->assertSee(route('catalogo.cliente.rut'), false)
+            ->assertDontSee(asset('js/cliente-por-rut.js'), false)
+            ->assertDontSee('/catalogo/cliente-por-rut', false)
             ->assertSee('name="direccion" value="" required', false);
 
         $this->post(route('servicios.store'), [
@@ -171,6 +170,7 @@ class ServicioFlowTest extends TestCase
             ->assertSee('Mantención preventiva');
 
         $this->post(route('ventas.generar-resumen', $venta), [
+            'tipo_documento' => 'Boleta Electrónica',
             'acteco_emisor' => array_key_first(config('services.cotizaciones.actividades_emisor')),
             'tipo_venta' => 'del_giro',
             'rut' => '12345678-5',

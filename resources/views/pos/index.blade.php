@@ -416,6 +416,21 @@ let borradorHabilitado = true;
 let busquedaClienteEnProceso = false;
 
 const claveBorrador = 'resmap-pos-venta-pendiente';
+const claveIdempotenciaBorrador = 'resmap-pos-venta-idempotencia';
+
+function obtenerClaveIdempotencia() {
+    let clave = sessionStorage.getItem(claveIdempotenciaBorrador);
+    if (!clave) {
+        clave = typeof crypto.randomUUID === 'function'
+            ? crypto.randomUUID()
+            : '10000000-1000-4000-8000-100000000000'.replace(/[018]/g, caracter =>
+                (Number(caracter) ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> Number(caracter) / 4).toString(16)
+            );
+        sessionStorage.setItem(claveIdempotenciaBorrador, clave);
+    }
+
+    return clave;
+}
 
 const idsCamposCliente = [
     'rut',
@@ -552,6 +567,7 @@ function limpiarBorrador() {
 
     try {
         sessionStorage.removeItem(claveBorrador);
+        sessionStorage.removeItem(claveIdempotenciaBorrador);
     } catch (error) {
         console.error('No se pudo limpiar el borrador:', error);
     }
@@ -961,7 +977,8 @@ async function procesarVenta() {
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Idempotency-Key': obtenerClaveIdempotencia()
             },
             body: JSON.stringify(datos)
         });

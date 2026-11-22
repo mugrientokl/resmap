@@ -71,12 +71,14 @@ class FaceRecognitionTest extends TestCase
         $this->assertArrayNotHasKey('face_descriptor', $user->toArray());
     }
 
-    public function test_face_login_creates_a_session_with_only_a_matching_descriptor(): void
+    public function test_face_login_requires_valid_credentials_and_a_matching_descriptor(): void
     {
         $user = $this->userWithFace();
 
         $this->from(route('login'))
             ->post(route('login.face'), [
+                'login' => $user->username,
+                'password' => self::PASSWORD,
                 'face_descriptor' => $this->descriptor(0.012),
             ])
             ->assertRedirect(route('dashboard'))
@@ -91,6 +93,8 @@ class FaceRecognitionTest extends TestCase
 
         $this->from(route('login'))
             ->post(route('login.face'), [
+                'login' => $user->username,
+                'password' => self::PASSWORD,
                 'face_descriptor' => $this->descriptor(0.9),
             ])
             ->assertRedirect(route('login'))
@@ -99,21 +103,15 @@ class FaceRecognitionTest extends TestCase
         $this->assertGuest();
     }
 
-    public function test_face_login_requires_a_unique_server_side_match(): void
+    public function test_face_login_rejects_correct_descriptor_without_valid_password(): void
     {
-        $descriptor = $this->descriptor(0.01);
-
-        foreach (['Administrador', 'Vendedor'] as $role) {
-            $user = User::factory()->create(['rol' => $role]);
-            $user->forceFill([
-                'face_descriptor' => $descriptor,
-                'face_consent_at' => now(),
-            ])->save();
-        }
+        $user = $this->userWithFace();
 
         $this->from(route('login'))
             ->post(route('login.face'), [
-                'face_descriptor' => $descriptor,
+                'login' => $user->username,
+                'password' => 'incorrect-password',
+                'face_descriptor' => $this->descriptor(0.01),
             ])
             ->assertRedirect(route('login'))
             ->assertSessionHasErrors('face');
@@ -127,6 +125,8 @@ class FaceRecognitionTest extends TestCase
 
         $this->from(route('login'))
             ->post(route('login.face'), [
+                'login' => $user->username,
+                'password' => self::PASSWORD,
                 'face_descriptor' => $this->descriptor(0.01),
             ])
             ->assertRedirect(route('login'))

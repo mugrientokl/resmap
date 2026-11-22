@@ -246,7 +246,7 @@ class CatalogoController extends Controller
             ];
 
             $clienteExistente = Cliente::query()->where('rut', $data['rut'])->lockForUpdate()->first();
-            if ($clienteExistente?->consentimiento_whatsapp_origen !== 'whatsapp_opt_out') {
+            if ($clienteExistente === null) {
                 $datosCliente['consentimiento_whatsapp_at'] = now();
                 $datosCliente['consentimiento_whatsapp_origen'] = 'catalogo';
             }
@@ -260,7 +260,7 @@ class CatalogoController extends Controller
                 'fecha' => now(),
                 'estado' => 'Pendiente',
                 'id_cliente' => $cliente->id_cliente,
-                'datos_cliente' => $cliente->snapshotDatos(),
+                'datos_cliente' => $datosCliente,
                 'contacto' => $data['contacto'],
                 'cargo' => $data['cargo'] ?? null,
                 'detalles_productos' => $data['detalles_productos'],

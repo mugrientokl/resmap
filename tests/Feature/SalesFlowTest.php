@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 class SalesFlowTest extends TestCase
@@ -62,5 +63,55 @@ class SalesFlowTest extends TestCase
         $this->assertDatabaseHas('ventas', ['total' => 1190]);
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 4]);
         Http::assertNothingSent();
+    }
+
+    public function test_retried_sale_is_idempotent_and_does_not_discount_stock_twice(): void
+    {
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $categoryId = DB::table('categorias')->insertGetId([
+            'nombre_categoria' => 'Pruebas',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $productId = DB::table('productos')->insertGetId([
+            'codigo_barra' => 'IDEMP-TEST-001',
+            'nombre' => 'Producto idempotente',
+            'precio' => 1190,
+            'stock' => 5,
+            'stock_critico' => 1,
+            'id_categoria' => $categoryId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $payload = [
+            'tipo_documento' => 'Boleta Electrónica',
+            'medio_pago' => 'Efectivo',
+            'rut' => '66666666-6',
+            'nombre_cliente' => 'Cliente de prueba',
+            'contacto' => 'Contacto de prueba',
+            'giro_cliente' => 'Comercio',
+            'correo_cliente' => 'cliente@example.test',
+            'direccion_cliente' => 'Calle 123',
+            'region_cliente' => 'Metropolitana',
+            'comuna_cliente' => 'Santiago',
+            'ciudad_cliente' => 'Santiago',
+            'acteco_emisor' => '475201',
+            'tipo_venta' => 'del_giro',
+            'tipo_compra' => 'del_giro',
+            'detalles' => [['id_producto' => $productId, 'cantidad' => 1]],
+        ];
+        $key = (string) Str::uuid();
+
+        $this->actingAs($seller)
+            ->postJson('/ventas', $payload, ['Idempotency-Key' => $key])
+            ->assertCreated()
+            ->assertJsonPath('repetida', false);
+        $this->postJson('/ventas', $payload, ['Idempotency-Key' => $key])
+            ->assertCreated()
+            ->assertJsonPath('repetida', true);
+
+        $this->assertDatabaseCount('ventas', 1);
+        $this->assertDatabaseCount('inventario_movimientos', 1);
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 4]);
     }
 }

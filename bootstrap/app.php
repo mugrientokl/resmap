@@ -6,6 +6,7 @@ use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\NoStoreMiddleware;
 use App\Http\Middleware\RequestRateLimiter;
 use App\Http\Middleware\RoleMiddleware;
+use App\Http\Middleware\SecurityHeaders;
 use App\Services\RegistroActividad;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -57,6 +58,7 @@ return Application::configure(basePath: dirname(__DIR__))
             ForceHttps::class,
             InjectBoost::class,
             NoStoreMiddleware::class,
+            SecurityHeaders::class,
             EnsureActiveUser::class,
         ]);
         $middleware->alias([

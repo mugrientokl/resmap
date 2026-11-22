@@ -60,7 +60,7 @@ class ServicioController extends Controller
         ], ['telefono.regex' => 'Ingresa un teléfono chileno válido.'])->validate();
 
         $solicitud = DB::transaction(function () use ($data, $telefono, $actualizarCliente): SolicitudWeb {
-            $cliente = $actualizarCliente->actualizarDesdeSolicitud([
+            $datosCliente = [
                 'rut' => $data['rut'],
                 'nombre' => $data['nombre'],
                 'contacto' => $data['contacto'],
@@ -70,7 +70,11 @@ class ServicioController extends Controller
                 'region' => $data['region'],
                 'comuna' => $data['comuna'],
                 'ciudad' => $data['comuna'],
-            ], 'la solicitud de servicio');
+            ];
+            $cliente = $actualizarCliente->actualizarDesdeSolicitud(
+                $datosCliente,
+                'la solicitud de servicio',
+            );
 
             return SolicitudWeb::create([
                 'fecha' => now(),
@@ -79,7 +83,7 @@ class ServicioController extends Controller
                 'tipo_servicio' => $data['tipo_servicio'],
                 'descripcion_servicio' => $data['descripcion_servicio'],
                 'id_cliente' => $cliente->id_cliente,
-                'datos_cliente' => $cliente->snapshotDatos(),
+                'datos_cliente' => $datosCliente,
                 'contacto' => $data['contacto'],
                 'cargo' => $data['cargo'] ?? null,
                 'detalles_productos' => [],

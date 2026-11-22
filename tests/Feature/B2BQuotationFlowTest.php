@@ -216,7 +216,8 @@ class B2BQuotationFlowTest extends TestCase
             'comuna' => 'Santiago',
             'detalles_productos' => [['id_producto' => $productId, 'cantidad' => 1]],
         ])->assertRedirect(route('catalogo.index'))->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('clientes', ['rut' => '12345678-5', 'nombre' => 'Cliente actualizado']);
+        $this->assertDatabaseHas('clientes', ['rut' => '12345678-5', 'nombre' => 'Cliente de prueba']);
+        $this->assertDatabaseMissing('clientes', ['rut' => '12345678-5', 'nombre' => 'Cliente actualizado']);
         $this->assertDatabaseHas('cotizacion_versiones', [
             'id_version' => $versionId,
             'datos_cliente->nombre' => 'Cliente de prueba',
@@ -440,12 +441,14 @@ class B2BQuotationFlowTest extends TestCase
             ->assertSee('Cliente de prueba')
             ->assertSee('El resumen no podrá modificarse ni generarse nuevamente');
         $datos = [
+            'tipo_documento' => 'Factura Electrónica',
             'acteco_emisor' => '453000',
             'tipo_venta' => 'del_giro',
             'nombre' => 'Empresa de prueba',
             'rut' => '12.345.678-5',
             'giro' => 'Comercio',
             'direccion' => 'Calle 123',
+            'region' => 'Metropolitana',
             'comuna' => 'Santiago',
             'ciudad' => 'Santiago',
             'contacto' => 'Responsable receptor',

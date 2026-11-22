@@ -127,11 +127,34 @@ const addDescriptorFields = (form, descriptor) => {
     });
 };
 
+const addLoginCredentials = (form) => {
+    if (form.dataset.faceMode !== 'login') {
+        return;
+    }
+
+    const credentialForm = document.querySelector(form.dataset.credentialForm || '');
+    const login = credentialForm?.querySelector('input[name="login"]');
+    const password = credentialForm?.querySelector('input[name="password"]');
+
+    form.querySelectorAll('[data-generated-credential]').forEach((field) => field.remove());
+    for (const source of [login, password]) {
+        if (source) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = source.name;
+            input.value = source.value;
+            input.dataset.generatedCredential = 'true';
+            form.append(input);
+        }
+    }
+};
+
 const submitCapturedDescriptor = (form, descriptor) => {
     if (form.dataset.faceMode === 'profile' && !form.reportValidity()) {
         return;
     }
 
+    addLoginCredentials(form);
     addDescriptorFields(form, descriptor);
     setFormStatus(form, form.dataset.faceMode === 'login'
         ? 'Rostro detectado. Verificando identidad…'
@@ -146,7 +169,10 @@ const submitCapturedDescriptor = (form, descriptor) => {
 
 faceForms.forEach((form) => {
     form.querySelector('[data-face-open]')?.addEventListener('click', async () => {
-        if (!form.reportValidity()) {
+        const credentialForm = form.dataset.faceMode === 'login'
+            ? document.querySelector(form.dataset.credentialForm || '')
+            : form;
+        if (!credentialForm?.reportValidity()) {
             return;
         }
 

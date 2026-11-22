@@ -81,33 +81,35 @@ class FaceRecognitionController extends Controller
     public function login(Request $request): RedirectResponse|Response
     {
         $validated = $request->validate([
+            'login' => ['required', 'string', 'max:255'],
+            'password' => ['required', 'string', 'max:255'],
             'face_descriptor' => ['required', 'array', 'size:128'],
             'face_descriptor.*' => ['required', 'numeric', 'between:-1,1'],
         ], [
+            'login.required' => 'Ingresa tu usuario o correo antes de verificar tu rostro.',
+            'password.required' => 'Ingresa tu contraseña antes de verificar tu rostro.',
             'face_descriptor.required' => 'No pudimos leer el rostro. Inténtalo nuevamente.',
             'face_descriptor.size' => 'No pudimos leer el rostro. Inténtalo nuevamente.',
         ]);
 
-        $limiterKey = 'face-login-failures:'.hash('sha256', $request->ip());
-        $lockKey = 'face-login-lock:'.hash('sha256', $request->ip());
-        $matchingUsers = [];
-
-        User::query()
+        $field = filter_var($validated['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+        $identity = mb_strtolower($validated['login'], 'UTF-8');
+        $limiterKey = 'face-login-failures:'.hash('sha256', $identity.'|'.$request->ip());
+        $lockKey = 'face-login-lock:'.hash('sha256', $identity.'|'.$request->ip());
+        $user = User::query()
+            ->where($field, $validated['login'])
             ->where('activo', true)
             ->whereIn('rol', ['Administrador', 'Vendedor'])
             ->whereNotNull('face_descriptor')
-            ->chunkById(100, function ($users) use (&$matchingUsers, $validated): void {
-                foreach ($users as $user) {
-                    if (is_array($user->face_descriptor)
-                        && $this->descriptorsMatch($validated['face_descriptor'], $user->face_descriptor)
-                    ) {
-                        $matchingUsers[] = $user;
-                    }
-                }
-            });
-
-        $authorized = count($matchingUsers) === 1;
-        $user = $authorized ? $matchingUsers[0] : null;
+            ->first();
+        $validPassword = Auth::validate([
+            $field => $validated['login'],
+            'password' => $validated['password'],
+        ]);
+        $authorized = $validPassword
+            && $user !== null
+            && is_array($user->face_descriptor)
+            && $this->descriptorsMatch($validated['face_descriptor'], $user->face_descriptor);
 
         if (Cache::has($lockKey) && ! $authorized) {
             $errors = (new ViewErrorBag)->put(
@@ -130,7 +132,7 @@ class FaceRecognitionController extends Controller
 
             Log::warning('auth.face_login.failed', [
                 'ip' => $request->ip(),
-                'matching_users' => count($matchingUsers),
+                'identity_hash' => hash('sha256', $identity),
             ]);
 
             app(RegistroActividad::class)->evento(
@@ -139,11 +141,11 @@ class FaceRecognitionController extends Controller
                 descripcion: 'Intento de inicio de sesión facial fallido',
                 modelo: 'Autenticación',
                 resultado: 'fallo',
-                nuevos: ['coincidencias' => count($matchingUsers), 'intentos' => $failures],
+                nuevos: ['identidad_hash' => substr(hash('sha256', $identity), 0, 16), 'intentos' => $failures],
             );
 
             return back()->withErrors([
-                'face' => 'Rostro no reconocido o no identificado de forma única. Inténtalo nuevamente.',
+                'face' => 'Las credenciales o el rostro no coinciden con una cuenta disponible.',
             ]);
         }
 

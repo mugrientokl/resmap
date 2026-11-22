@@ -46,10 +46,6 @@ Route::middleware([
         ->middleware('request.limit:5,60,10,60')
         ->name('catalogo.solicitudes.store');
 
-    Route::get('/catalogo/cliente-por-rut', [ClienteController::class, 'buscarParaCatalogo'])
-        ->middleware('throttle:30,1')
-        ->name('catalogo.cliente.rut');
-
     Route::get('/cotizaciones/{version}/documento', [CotizacionController::class, 'pdfPublico'])
         ->middleware('signed')
         ->name('cotizaciones.pdf.publico');
@@ -84,9 +80,11 @@ Route::middleware([
         ->name('login');
 
     Route::post('/login', [AuthController::class, 'store'])
+        ->middleware('throttle:30,1')
         ->name('login.store');
 
     Route::post('/login/face', [FaceRecognitionController::class, 'login'])
+        ->middleware('throttle:20,1')
         ->name('login.face');
 
     Route::get('/password/forgot', [AuthController::class, 'showForgotPasswordForm'])

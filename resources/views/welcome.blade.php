@@ -114,6 +114,15 @@
         };
         const seleccion = leerCarrito();
 
+        window.escaparHTML = (valor) => {
+            const elemento = document.createElement('span');
+            elemento.textContent = String(valor);
+
+            return elemento.innerHTML
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        };
+
         window.guardarCarrito = () => {
             window.localStorage.setItem(carritoStorageKey, JSON.stringify(seleccion));
         };
@@ -145,7 +154,7 @@
             const carritoItems = document.getElementById('carrito-items');
             if (carritoItems) {
                 carritoItems.innerHTML = items.length
-                    ? items.map(item => `<div class="flex items-center justify-between gap-3 border-b border-[#f0d7d3] pb-3"><span class="font-semibold text-[#241817]">${item.nombre}</span><div class="flex items-center gap-2"><button type="button" onclick="cambiarCantidad(${item.id_producto}, -1)" class="h-8 w-8 rounded-full bg-[#f7e8e6] font-bold text-[#8f241d]">-</button><input type="number" min="1" max="99" value="${item.cantidad}" onchange="establecerCantidad(${item.id_producto}, this.value)" class="h-8 w-12 border border-[#d9aaa3] text-center font-bold text-[#8f241d]"><button type="button" onclick="cambiarCantidad(${item.id_producto}, 1)" class="h-8 w-8 rounded-full bg-[#b52f25] font-bold text-white">+</button></div></div>`).join('')
+                    ? items.map(item => `<div class="flex items-center justify-between gap-3 border-b border-[#f0d7d3] pb-3"><span class="font-semibold text-[#241817]">${escaparHTML(item.nombre)}</span><div class="flex items-center gap-2"><button type="button" onclick="cambiarCantidad(${Number(item.id_producto)}, -1)" class="h-8 w-8 rounded-full bg-[#f7e8e6] font-bold text-[#8f241d]">-</button><input type="number" min="1" max="99" value="${Number(item.cantidad) || 1}" onchange="establecerCantidad(${Number(item.id_producto)}, this.value)" class="h-8 w-12 border border-[#d9aaa3] text-center font-bold text-[#8f241d]"><button type="button" onclick="cambiarCantidad(${Number(item.id_producto)}, 1)" class="h-8 w-8 rounded-full bg-[#b52f25] font-bold text-white">+</button></div></div>`).join('')
                     : '<p class="py-8 text-center text-gray-500">Tu carrito está vacío.</p>';
             }
 
@@ -154,7 +163,7 @@
                 const item = seleccion[id];
                 selector.innerHTML = item
                     ? `<div class="flex items-center gap-2 rounded-md border border-[#e8c8c3] p-1"><button type="button" onclick="cambiarCantidad(${id}, -1)" class="h-8 w-8 rounded bg-[#f7e8e6] font-bold text-[#8f241d]">−</button><input type="number" min="1" max="99" value="${item.cantidad}" onchange="establecerCantidad(${id}, this.value)" class="h-8 w-12 border border-[#d9aaa3] text-center font-bold text-[#8f241d]"><button type="button" onclick="cambiarCantidad(${id}, 1)" class="h-8 w-8 rounded bg-[#b52f25] font-bold text-white">+</button></div>`
-                    : `<button type="button" data-agregar-kit data-producto-id="${id}" data-producto-nombre="${selector.dataset.nombre || ''}" class="rounded-md bg-[#b52f25] px-3 py-2 text-sm font-bold text-white hover:bg-[#8f241d]">Agregar</button>`;
+                    : `<button type="button" data-agregar-kit data-producto-id="${id}" data-producto-nombre="${escaparHTML(selector.dataset.nombre || '')}" class="rounded-md bg-[#b52f25] px-3 py-2 text-sm font-bold text-white hover:bg-[#8f241d]">Agregar</button>`;
             });
 
             const kitsCarritoAcceso = document.getElementById('kits-carrito-acceso');

@@ -201,21 +201,24 @@
             body.navegacion-izquierda > nav {
                 right: auto;
                 bottom: 0;
-                width: 18rem;
+                width: 5.25rem;
+                overflow-x: hidden;
                 overflow-y: auto;
                 background-color: #8f241d;
                 box-shadow: 4px 0 16px rgba(36, 24, 23, .2);
+                transition: width .22s ease, box-shadow .22s ease;
             }
             body.navegacion-izquierda > nav > div {
                 max-width: none !important;
                 align-items: stretch;
                 flex-direction: column;
-                padding: 1rem;
+                min-width: 5.25rem;
+                padding: .85rem .65rem 1rem;
             }
             body.navegacion-izquierda .brand-link {
                 flex-direction: column;
                 justify-content: center;
-                padding: .8rem 1rem .75rem;
+                padding: .8rem .2rem .75rem;
             }
             body.navegacion-izquierda .brand-link:focus-visible {
                 outline: 3px solid #ffd5c9;
@@ -224,10 +227,11 @@
             body.navegacion-izquierda .brand-logo {
                 width: 100%;
                 height: auto;
-                max-width: 14.5rem;
+                max-width: 4rem;
+                transition: max-width .22s ease;
             }
             body.navegacion-izquierda .brand-caption {
-                display: block;
+                display: none;
                 margin-top: .2rem;
                 color: #fff;
                 font-size: .6rem;
@@ -246,23 +250,36 @@
             body.navegacion-izquierda .nav-link {
                 display: flex;
                 align-items: center;
-                gap: .75rem;
+                justify-content: center;
+                gap: 0;
                 min-height: 2.75rem;
-                padding: .6rem .75rem;
+                padding: .65rem;
                 border: 1px solid transparent;
                 border-radius: .65rem;
                 color: #fff7f5;
                 font-size: 1.0625rem;
                 font-weight: 600;
                 line-height: 1.35;
-                transition: background-color .15s ease, border-color .15s ease, color .15s ease;
+                white-space: nowrap;
+                transition: background-color .2s ease, border-color .2s ease, color .2s ease, padding .55s cubic-bezier(.22, 1, .36, 1), gap .55s cubic-bezier(.22, 1, .36, 1);
             }
             body.navegacion-izquierda .nav-icon {
                 display: block;
-                width: 1.2rem;
-                height: 1.2rem;
+                width: 1.35rem;
+                height: 1.35rem;
                 flex: none;
                 color: #ffd5c9;
+            }
+            body.navegacion-izquierda .nav-link > span:not(.nav-badge),
+            body.navegacion-izquierda #profile-menu-button > span:nth-child(2),
+            body.navegacion-izquierda #profile-menu-button > svg {
+                width: auto;
+                max-width: 0;
+                overflow: hidden;
+                opacity: 0;
+                transform: translateX(-.5rem);
+                will-change: max-width, opacity, transform;
+                transition: max-width .22s ease, opacity .14s ease;
             }
             body.navegacion-izquierda .nav-link:hover {
                 border-color: rgba(255, 255, 255, .16);
@@ -281,7 +298,14 @@
                 outline: 3px solid #ffd5c9;
                 outline-offset: 2px;
             }
-            body.navegacion-izquierda .nav-badge { margin-left: auto; }
+            body.navegacion-izquierda .nav-badge {
+                position: absolute;
+                top: .15rem;
+                right: .15rem;
+                margin-left: 0;
+                font-size: .65rem;
+            }
+            body.navegacion-izquierda .nav-link { position: relative; }
             body.navegacion-izquierda .profile-section {
                 margin-bottom: .75rem;
                 padding-bottom: .75rem;
@@ -289,6 +313,8 @@
             }
             body.navegacion-izquierda #profile-menu-button {
                 min-height: 3.25rem;
+                justify-content: center;
+                padding: .6rem;
                 border: 1px solid rgba(255, 255, 255, .18);
                 border-radius: .65rem;
                 background-color: rgba(255, 255, 255, .07);
@@ -303,7 +329,59 @@
             }
         }
         @media (min-width: 768px) {
-            body.navegacion-izquierda { padding-top: 0; padding-left: 18rem; }
+            body.navegacion-izquierda { padding-top: 0; padding-left: 6.25rem; }
+            body.navegacion-izquierda > nav:hover,
+            body.navegacion-izquierda > nav:focus-within {
+                width: 20rem;
+                box-shadow: 8px 0 24px rgba(36, 24, 23, .28);
+            }
+            body.navegacion-izquierda > nav:hover > div,
+            body.navegacion-izquierda > nav:focus-within > div {
+                padding: 1rem;
+                transition: padding .22s ease;
+            }
+            body.navegacion-izquierda > nav:hover .brand-logo,
+            body.navegacion-izquierda > nav:focus-within .brand-logo {
+                max-width: 14.5rem;
+            }
+            body.navegacion-izquierda > nav:hover .brand-caption,
+            body.navegacion-izquierda > nav:focus-within .brand-caption {
+                display: block;
+            }
+            body.navegacion-izquierda > nav:hover .nav-link,
+            body.navegacion-izquierda > nav:focus-within .nav-link {
+                justify-content: flex-start;
+                gap: .75rem;
+                padding: .6rem .75rem;
+                white-space: normal;
+            }
+            body.navegacion-izquierda > nav:hover .nav-link > span:not(.nav-badge),
+            body.navegacion-izquierda > nav:focus-within .nav-link > span:not(.nav-badge),
+            body.navegacion-izquierda > nav:hover #profile-menu-button > span:nth-child(2),
+            body.navegacion-izquierda > nav:focus-within #profile-menu-button > span:nth-child(2) {
+                max-width: 15rem;
+                opacity: 1;
+                transform: translateX(0);
+                text-overflow: clip;
+                white-space: normal;
+            }
+            body.navegacion-izquierda > nav:hover #profile-menu-button > svg,
+            body.navegacion-izquierda > nav:focus-within #profile-menu-button > svg {
+                max-width: 1rem;
+                opacity: 1;
+                transform: translateX(0);
+            }
+            body.navegacion-izquierda > nav:hover #profile-menu-button,
+            body.navegacion-izquierda > nav:focus-within #profile-menu-button {
+                justify-content: flex-start;
+                padding: .6rem .75rem;
+            }
+            body.navegacion-izquierda > nav:hover .nav-badge,
+            body.navegacion-izquierda > nav:focus-within .nav-badge {
+                position: static;
+                margin-left: auto;
+                font-size: .75rem;
+            }
         }
         @media (max-width: 767px) {
             body.navegacion-izquierda { padding-top: 4rem; }
@@ -509,8 +587,9 @@
                     </div>
                     <section class="mt-8 border-t border-[#f0ddda] pt-6" aria-labelledby="about-us-title">
                         <p id="about-us-title" class="text-xs font-bold uppercase tracking-[.25em] text-[#9f2f25]">Acerca de nosotros</p>
-                        <div class="mt-3 flex min-h-24 items-center border border-dashed border-[#e8c8c3] px-4 text-sm italic text-[#8c7772]">
-                            Próximamente agregaremos aquí la información sobre RESMAP.
+                        <div class="mt-3 space-y-3 text-sm leading-6 text-[#4f403d]">
+                            <p>En RESMAP, con sede en Los Ángeles, nos especializamos en la comercialización de repuestos y componentes para maquinaria pesada, agrícola y forestal. Trabajamos con proveedores confiables para ofrecer soluciones que ayuden a nuestros clientes a mantener sus equipos operativos.</p>
+                            <p>Complementamos nuestra oferta con servicios de mantención, reparación y soldadura, entregando una atención cercana y orientada a resolver cada necesidad con seguridad, compromiso y calidad.</p>
                         </div>
                     </section>
                 </div>
@@ -523,11 +602,11 @@
                     <a href="https://www.google.com/maps/search/?api=1&query=-37.4741361,-72.32925" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex items-center font-bold text-[#9f2f25] hover:text-[#721d18]">Abrir en Google Maps <span class="ml-2">→</span></a>
                 </div>
             </div>
-            <section class="mx-auto mt-8 flex max-w-7xl flex-col items-start gap-5 border-t border-[#f0ddda] pt-6 sm:flex-row sm:items-center" aria-labelledby="instituto-title">
+            <section class="mx-auto mt-8 flex max-w-7xl flex-col items-center justify-center gap-5 border-t border-[#f0ddda] pt-6 text-center sm:flex-row" aria-labelledby="instituto-title">
                 <a href="https://admision.virginiogomez.cl/sedes/" target="_blank" rel="noopener noreferrer">
                     <img src="https://www.virginiogomez.cl/static/admision/Logo_IPVG.png" alt="Instituto Profesional Virginio Gómez" class="h-auto w-48 object-contain" loading="lazy">
                 </a>
-                <div>
+                <div class="text-center sm:text-left">
                     <h2 id="instituto-title" class="font-bold text-[#241817]">Instituto Profesional Virginio Gómez · Sede Los Ángeles</h2>
                     <p class="mt-1">Ercilla 444, Los Ángeles, Biobío</p>
                     <a href="tel:+56432317764" class="mt-1 inline-block hover:text-[#9f2f25]">+56 43 231 7764</a>

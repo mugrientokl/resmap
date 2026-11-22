@@ -14,11 +14,14 @@ use App\Rules\RutChileno;
 use App\Services\ResumenInternoVentaPdf;
 use App\Support\Rut;
 use App\Support\TelefonoChileno;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class VentaController extends Controller
 {
@@ -78,9 +81,30 @@ class VentaController extends Controller
             'detalles.*.id_producto' => 'required|exists:productos,id_producto',
             'detalles.*.cantidad' => 'required|integer|min:1|max:2147483647',
         ]);
+        $claveIdempotencia = $request->header('Idempotency-Key');
+        if ($claveIdempotencia !== null && ! Str::isUuid($claveIdempotencia)) {
+            throw ValidationException::withMessages([
+                'idempotency_key' => 'La clave de idempotencia no es válida.',
+            ]);
+        }
+        if ($claveIdempotencia !== null) {
+            $ventaExistente = Venta::query()
+                ->where('clave_idempotencia', $claveIdempotencia)
+                ->where('user_id', $request->user()->id)
+                ->with('cliente')
+                ->first();
+            if ($ventaExistente?->cliente !== null) {
+                return $this->respuestaVenta(
+                    $request,
+                    $ventaExistente,
+                    $ventaExistente->cliente,
+                    repetida: true,
+                );
+            }
+        }
 
         try {
-            $resultado = DB::transaction(function () use ($request, $datos) {
+            $resultado = DB::transaction(function () use ($request, $datos, $claveIdempotencia) {
                 $actividades = config('services.cotizaciones.actividades_emisor');
                 $cliente = Cliente::query()->lockForUpdate()->firstOrCreate(
                     ['rut' => $datos['rut']],
@@ -147,6 +171,7 @@ class VentaController extends Controller
                 $montoIva = round($totalBruto - $montoNeto, 2);
 
                 $venta = Venta::create([
+                    'clave_idempotencia' => $claveIdempotencia,
                     'fecha' => now(),
                     'tipo_documento' => $datos['tipo_documento'],
                     'folio_sii' => null,
@@ -212,6 +237,7 @@ class VentaController extends Controller
                 ];
             });
 
+            $resultado['venta']->load('detalles.producto');
             foreach ($resultado['venta']->detalles as $detalle) {
                 if ($detalle->producto->stock <= $detalle->producto->stock_critico) {
                     User::whereIn('rol', ['Administrador', 'Vendedor'])->get()
@@ -230,14 +256,34 @@ class VentaController extends Controller
                 }
             }
 
-            $request->session()->flash('success', '¡Venta completada correctamente! El stock fue actualizado.');
-            $request->session()->flash('resumen_venta_id', $resultado['venta']->id_venta);
+            return $this->respuestaVenta(
+                $request,
+                $resultado['venta'],
+                $resultado['cliente'],
+            );
+
+        } catch (UniqueConstraintViolationException $exception) {
+            if ($claveIdempotencia !== null) {
+                $ventaExistente = Venta::query()
+                    ->where('clave_idempotencia', $claveIdempotencia)
+                    ->where('user_id', $request->user()->id)
+                    ->with('cliente')
+                    ->first();
+                if ($ventaExistente?->cliente !== null) {
+                    return $this->respuestaVenta(
+                        $request,
+                        $ventaExistente,
+                        $ventaExistente->cliente,
+                        repetida: true,
+                    );
+                }
+            }
+
+            Log::error('No se pudo registrar la venta.', ['exception' => $exception]);
 
             return response()->json([
-                'message' => 'Venta registrada con éxito, stock actualizado y cliente sincronizado.',
-                'resultado' => $resultado,
-            ], 201);
-
+                'error' => 'No se pudo registrar la venta. Verifica los datos e inténtalo nuevamente.',
+            ], 400);
         } catch (\Exception $e) {
             Log::error('No se pudo registrar la venta.', ['exception' => $e]);
 
@@ -245,6 +291,27 @@ class VentaController extends Controller
                 'error' => 'No se pudo registrar la venta. Verifica los datos e inténtalo nuevamente.',
             ], 400);
         }
+    }
+
+    private function respuestaVenta(
+        Request $request,
+        Venta $venta,
+        Cliente $cliente,
+        bool $repetida = false,
+    ): JsonResponse {
+        $request->session()->flash('success', '¡Venta completada correctamente! El stock fue actualizado.');
+        $request->session()->flash('resumen_venta_id', $venta->id_venta);
+
+        return response()->json([
+            'message' => $repetida
+                ? 'La venta ya había sido registrada; no se descontó stock nuevamente.'
+                : 'Venta registrada con éxito, stock actualizado y cliente sincronizado.',
+            'resultado' => [
+                'venta' => $venta,
+                'cliente' => $cliente,
+            ],
+            'repetida' => $repetida,
+        ], 201);
     }
 
     public function resumenInterno(int $venta, ResumenInternoVentaPdf $resumen)

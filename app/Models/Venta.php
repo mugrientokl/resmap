@@ -30,6 +30,7 @@ class Venta extends Model
     protected $primaryKey = 'id_venta';
 
     protected $fillable = [
+        'clave_idempotencia',
         'fecha',
         'tipo_documento',
         'folio_sii',
