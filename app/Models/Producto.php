@@ -15,6 +15,21 @@ use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * @property int $id_producto
+ * @property string $codigo_barra
+ * @property string|null $codigo_origen
+ * @property string $nombre
+ * @property string|null $nombre_normalizado
+ * @property float|string $precio
+ * @property string|null $costo_promedio_neto
+ * @property string|null $margen_objetivo
+ * @property string $modo_precio
+ * @property int $stock
+ * @property int $stock_critico
+ * @property int|null $id_categoria
+ * @property int $stock_disponible
+ */
 class Producto extends Model
 {
     use HasFactory;
@@ -23,15 +38,45 @@ class Producto extends Model
     {
         static::saving(function (self $producto): void {
             if ($producto->isDirty('nombre')) {
-                $producto->nombre_normalizado = self::claveNombre($producto->nombre);
+                $producto->setAttribute('nombre', self::normalizarNombre((string) $producto->getAttribute('nombre')));
+                $producto->setAttribute('nombre_normalizado', self::claveNombre((string) $producto->getAttribute('nombre')));
             }
         });
     }
 
+    public static function normalizarNombre(string $nombre): string
+    {
+        return trim(preg_replace('/\s+/u', ' ', $nombre));
+    }
+
+    public static function calcularPrecioVentaRecomendado(float $costoNetoUnitario, float $margenObjetivo): float
+    {
+        $precioNeto = $costoNetoUnitario * (1 + $margenObjetivo / 100);
+
+        return round($precioNeto * 1.19, 2);
+    }
+
+    public static function calcularCostoPromedioPonderado(
+        int $stockActual,
+        ?float $costoPromedioActual,
+        int $cantidadNueva,
+        float $costoUnitarioNuevo,
+    ): float {
+        $stockNuevo = $stockActual + $cantidadNueva;
+        if ($stockNuevo <= 0) {
+            return 0.0;
+        }
+
+        $costoAnterior = $costoPromedioActual === null ? 0.0 : (float) $costoPromedioActual;
+        $totalAnterior = $stockActual * $costoAnterior;
+        $totalNuevo = $cantidadNueva * $costoUnitarioNuevo;
+
+        return round(($totalAnterior + $totalNuevo) / $stockNuevo, 2);
+    }
+
     public static function claveNombre(string $nombre): string
     {
-        $nombre = mb_convert_case(trim($nombre), MB_CASE_FOLD, 'UTF-8');
-        $nombre = preg_replace_callback('/\p{Latin}\p{M}*/u', fn (array $letra): string => Str::ascii($letra[0]), $nombre);
+        $nombre = mb_convert_case(Str::ascii(trim($nombre)), MB_CASE_FOLD, 'UTF-8');
         $nombre = trim(preg_replace('/\s+/u', ' ', $nombre));
 
         return hash('sha256', $nombre);
@@ -68,6 +113,9 @@ class Producto extends Model
         'descripcion',
         'imagen',
         'precio',
+        'costo_promedio_neto',
+        'margen_objetivo',
+        'modo_precio',
         'stock',
         'stock_critico',
         'id_categoria',
@@ -82,16 +130,59 @@ class Producto extends Model
     {
         return [
             'activo' => 'boolean',
+            'costo_promedio_neto' => 'decimal:2',
+            'margen_objetivo' => 'decimal:2',
         ];
     }
 
-    public static function crearConCodigo(array $datos): self
+    public static function codigoExiste(string $codigo): bool
+    {
+        $codigo = mb_strtolower(trim($codigo), 'UTF-8');
+
+        $productoExiste = self::query()
+            ->whereRaw('LOWER(TRIM(codigo_barra)) = ?', [$codigo])
+            ->orWhereRaw('LOWER(TRIM(codigo_origen)) = ?', [$codigo])
+            ->exists();
+        $recodificacionExiste = Schema::hasTable('producto_recodificaciones')
+            && DB::table('producto_recodificaciones')
+                ->whereRaw('LOWER(TRIM(codigo_nuevo)) = ?', [$codigo])
+                ->exists();
+
+        return $productoExiste || $recodificacionExiste;
+    }
+
+    public static function crearConCodigo(array $datos, ?string $codigoManual = null): self
     {
         $prefijo = self::prefijoCodigo($datos['nombre']);
-        if (strlen($prefijo) !== 3) {
+        if (\strlen($prefijo) !== 3) {
             throw ValidationException::withMessages([
                 'nombre' => 'El nombre del repuesto debe contener al menos tres letras.',
             ]);
+        }
+
+        if ($codigoManual !== null) {
+            $codigoManual = strtoupper(trim($codigoManual));
+            if (! preg_match('/^[A-Z]{3}\d{3,}$/', $codigoManual)
+                || ! str_starts_with($codigoManual, $prefijo)) {
+                throw ValidationException::withMessages([
+                    'codigo_barra' => 'El código debe comenzar con las tres primeras letras del nombre y continuar con números.',
+                ]);
+            }
+
+            return DB::transaction(function () use ($datos, $codigoManual): self {
+                if (self::codigoExiste($codigoManual) || self::nombreExiste($datos['nombre'])) {
+                    throw ValidationException::withMessages([
+                        'codigo_barra' => self::codigoExiste($codigoManual)
+                            ? 'Ya existe un repuesto con ese código.'
+                            : 'Ya existe un repuesto con ese nombre.',
+                    ]);
+                }
+
+                $datos['codigo_barra'] = $codigoManual;
+                $datos['codigo_origen'] = $codigoManual;
+
+                return self::create($datos);
+            });
         }
 
         for ($intento = 0; $intento < 10; $intento++) {
@@ -122,7 +213,7 @@ class Producto extends Model
                         }
                     }
 
-                    $codigo = $prefijo.sprintf('%03d', $ultimoNumero + 1);
+                    $codigo = $prefijo.\sprintf('%03d', $ultimoNumero + 1);
                     $datos['codigo_barra'] = $codigo;
                     $datos['codigo_origen'] = $codigo;
 
@@ -151,7 +242,7 @@ class Producto extends Model
 
         $numero = ltrim($coincidencias[1], '0');
         $limite = (string) PHP_INT_MAX;
-        if (strlen($numero) > strlen($limite) || (strlen($numero) === strlen($limite) && strcmp($numero, $limite) >= 0)) {
+        if (\strlen($numero) > \strlen($limite) || \strlen($numero) === \strlen($limite) && strcmp($numero, $limite) >= 0) {
             throw ValidationException::withMessages([
                 'codigo_barra' => 'El consecutivo de este prefijo excede el límite admitido.',
             ]);
@@ -163,7 +254,7 @@ class Producto extends Model
     protected function stockDisponible(): Attribute
     {
         return Attribute::get(
-            fn (): int => max(0, (int) $this->stock - (int) ($this->attributes['stock_reservado'] ?? 0)),
+            fn (): int => max(0, (int) $this->getAttribute('stock') - (int) ($this->attributes['stock_reservado'] ?? 0)),
         );
     }
 

@@ -25,15 +25,23 @@ class InventarioReservaService
             $cantidadesAgrupadas = collect($cantidades)
                 ->mapWithKeys(fn (int $cantidad, int|string $productoId): array => [(int) $productoId => $cantidad])
                 ->sortKeys();
+            $productos = Producto::query()
+                ->whereKey($cantidadesAgrupadas->keys())
+                ->orderBy('id_producto')
+                ->lockForUpdate()
+                ->get()
+                ->keyBy('id_producto');
+            $reservados = $this->cantidadReservadaPorProducto($cantidadesAgrupadas->keys()->all());
 
             foreach ($cantidadesAgrupadas as $productoId => $cantidad) {
-                $producto = Producto::query()->whereKey($productoId)->lockForUpdate()->firstOrFail();
-                $reservado = ReservaInventario::query()
-                    ->where('producto_id', $productoId)
-                    ->where('estado', 'activa')
-                    ->where('expira_at', '>', now())
-                    ->sum('cantidad');
-                $disponible = max(0, (int) $producto->stock - (int) $reservado);
+                $producto = $productos->get($productoId);
+                if (! $producto) {
+                    throw ValidationException::withMessages([
+                        'detalles_productos' => 'Uno de los productos ya no existe.',
+                    ]);
+                }
+
+                $disponible = max(0, (int) $producto->stock - (int) ($reservados[$productoId] ?? 0));
 
                 if ($cantidad > $disponible) {
                     throw ValidationException::withMessages([
@@ -59,6 +67,27 @@ class InventarioReservaService
 
             return $reservas;
         });
+    }
+
+    /**
+     * @param  array<int, int|string>  $productoIds
+     * @return array<int, int>
+     */
+    public function cantidadReservadaPorProducto(array $productoIds, ?int $cotizacionIdExcluir = null): array
+    {
+        return ReservaInventario::query()
+            ->whereIn('producto_id', $productoIds)
+            ->where('estado', 'activa')
+            ->where('expira_at', '>', now())
+            ->when(
+                $cotizacionIdExcluir,
+                fn ($query) => $query->where('cotizacion_id', '!=', $cotizacionIdExcluir),
+            )
+            ->selectRaw('producto_id, SUM(cantidad) as cantidad')
+            ->groupBy('producto_id')
+            ->pluck('cantidad', 'producto_id')
+            ->map(fn ($cantidad): int => (int) $cantidad)
+            ->all();
     }
 
     /**

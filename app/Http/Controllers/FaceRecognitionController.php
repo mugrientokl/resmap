@@ -15,7 +15,6 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\MessageBag;
-use Illuminate\Support\Str;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
@@ -30,6 +29,28 @@ class FaceRecognitionController extends Controller
             'faceRegistered' => $request->user()->face_descriptor !== null,
             'faceConsentAt' => $request->user()->face_consent_at,
         ]);
+    }
+
+    public function updateName(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', 'unique:users,username,'.auth()->id()],
+            'current_password' => ['required', 'current_password'],
+        ], [
+            'name.required' => 'Ingresa el nombre que deseas mostrar.',
+            'username.required' => 'Ingresa el nombre de usuario.',
+            'username.regex' => 'El usuario solo puede contener letras, números, puntos, guiones y guiones bajos.',
+            'username.unique' => 'Ese nombre de usuario ya está en uso.',
+            'current_password.current_password' => 'La contraseña actual no es correcta.',
+        ]);
+
+        $request->user()->forceFill([
+            'name' => trim($validated['name']),
+            'username' => $validated['username'],
+        ])->save();
+
+        return redirect()->route('perfil.show')->with('success', 'Tu nombre de usuario fue actualizado.');
     }
 
     public function updatePassword(Request $request): RedirectResponse
@@ -60,41 +81,39 @@ class FaceRecognitionController extends Controller
     public function login(Request $request): RedirectResponse|Response
     {
         $validated = $request->validate([
-            'login' => ['required', 'string', 'max:255'],
-            'password' => ['required', 'string', 'max:255'],
             'face_descriptor' => ['required', 'array', 'size:128'],
             'face_descriptor.*' => ['required', 'numeric', 'between:-1,1'],
         ], [
-            'login.required' => 'Ingresa tu usuario o correo antes de verificar tu rostro.',
-            'password.required' => 'Ingresa tu contraseña para confirmar el acceso.',
             'face_descriptor.required' => 'No pudimos leer el rostro. Inténtalo nuevamente.',
             'face_descriptor.size' => 'No pudimos leer el rostro. Inténtalo nuevamente.',
         ]);
 
-        $field = filter_var($validated['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
-        $identity = Str::lower($validated['login']);
-        $limiterKey = 'login-failures:'.hash('sha256', $identity.'|'.$request->ip());
-        $lockKey = 'login-lock:'.hash('sha256', $identity.'|'.$request->ip());
-        $user = User::query()->where($field, $validated['login'])->first();
-        $validPassword = Auth::validate([
-            $field => $validated['login'],
-            'password' => $validated['password'],
-        ]);
-        $faceMatches = $user !== null
-            && is_array($user->face_descriptor)
-            && $this->descriptorsMatch($validated['face_descriptor'], $user->face_descriptor);
-        $authorized = $validPassword
-            && $user !== null
-            && $user->activo
-            && in_array($user->rol, ['Administrador', 'Vendedor'], true)
-            && $faceMatches;
+        $limiterKey = 'face-login-failures:'.hash('sha256', $request->ip());
+        $lockKey = 'face-login-lock:'.hash('sha256', $request->ip());
+        $matchingUsers = [];
+
+        User::query()
+            ->where('activo', true)
+            ->whereIn('rol', ['Administrador', 'Vendedor'])
+            ->whereNotNull('face_descriptor')
+            ->chunkById(100, function ($users) use (&$matchingUsers, $validated): void {
+                foreach ($users as $user) {
+                    if (is_array($user->face_descriptor)
+                        && $this->descriptorsMatch($validated['face_descriptor'], $user->face_descriptor)
+                    ) {
+                        $matchingUsers[] = $user;
+                    }
+                }
+            });
+
+        $authorized = count($matchingUsers) === 1;
+        $user = $authorized ? $matchingUsers[0] : null;
 
         if (Cache::has($lockKey) && ! $authorized) {
-            $request->session()->flashInput(['login' => $validated['login']]);
             $errors = (new ViewErrorBag)->put(
                 'default',
                 new MessageBag([
-                    'login' => 'Hubo varios intentos fallidos. Espera unos minutos antes de volver a intentarlo.',
+                    'face' => 'Hubo varios intentos fallidos. Espera unos minutos antes de volver a intentarlo.',
                 ])
             );
 
@@ -111,7 +130,7 @@ class FaceRecognitionController extends Controller
 
             Log::warning('auth.face_login.failed', [
                 'ip' => $request->ip(),
-                'identity_hash' => hash('sha256', $identity),
+                'matching_users' => count($matchingUsers),
             ]);
 
             app(RegistroActividad::class)->evento(
@@ -120,12 +139,12 @@ class FaceRecognitionController extends Controller
                 descripcion: 'Intento de inicio de sesión facial fallido',
                 modelo: 'Autenticación',
                 resultado: 'fallo',
-                nuevos: ['identidad_hash' => substr(hash('sha256', $identity), 0, 16), 'intentos' => $failures],
+                nuevos: ['coincidencias' => count($matchingUsers), 'intentos' => $failures],
             );
 
             return back()->withErrors([
-                'login' => 'Rostro no reconocido o credenciales incorrectas. Verifica los datos e inténtalo nuevamente.',
-            ])->withInput(['login' => $validated['login']]);
+                'face' => 'Rostro no reconocido o no identificado de forma única. Inténtalo nuevamente.',
+            ]);
         }
 
         RateLimiter::clear($limiterKey);

@@ -417,19 +417,6 @@
                     @if(auth()->user()->tienePermiso('cotizaciones.ver'))
                     <a href="{{ route('solicitudes.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('solicitudes.*', 'cotizaciones.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3h8l4 4v14H6V3Zm8 0v4h4M9 11h6M9 15h6"/></svg><span>Cotizaciones / Servicios</span> @if($pendingRequests)<span class="nav-badge ml-1 rounded-full bg-[#ffd5c9] px-2 py-0.5 text-xs text-[#8f241d]">{{ $pendingRequests }}</span>@endif</a>
                     @endif
-                    @if(auth()->user()->tienePermiso('clientes.ver'))
-                        <a href="{{ route('clientes.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('clientes.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-5a4 4 0 0 1 0 7m2 8v-2a4 4 0 0 0-2-3.46"/></svg><span>Clientes</span></a>
-                    @endif
-                    @if(auth()->user()->rol === 'Administrador')
-                        <a href="{{ route('usuarios.index') }}" class="nav-link" @if(request()->routeIs('usuarios.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-5a4 4 0 0 1 0 7m2 8v-2a4 4 0 0 0-2-3.46"/></svg><span>Usuarios</span></a>
-                        <a href="{{ route('backups.index') }}" class="nav-link" @if(request()->routeIs('backups.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4V5Zm3 3h10M7 12h10M7 16h6"/></svg><span>Backups</span></a>
-                    @endif
-                    @if(auth()->user()->tienePermiso('proveedores.ver'))
-                        <a href="{{ route('proveedores.index') }}" class="nav-link" @if(request()->routeIs('proveedores.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12v12H3V5Zm12 4h3l3 3v5h-6V9ZM7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg><span>Proveedores</span></a>
-                    @endif
-                    @if(auth()->user()->tienePermiso('categorias.ver'))
-                        <a href="{{ route('categorias.index') }}" class="nav-link" @if(request()->routeIs('categorias.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg><span>Categorías</span></a>
-                    @endif
                     @if(auth()->user()->tienePermiso('reportes.ver'))
                         <a href="{{ route('reportes.index') }}" class="nav-link" @if(request()->routeIs('reportes.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 20h16M6 17v-6m6 6V5m6 12V9"/></svg><span>Reportes</span></a>
                     @endif
@@ -437,9 +424,22 @@
                         <a href="{{ route('inventario.movimientos') }}" class="nav-link" @if(request()->routeIs('inventario.movimientos*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg><span>Movimientos de Inventario</span></a>
                     @endif
                     @can('ver-actividad')
-                            <a href="{{ route('actividad.index') }}" class="nav-link" @if(request()->routeIs('actividad.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 2M4 12a8 8 0 1 0 2-5.3L4 9m0-5v5h5"/></svg><span>Registro de Actividad</span></a>
+                        <a href="{{ route('actividad.index') }}" class="nav-link" @if(request()->routeIs('actividad.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 2M4 12a8 8 0 1 0 2-5.3L4 9m0-5v5m0-5h5"/></svg><span>Registro de Actividad</span></a>
                     @endcan
                     <a href="{{ route('notificaciones.index') }}" class="nav-link" @if(request()->routeIs('notificaciones.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M18 8a6 6 0 0 0-12 0c0 7-2 7-2 9h16c0-2-2-2-2-9ZM10 20h4"/></svg><span>Avisos</span> @if($unreadNotifications)<span class="nav-badge rounded-full bg-[#ffd5c9] px-2 py-0.5 text-xs text-[#8f241d]">{{ $unreadNotifications }}</span>@endif</a>
+                    @if(auth()->user()->tienePermiso('clientes.ver'))
+                        <a href="{{ route('clientes.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('clientes.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-5a4 4 0 0 1 0 7m2 8v-2a4 4 0 0 0-2-3.46"/></svg><span>Clientes</span></a>
+                    @endif
+                    @if(auth()->user()->tienePermiso('proveedores.ver'))
+                        <a href="{{ route('proveedores.index') }}" class="nav-link" @if(request()->routeIs('proveedores.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5h12v12H3V5Zm12 4h3l3 3v5h-6V9ZM7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm11 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/></svg><span>Proveedores</span></a>
+                    @endif
+                    @if(auth()->user()->tienePermiso('categorias.ver'))
+                        <a href="{{ route('categorias.index') }}" class="nav-link" @if(request()->routeIs('categorias.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h7v7H4V4Zm9 0h7v7h-7V4ZM4 13h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></svg><span>Categorías</span></a>
+                    @endif
+                    @if(auth()->user()->rol === 'Administrador')
+                        <a href="{{ route('usuarios.index') }}" class="nav-link" @if(request()->routeIs('usuarios.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-5a4 4 0 0 1 0 7m2 8v-2a4 4 0 0 0-2-3.46"/></svg><span>Usuarios</span></a>
+                        <a href="{{ route('backups.index') }}" class="nav-link" @if(request()->routeIs('backups.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4V5Zm3 3h10M7 12h10M7 16h6"/></svg><span>Backups</span></a>
+                    @endif
                 </div>
             @else
                 <button type="button" id="public-menu-toggle" hidden aria-controls="public-menu" aria-expanded="false" aria-label="Abrir menú">

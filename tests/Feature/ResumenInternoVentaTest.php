@@ -38,6 +38,7 @@ class ResumenInternoVentaTest extends TestCase
         $datosVenta = [
             'tipo_documento' => 'Boleta Electrónica',
             'medio_pago' => 'Efectivo',
+            'forma_pago' => 'Contado',
             'rut' => '12.345.678-5',
             'nombre_cliente' => 'Cliente POS',
             'contacto' => 'Contacto POS',
@@ -70,6 +71,7 @@ class ResumenInternoVentaTest extends TestCase
         $this->assertSame('Concepción', $venta->datos_resumen['ciudad']);
         $this->assertSame('del_giro', $venta->datos_resumen['tipo_venta']);
         $this->assertSame('del_giro', $venta->datos_resumen['tipo_compra']);
+        $this->assertSame('Contado', $venta->datos_resumen['forma_pago']);
         $this->assertSame('Venta de partes, piezas y accesorios para vehículos automotores', $venta->datos_resumen['giro_emisor']);
         $this->assertDatabaseHas('clientes', [
             'rut' => '12345678-5',
@@ -82,8 +84,11 @@ class ResumenInternoVentaTest extends TestCase
             ->assertSee('Registrar venta')
             ->assertSee('Giro del cliente (opcional para boleta)')
             ->assertSee('Datos de venta y facturación')
+            ->assertSee('Tipo de documento *')
+            ->assertSee('Datos del emisor')
+            ->assertSee('Datos del cliente o receptor')
             ->assertDontSee('Datos para el resumen interno')
-            ->assertDontSee('id="tipo_venta"', false)
+            ->assertSee('id="tipo_venta"', false)
             ->assertDontSee('id="tipo_compra"', false)
             ->assertDontSee('Registrar venta e imprimir')
             ->assertSee(route('ventas.resumen-interno', $venta->id_venta), false);

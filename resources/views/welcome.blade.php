@@ -24,6 +24,12 @@
             .hero-bleed, .hero-content { min-height: max(100svh, 48rem); }
             body.public-navigation .hero-bleed,
             body.public-navigation .hero-content { min-height: max(100svh, 48rem); }
+            .kits-carousel { padding-left: 2.25rem; padding-right: 2.25rem; }
+            .kits-track .kits-card { min-width: 88%; }
+        }
+        @media (max-width: 420px) {
+            .kits-carousel { padding-left: 2rem; padding-right: 2rem; }
+            .kits-track .kits-card { min-width: 92%; }
         }
     </style>
     <div class="-mt-6">
@@ -67,11 +73,11 @@
                     <div><p class="text-sm font-bold uppercase tracking-[.25em] text-[#9f2f25]">Soluciones listas para usar</p><h2 id="kits-sets-title" class="mt-2 text-3xl font-black tracking-tight">Kits y sets</h2><p class="mt-2 max-w-xl text-gray-600">Encuentra herramientas y conjuntos completos para resolver tu trabajo en menos pasos.</p></div>
                     <a href="{{ $kitsSetsCategory ? route('catalogo.index', ['categoria' => $kitsSetsCategory->id_categoria]) : route('catalogo.index') }}" class="font-bold text-[#9f2f25] hover:text-[#721d18]">Ver todos los kits y sets →</a>
                 </div>
-                <div class="relative mt-8 px-12">
+                <div class="kits-carousel relative mt-8 px-12">
                     <button type="button" id="kits-previous" class="absolute left-0 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center border border-[#d9aaa3] bg-[#f8f5f2] text-xl text-[#8f241d] transition hover:bg-[#f7e8e6]" aria-label="Ver kits y sets anteriores" title="Anterior">←</button>
                     <div id="kits-track" class="kits-track flex cursor-grab select-none snap-x snap-mandatory gap-5 overflow-x-auto scroll-smooth pb-3 touch-pan-y">
                     @foreach($kitsYSets as $producto)
-                        <article class="flex min-w-[82%] snap-start flex-col justify-between bg-white p-5 shadow-sm sm:min-w-[45%] lg:min-w-[23%]">
+                        <article class="kits-card flex min-w-[82%] snap-start flex-col justify-between bg-white p-5 shadow-sm sm:min-w-[45%] lg:min-w-[23%]">
                             <div>@if($producto->imagen)<img src="{{ asset('storage/'.$producto->imagen) }}" alt="{{ $producto->nombre }}" class="mb-5 h-40 w-full object-cover">@else<div class="mb-5 flex h-40 items-center justify-center bg-[#f7e8e6] text-sm font-bold uppercase tracking-widest text-[#9f2f25]">Kit / set</div>@endif<p class="text-xs font-bold uppercase tracking-wider text-[#9f2f25]">{{ $producto->categoria->nombre_categoria ?? 'Repuesto' }}</p><h3 class="mt-3 min-h-12 font-bold">{{ $producto->nombre }}</h3></div>
                             <div class="mt-5 flex items-center justify-between gap-3"><p class="text-xl font-black text-[#8f241d]">$ {{ number_format($producto->precio, 0, ',', '.') }} @if($producto->unidad === 'metro')<small class="text-sm font-semibold">/ metro</small>@endif</p><div id="selector-kit-{{ $producto->id_producto }}" data-nombre="{{ e($producto->nombre) }}"><button type="button" data-agregar-kit data-producto-id="{{ $producto->id_producto }}" data-producto-nombre="{{ e($producto->nombre) }}" class="rounded-md bg-[#b52f25] px-3 py-2 text-sm font-bold text-white hover:bg-[#8f241d]">Agregar</button></div></div>
                         </article>

@@ -15,17 +15,26 @@
     @endif
 
     @unless($archivados)
-        <section class="rounded-xl border border-[#ead8d5] bg-white p-5 shadow-sm sm:p-6">
-            <div class="flex items-start gap-4">
-                <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f7e8e6] text-[#9f2f25]" aria-hidden="true">
-                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19a6 6 0 0 0-12 0m6-9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm10-2v6m-3-3h6"/></svg>
-                </span>
-                <div>
-                    <h2 class="text-lg font-black text-gray-900">Crear usuario</h2>
-                    <p class="mt-1 text-sm text-gray-500">Completa los datos de la cuenta y configura sus accesos.</p>
+        <div class="flex justify-end">
+            <button type="button" id="toggle-create-user" aria-expanded="{{ $errors->any() ? 'true' : 'false' }}" aria-controls="create-user-panel" class="inline-flex min-h-11 items-center gap-2 rounded-lg bg-[#b52f25] px-5 py-3 font-bold text-white shadow-sm hover:bg-[#8f241d]">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="M12 5v14M5 12h14"/></svg>
+                Crear usuario
+            </button>
+        </div>
+        <section id="create-user-panel" class="rounded-xl border border-[#ead8d5] bg-white p-5 shadow-sm sm:p-6" @unless($errors->any()) hidden @endunless>
+            <div class="flex items-start justify-between gap-4">
+                <div class="flex items-start gap-4">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f7e8e6] text-[#9f2f25]" aria-hidden="true">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19a6 6 0 0 0-12 0m6-9a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm10-2v6m-3-3h6"/></svg>
+                    </span>
+                    <div>
+                        <h2 class="text-lg font-black text-gray-900">Crear usuario</h2>
+                        <p class="mt-1 text-sm text-gray-500">Completa los datos de la cuenta y configura sus accesos.</p>
+                    </div>
                 </div>
+                <button type="button" id="close-create-user" class="text-2xl leading-none text-gray-500 hover:text-gray-800" aria-label="Cerrar formulario">&times;</button>
             </div>
-            <form method="POST" action="{{ route('usuarios.store') }}" class="mt-6 grid gap-4 md:grid-cols-2">
+            <form id="create-user-form" method="POST" action="{{ route('usuarios.store') }}" class="mt-6 grid gap-4 md:grid-cols-2" data-confirm-message="¿Confirmas crear esta cuenta de usuario con los datos ingresados?" data-confirm-title="Crear usuario" data-confirm-text="Crear cuenta">
                 @csrf
                 <label for="nuevo-username" class="block text-sm font-bold text-gray-700">Usuario
                     <input id="nuevo-username" name="username" value="{{ old('username') }}" required placeholder="Ej. vendedor1" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
@@ -46,7 +55,7 @@
                 <input type="hidden" name="permisos_configurados" value="1">
                 @php($permisosIniciales = old('permisos_configurados') ? old('permisos', []) : config('permisos.vendedor_actual'))
                 @php($permisosIniciales = is_array($permisosIniciales) ? $permisosIniciales : [])
-                <details data-permissions class="group rounded-xl border border-[#ead8d5] bg-[#fffaf9] md:col-span-2" @if(old('permisos_configurados')) open @endif>
+                <details id="nuevo-permisos-panel" data-permissions class="group rounded-xl border border-[#ead8d5] bg-[#fffaf9] md:col-span-2" @if(old('permisos_configurados') && old('rol', 'Vendedor') === 'Vendedor') open @endif>
                     <summary class="flex cursor-pointer list-none flex-wrap items-center gap-3 rounded-xl p-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b52f25]">
                         <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#f7e8e6] text-[#9f2f25]" aria-hidden="true">
                             <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3 4 6v5c0 5 3.4 8.3 8 10 4.6-1.7 8-5 8-10V6l-8-3Zm-3 9 2 2 4-4"/></svg>
@@ -152,6 +161,27 @@
     </section>
 </div>
 <script>
+    const toggleCreateUser = document.getElementById('toggle-create-user');
+    const closeCreateUser = document.getElementById('close-create-user');
+    const createUserPanel = document.getElementById('create-user-panel');
+    const setCreateUserPanel = (open) => {
+        if (!createUserPanel || !toggleCreateUser) return;
+        createUserPanel.hidden = !open;
+        toggleCreateUser.setAttribute('aria-expanded', String(open));
+        if (open) document.getElementById('nuevo-username')?.focus();
+    };
+    toggleCreateUser?.addEventListener('click', () => setCreateUserPanel(createUserPanel.hidden));
+    closeCreateUser?.addEventListener('click', () => setCreateUserPanel(false));
+
+    const nuevoRol = document.getElementById('nuevo-rol');
+    const nuevoPermisos = document.getElementById('nuevo-permisos-panel');
+    const actualizarPermisosNuevoUsuario = () => {
+        if (!nuevoRol || !nuevoPermisos) return;
+        nuevoPermisos.hidden = nuevoRol.value !== 'Vendedor';
+        if (nuevoRol.value !== 'Vendedor') nuevoPermisos.removeAttribute('open');
+    };
+    nuevoRol?.addEventListener('change', actualizarPermisosNuevoUsuario);
+    actualizarPermisosNuevoUsuario();
     document.querySelectorAll('[data-permissions]').forEach((panel) => {
         const checkboxes = panel.querySelectorAll('input[name="permisos[]"]');
         const counter = panel.querySelector('[data-permissions-count]');

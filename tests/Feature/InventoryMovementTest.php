@@ -28,7 +28,7 @@ class InventoryMovementTest extends TestCase
             ->assertSee('Registrar Movimiento')
             ->assertSee('role="dialog"', false)
             ->assertSee('id="movement-detail-modal"', false)
-            ->assertSee('Costo neto total de adquisición')
+            ->assertSee('Costo neto unitario de adquisición')
             ->assertSee('id="movement-products-data"', false)
             ->assertSee('"id":'.$productId, false)
             ->assertSee('"stock":3', false)
@@ -163,8 +163,10 @@ class InventoryMovementTest extends TestCase
             'proveedor_id' => $proveedor->id,
             'contacto_proveedor' => 'Contacto inicial',
             'documento_proveedor' => 'F-1024',
-            'precio_entrada' => 850.50,
+            'precio_entrada' => 5953.50,
             'cantidad_adquirida' => 7,
+            'costo_unitario_neto' => 850.50,
+            'costo_total_neto' => 5953.50,
         ]);
     }
 
@@ -234,8 +236,8 @@ class InventoryMovementTest extends TestCase
             ->assertJsonPath('proveedor', 'Proveedor de prueba')
             ->assertJsonPath('contacto_proveedor', 'Contacto original')
             ->assertJsonPath('cantidad_adquirida', 2)
-            ->assertJsonPath('precio_unitario_adquisicion', 500)
-            ->assertJsonPath('precio_venta_recomendado', 595);
+            ->assertJsonPath('precio_unitario_adquisicion', 1000)
+            ->assertJsonPath('precio_venta_recomendado', 1547);
     }
 
     public function test_multiple_purchases_update_stock_prices_and_keep_supplier_details(): void
@@ -253,14 +255,14 @@ class InventoryMovementTest extends TestCase
             ],
         ])->assertSessionHasNoErrors()->assertRedirect(route('inventario.movimientos'));
 
-        $this->assertDatabaseHas('productos', ['id_producto' => $firstProductId, 'stock' => 5, 'precio' => 595]);
-        $this->assertDatabaseHas('productos', ['id_producto' => $secondProductId, 'stock' => 11, 'precio' => 2380]);
+        $this->assertDatabaseHas('productos', ['id_producto' => $firstProductId, 'stock' => 5]);
+        $this->assertDatabaseHas('productos', ['id_producto' => $secondProductId, 'stock' => 11]);
         $this->assertDatabaseHas('inventario_movimientos', [
-            'id_producto' => $firstProductId, 'cantidad' => 2, 'precio_entrada' => 1000,
+            'id_producto' => $firstProductId, 'cantidad' => 2, 'precio_entrada' => 2000,
             'cantidad_adquirida' => 2, 'proveedor_id' => $proveedor->id, 'documento_proveedor' => 'F-123',
         ]);
         $this->assertDatabaseCount('inventario_movimientos', 2);
-        $this->get(route('catalogo.index'))->assertOk()->assertSee('595')->assertSee('2.380');
+        $this->get(route('catalogo.index'))->assertOk()->assertSee('1.190');
     }
 
     public function test_multiple_movements_are_rolled_back_when_a_product_has_insufficient_stock(): void
@@ -330,7 +332,7 @@ class InventoryMovementTest extends TestCase
             'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 0]],
         ])->assertSessionHasNoErrors();
 
-        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5, 'precio' => 0]);
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5, 'precio' => 1190]);
         $movement = InventarioMovimiento::query()->latest('id_movimiento')->firstOrFail();
         $this->getJson(route('inventario.movimientos.show', $movement))
             ->assertOk()->assertJsonPath('precio_entrada', 0)->assertJsonPath('precio_unitario_adquisicion', 0)
@@ -545,7 +547,7 @@ class InventoryMovementTest extends TestCase
             ->assertSee('name="motivo"', false);
     }
 
-    public function test_reason_filter_groups_related_movements_and_preserves_other_history(): void
+    public function test_reason_filter_groups_related_movements_without_manual_otros_option(): void
     {
         [$admin, $productId] = $this->createInventoryFixture(3);
         $movements = [
@@ -559,9 +561,8 @@ class InventoryMovementTest extends TestCase
             ['ajuste', 'Stock editado desde producto', 'grupo:ajuste'],
             ['ajuste', 'Uso interno', 'grupo:uso_interno'],
             ['ingreso', 'Producto creado', 'grupo:stock_inicial'],
+            ['ingreso', 'Stock inicial', 'grupo:stock_inicial'],
             ['entrada', 'Stock inicial reconstruido para el historial de ventas', 'grupo:stock_inicial'],
-            ['ingreso', 'Motivo histórico libre', 'grupo:otros'],
-            ['ingreso', null, 'grupo:otros'],
         ];
         $expected = [];
         foreach ($movements as [$tipo, $motivo, $group]) {
@@ -579,7 +580,8 @@ class InventoryMovementTest extends TestCase
             ->assertSee('font-bold">-1</td>', false)
             ->assertSee('font-bold">+1</td>', false)
             ->assertDontSee('<option value="Salida por venta de cotización"', false)
-            ->assertDontSee('<option value="Motivo histórico libre"', false);
+            ->assertDontSee('>Otros<', false)
+            ->assertDontSee('value="grupo:otros"', false);
 
         foreach ($expected as $group => $ids) {
             $this->get(route('inventario.movimientos', ['motivo' => $group, 'producto' => $productId]))
@@ -598,22 +600,22 @@ class InventoryMovementTest extends TestCase
         ];
 
         $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
-            ...$purchase, 'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 1000]],
+            ...$purchase, 'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 1000, 'aplicar_precio_venta' => true]],
         ])->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5, 'precio' => 595]);
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5, 'precio' => 618.80]);
 
         $this->post(route('inventario.movimientos.store'), [
-            ...$purchase, 'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 3001]],
+            ...$purchase, 'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 3001, 'aplicar_precio_venta' => true]],
         ])->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 7, 'precio' => 1785.60]);
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 7, 'precio' => 1768.44]);
         $this->assertDatabaseHas('inventario_movimientos', [
-            'id_producto' => $productId, 'precio_entrada' => 1000, 'cantidad_adquirida' => 2,
+            'id_producto' => $productId, 'precio_entrada' => 2000, 'cantidad_adquirida' => 2,
         ]);
         $latest = InventarioMovimiento::query()->latest('id_movimiento')->firstOrFail();
         $this->getJson(route('inventario.movimientos.show', $latest))
-            ->assertOk()->assertJsonPath('precio_entrada', 3001)
-            ->assertJsonPath('precio_unitario_adquisicion', 1500.5)
-            ->assertJsonPath('precio_venta_recomendado', 1785.6);
+            ->assertOk()->assertJsonPath('precio_entrada', 6002)
+            ->assertJsonPath('precio_unitario_adquisicion', 3001)
+            ->assertJsonPath('precio_venta_recomendado', 4642.55);
     }
 
     private function createInventoryFixture(int $stock): array

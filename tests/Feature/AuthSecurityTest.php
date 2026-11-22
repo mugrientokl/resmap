@@ -55,20 +55,14 @@ class AuthSecurityTest extends TestCase
             ->assertSee('La contraseña se restableció correctamente.');
     }
 
-    public function test_login_form_displays_all_validation_errors_in_spanish_and_has_password_toggle(): void
+    public function test_login_page_keeps_password_login_and_facial_recognition_as_separate_options(): void
     {
-        $this->followingRedirects()
-            ->from(route('login'))
-            ->post(route('login.store'), [
-                'login' => '',
-                'password' => '',
-            ])
+        $this->get(route('login'))
             ->assertOk()
-            ->assertSee('Ingresa tu usuario o correo.')
-            ->assertSee('Ingresa tu contraseña.')
-            ->assertSee('aria-label="Mostrar contraseña"', false)
-            ->assertSee('type="button"', false)
-            ->assertSee('aria-pressed="false"', false);
+            ->assertSee('No necesitas ingresar usuario ni contraseña.')
+            ->assertSee('Ingresar con reconocimiento facial')
+            ->assertSee('name="login"', false)
+            ->assertSee('name="password"', false);
     }
 
     public function test_login_shows_a_generic_message_for_invalid_or_inactive_credentials(): void

@@ -43,11 +43,11 @@ Route::middleware([
         ->name('catalogo.index');
 
     Route::post('/catalogo/solicitudes', [CatalogoController::class, 'storeRequest'])
-        ->middleware('throttle:10,1')
+        ->middleware('request.limit:5,60,10,60')
         ->name('catalogo.solicitudes.store');
 
     Route::get('/catalogo/cliente-por-rut', [ClienteController::class, 'buscarParaCatalogo'])
-        ->middleware('throttle:20,1')
+        ->middleware('throttle:30,1')
         ->name('catalogo.cliente.rut');
 
     Route::get('/cotizaciones/{version}/documento', [CotizacionController::class, 'pdfPublico'])
@@ -77,25 +77,23 @@ Route::middleware([
         ->name('servicios.index');
 
     Route::post('/servicios', [ServicioController::class, 'store'])
-        ->middleware('throttle:10,1')
+        ->middleware('request.limit:5,60')
         ->name('servicios.store');
 
     Route::get('/login', [AuthController::class, 'create'])
         ->name('login');
 
     Route::post('/login', [AuthController::class, 'store'])
-        ->middleware('throttle:10,1')
         ->name('login.store');
 
     Route::post('/login/face', [FaceRecognitionController::class, 'login'])
-        ->middleware('throttle:10,1')
         ->name('login.face');
 
     Route::get('/password/forgot', [AuthController::class, 'showForgotPasswordForm'])
         ->name('password.request');
 
     Route::post('/password/email', [AuthController::class, 'sendResetLink'])
-        ->middleware('throttle:5,1')
+        ->middleware('throttle:3,60')
         ->name('password.email');
 
     Route::get('/password/reset/{token}', [AuthController::class, 'showResetPasswordForm'])
@@ -121,6 +119,10 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:10,1'])
         ->name('perfil.contrasena.update');
 
+    Route::put('/perfil/nombre', [FaceRecognitionController::class, 'updateName'])
+        ->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:10,1'])
+        ->name('perfil.nombre.update');
+
     Route::post('/perfil/rostro', [FaceRecognitionController::class, 'enroll'])
         ->middleware(['auth', 'role:Administrador,Vendedor', 'throttle:10,1'])
         ->name('perfil.rostro.store');
@@ -144,34 +146,6 @@ Route::middleware([
     Route::post('/notificaciones/leer-todas', [NotificacionController::class, 'readAll'])
         ->middleware('auth')
         ->name('notificaciones.read-all');
-
-    Route::post('/notificaciones/papelera/leidos', [NotificacionController::class, 'moveReadToTrash'])
-        ->middleware('auth')
-        ->name('notificaciones.move-read-to-trash');
-
-    Route::get('/notificaciones/papelera', [NotificacionController::class, 'trash'])
-        ->middleware('auth')
-        ->name('notificaciones.trash');
-
-    Route::post('/notificaciones/papelera/restaurar', [NotificacionController::class, 'restoreAll'])
-        ->middleware('auth')
-        ->name('notificaciones.restore-all');
-
-    Route::delete('/notificaciones/papelera/vaciar', [NotificacionController::class, 'destroyAll'])
-        ->middleware('auth')
-        ->name('notificaciones.destroy-all');
-
-    Route::post('/notificaciones/{id}/papelera', [NotificacionController::class, 'moveToTrash'])
-        ->middleware('auth')
-        ->name('notificaciones.move-to-trash');
-
-    Route::post('/notificaciones/{id}/restaurar', [NotificacionController::class, 'restore'])
-        ->middleware('auth')
-        ->name('notificaciones.restore');
-
-    Route::delete('/notificaciones/{id}', [NotificacionController::class, 'destroy'])
-        ->middleware('auth')
-        ->name('notificaciones.destroy');
 
     Route::get('/categorias', [CategoriaController::class, 'index'])
         ->middleware(['auth', 'permiso:categorias.ver'])

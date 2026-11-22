@@ -4,15 +4,25 @@ namespace App\Notifications;
 
 use App\Models\Cotizacion;
 use Illuminate\Bus\Queueable;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Symfony\Component\Mime\Email;
 
-class NuevaCotizacionPendiente extends Notification
+class NuevaCotizacionPendiente extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public function __construct(public Cotizacion $cotizacion) {}
+    public int $tries = 1;
+
+    public int $timeout = 60;
+
+    private mixed $venceAt;
+
+    public function __construct(public Cotizacion $cotizacion)
+    {
+        $this->venceAt = $this->cotizacion->reservas()->min('expira_at');
+    }
 
     public function via(object $notifiable): array
     {
@@ -27,7 +37,7 @@ class NuevaCotizacionPendiente extends Notification
                 'name' => $notifiable->name,
                 'cotizacion' => $this->cotizacion,
                 'urlSolicitud' => route('solicitudes.show', $this->cotizacion->solicitud_id),
-                'venceAt' => $this->cotizacion->reservas()->min('expira_at'),
+                'venceAt' => $this->venceAt,
                 'logoUrl' => 'cid:resmap-logo',
             ])
             ->withSymfonyMessage(function (Email $message): void {

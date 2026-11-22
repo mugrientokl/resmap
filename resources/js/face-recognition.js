@@ -128,13 +128,13 @@ const addDescriptorFields = (form, descriptor) => {
 };
 
 const submitCapturedDescriptor = (form, descriptor) => {
-    if (!form.reportValidity()) {
+    if (form.dataset.faceMode === 'profile' && !form.reportValidity()) {
         return;
     }
 
     addDescriptorFields(form, descriptor);
     setFormStatus(form, form.dataset.faceMode === 'login'
-        ? 'Rostro detectado. Verificando identidad y contraseña…'
+        ? 'Rostro detectado. Verificando identidad…'
         : 'Rostro detectado. Guardando el descriptor cifrado…');
 
     if (form.dataset.faceMode === 'login') {

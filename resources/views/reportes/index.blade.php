@@ -10,19 +10,14 @@
     @endphp
     <header class="flex flex-wrap items-end justify-between gap-4"><div><p class="text-sm font-bold uppercase tracking-wider text-[#9f2f25]">Control de gestión</p><h1 class="text-3xl font-black text-gray-900">Reporte de ventas</h1><p class="mt-1 text-sm text-gray-500">Ventas recientes, facturas y trazabilidad comercial.</p></div><div class="flex gap-2"><a href="{{ route('reportes.exportar', array_merge($parametrosExportacion, ['formato' => 'csv'])) }}" class="rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25]">Reporte de ventas Excel</a><a href="{{ route('reportes.exportar', array_merge($parametrosExportacion, ['formato' => 'pdf'])) }}" class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white">Reporte de ventas PDF</a></div></header>
         <form method="GET" action="{{ route('reportes.index') }}" id="report-filter-form" class="report-filters" data-current-year="{{ now()->year }}" data-current-month="{{ now()->month }}">
-            <div class="report-filters-header">
-                <div class="report-filters-heading">
+            <details id="report-filter-panel" class="report-filter-panel">
+                <summary class="report-filter-toggle">
                     <span class="report-filters-icon" aria-hidden="true">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 5h16M7 12h10M10 19h4" stroke-linecap="round"/></svg>
                     </span>
-                    <div>
-                        <h2>Filtros de búsqueda</h2>
-                        <p>Personaliza el período y encuentra las ventas que necesitas.</p>
-                    </div>
-                </div>
-                <a class="report-reset" href="{{ route('reportes.index') }}">Restablecer filtros</a>
-            </div>
-
+                    <span>Filtros de búsqueda</span>
+                    <svg class="report-filter-chevron" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </summary>
             <div class="report-filter-section">
                 <div class="report-section-heading">
                     <div><h3>Período</h3><p>El rango de fechas acota el año y mes seleccionados. Los accesos rápidos conservan las fechas ingresadas.</p></div>
@@ -48,6 +43,7 @@
                     <label class="report-field"><span>Medio de pago</span><select name="medio_pago"><option value="">Todos los medios de pago</option>@foreach(['Efectivo','Transferencia','Tarjeta','Otro'] as $medio)<option value="{{ $medio }}" @selected(request('medio_pago') === $medio)>{{ $medio }}</option>@endforeach</select></label>
                 </div>
             </div>
+            </details>
 
             <div class="report-filters-footer">
                 <div class="report-applied-period">
@@ -71,6 +67,22 @@
         background: #fff;
         box-shadow: 0 8px 26px rgba(62, 32, 29, .06);
     }
+    .report-filter-panel > summary { list-style: none; }
+    .report-filter-panel > summary::-webkit-details-marker { display: none; }
+    .report-filter-toggle {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 64px;
+        padding: 12px 24px;
+        cursor: pointer;
+        color: #30211f;
+        font-size: 1rem;
+        font-weight: 800;
+        background: linear-gradient(110deg, #fff8f6, #fff 70%);
+    }
+    .report-filter-chevron { width: 20px; height: 20px; margin-left: auto; transition: transform .15s ease; }
+    .report-filter-panel[open] .report-filter-chevron { transform: rotate(180deg); }
     .report-filters-header {
         display: flex;
         align-items: center;

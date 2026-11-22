@@ -10,6 +10,30 @@
         <p class="mt-2 text-gray-600">{{ auth()->user()->name }} · {{ auth()->user()->rol }}</p>
     </header>
 
+    <section class="mt-7 border border-[#e8c8c3] bg-white p-5 shadow-sm sm:p-7" aria-labelledby="name-settings-title">
+        <h2 id="name-settings-title" class="text-xl font-black">Cambiar nombre de usuario</h2>
+        <form method="POST" action="{{ route('perfil.nombre.update') }}" class="mt-5 space-y-4">
+            @csrf
+            @method('PUT')
+            <div>
+                <label for="profile-name" class="block text-sm font-bold">Nombre visible</label>
+                <input id="profile-name" type="text" name="name" value="{{ old('name', auth()->user()->name) }}" required maxlength="255" class="mt-2 w-full max-w-xl border border-gray-300 p-3">
+                @error('name')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
+            </div>
+            <div>
+                <label for="profile-username" class="block text-sm font-bold">Nombre de usuario</label>
+                <input id="profile-username" type="text" name="username" value="{{ old('username', auth()->user()->username) }}" required maxlength="50" pattern="[A-Za-z0-9._-]+" autocomplete="username" class="mt-2 w-full max-w-xl border border-gray-300 p-3">
+                @error('username')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
+            </div>
+            <div>
+                <label for="name-current-password" class="block text-sm font-bold">Contraseña actual</label>
+                <input id="name-current-password" type="password" name="current_password" required autocomplete="current-password" class="mt-2 w-full max-w-xl border border-gray-300 p-3">
+                @error('current_password')<p class="mt-2 text-sm text-red-700">{{ $message }}</p>@enderror
+            </div>
+            <button type="submit" class="bg-[#b52f25] px-5 py-3 font-bold text-white hover:bg-[#8f241d]">Guardar nombre</button>
+        </form>
+    </section>
+
     <section class="mt-7 border border-[#e8c8c3] bg-white p-5 shadow-sm sm:p-7" aria-labelledby="password-settings-title">
         <h2 id="password-settings-title" class="text-xl font-black">Cambiar contraseña</h2>
         <form method="POST" action="{{ route('perfil.contrasena.update') }}" class="mt-5 space-y-4">
@@ -39,7 +63,7 @@
             <div>
                 <p class="text-xs font-bold uppercase tracking-[.18em] text-[#9f2f25]">Acceso adicional</p>
                 <h2 id="face-settings-title" class="mt-2 text-xl font-black">Reconocimiento facial</h2>
-                <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600">El rostro se compara en el servidor y siempre se solicita también tu contraseña. Las imágenes de cámara se procesan en tu dispositivo y no se guardan.</p>
+                <p class="mt-2 max-w-2xl text-sm leading-6 text-gray-600">El rostro identifica tu cuenta en el servidor. Las imágenes de cámara se procesan en tu dispositivo y no se guardan.</p>
             </div>
             <span class="border px-3 py-1 text-sm font-bold {{ $faceRegistered ? 'border-green-300 bg-green-50 text-green-800' : 'border-gray-300 bg-gray-50 text-gray-600' }}">
                 {{ $faceRegistered ? 'Rostro registrado' : 'Sin registrar' }}

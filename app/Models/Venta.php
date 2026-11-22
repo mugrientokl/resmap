@@ -8,7 +8,19 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Carbon;
 
+/**
+ * @method static Builder<static> completadas()
+ *
+ * @property int $id_venta
+ * @property Carbon $fecha
+ * @property string $neto
+ * @property string $total
+ * @property int|null $cotizacion_version_id
+ * @property Carbon|null $stock_descontado_at
+ * @property array<string, mixed>|null $datos_cliente
+ */
 class Venta extends Model
 {
     use HasFactory;
@@ -67,6 +79,15 @@ class Venta extends Model
 
     public function scopeCompletadas(Builder $query): void
     {
+        self::aplicarFiltroCompletadas($query);
+    }
+
+    /**
+     * @param  Builder<static>  $query
+     * @return Builder<static>
+     */
+    public static function aplicarFiltroCompletadas(Builder $query): Builder
+    {
         $query->where(function (Builder $query): void {
             $query->whereNull('cotizacion_version_id')
                 ->orWhere(function (Builder $query): void {
@@ -74,6 +95,8 @@ class Venta extends Model
                         ->whereNotNull('stock_descontado_at');
                 });
         });
+
+        return $query;
     }
 
     public function user(): BelongsTo
@@ -96,7 +119,7 @@ class Venta extends Model
      */
     public function snapshotDatosCliente(): array
     {
-        if (is_array($this->datos_cliente) && $this->datos_cliente !== []) {
+        if (\is_array($this->datos_cliente) && $this->datos_cliente !== []) {
             return $this->datos_cliente;
         }
 

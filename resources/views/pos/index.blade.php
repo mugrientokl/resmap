@@ -216,6 +216,56 @@
             </div>
 
             <div class="pos-client-fields">
+                <div class="pos-field-wide">
+                    <label for="tipo_documento" class="block text-xs font-medium text-gray-700">
+                        Tipo de documento *
+                    </label>
+                    <select id="tipo_documento" required
+                        class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
+                        <option value="Boleta Electrónica">Boleta electrónica (39)</option>
+                        <option value="Factura Electrónica">Factura electrónica (33)</option>
+                    </select>
+                    <p class="mt-1 text-xs text-gray-500">Primero selecciona el documento; luego completa los datos que corresponden.</p>
+                </div>
+
+                <fieldset class="pos-field-wide rounded-lg border border-[#ead8d5] p-4">
+                    <legend class="px-2 text-sm font-black text-[#721d18]">Datos del emisor</legend>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <p class="text-sm leading-6 text-gray-700">
+                            <strong>RESMAP SPA</strong><br>
+                            RUT 76.991.966-K
+                        </p>
+                        <p class="text-sm leading-6 text-gray-700">
+                            Av. Gabriela Mistral 1255, Bodega 48<br>
+                            Los Ángeles · resmap.la@gmail.com · +56 9 76477124
+                        </p>
+                    </div>
+                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                        <div>
+                            <label for="acteco_emisor" class="block text-xs font-medium text-gray-700">
+                                Giro del emisor y ACTECO *
+                            </label>
+                            <select id="acteco_emisor" required
+                                class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
+                                <option value="">Selecciona un giro</option>
+                                @foreach(config('services.cotizaciones.actividades_emisor') as $codigo => $actividad)
+                                    <option value="{{ $codigo }}">{{ $actividad }} · {{ $codigo }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div>
+                            <label for="tipo_venta" class="block text-xs font-medium text-gray-700">Tipo de venta *</label>
+                            <select id="tipo_venta" required class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
+                                <option value="del_giro">Del giro</option>
+                            </select>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <div class="pos-field-wide border-t border-[#ead8d5] pt-4">
+                    <p class="text-sm font-black text-[#721d18]">Datos del cliente o receptor</p>
+                </div>
+
                 <div>
                     <label for="rut" class="block text-xs font-medium text-gray-700">
                         RUT Empresa / Cliente
@@ -236,7 +286,7 @@
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
 
-                <div class="pos-field-wide">
+                <div class="pos-field-wide dato-factura-cliente">
                     <label for="giro_cliente" class="block text-xs font-medium text-gray-700">
                         <span id="etiqueta-giro-cliente">Giro del cliente (opcional para boleta)</span>
                     </label>
@@ -281,7 +331,7 @@
                     </div>
                 </div>
 
-                <div class="pos-field-wide">
+                <div class="pos-field-wide dato-factura-cliente">
                     <label for="direccion_cliente" class="block text-xs font-medium text-gray-700">
                         Dirección *
                     </label>
@@ -289,7 +339,7 @@
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                 </div>
 
-                <div class="pos-input-row pos-field-wide">
+                <div class="pos-input-row pos-field-wide dato-factura-cliente">
                     <div>
                         <label for="region_cliente" class="block text-xs font-medium text-gray-700">
                             Región *
@@ -311,24 +361,12 @@
                     </div>
                 </div>
 
-                <div class="pos-field-wide">
+                <div class="pos-field-wide dato-factura-cliente">
                     <label for="ciudad_cliente" class="block text-xs font-medium text-gray-700">
                         Ciudad * <span class="font-normal text-gray-500">(se sugiere la comuna)</span>
                     </label>
                     <input type="text" id="ciudad_cliente" required maxlength="100" placeholder="Los Ángeles"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
-                </div>
-                <div class="pos-field-wide">
-                    <label for="acteco_emisor" class="block text-xs font-medium text-gray-700">
-                        Giro del emisor y ACTECO
-                    </label>
-                    <select id="acteco_emisor" required
-                        class="mt-1 block w-full rounded-md border-gray-300 bg-white p-2 text-sm">
-                        <option value="">Selecciona un giro</option>
-                        @foreach(config('services.cotizaciones.actividades_emisor') as $codigo => $actividad)
-                            <option value="{{ $codigo }}">{{ $actividad }} · {{ $codigo }}</option>
-                        @endforeach
-                    </select>
                 </div>
                 <div class="pos-field-wide">
                     <label for="numero_oc" class="block text-xs font-medium text-gray-700">
@@ -339,15 +377,14 @@
                 </div>
                 <div class="pos-input-row pos-field-wide">
                     <div>
-                        <label for="tipo_documento" class="block text-xs font-medium text-gray-700">
-                            Documento SII
+                        <label for="forma_pago" class="block text-xs font-medium text-gray-700">
+                            Forma de pago
                         </label>
-                        <select id="tipo_documento"
+                        <select id="forma_pago"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
-                            <option value="Boleta Electrónica">Boleta (39)</option>
-                            <option value="Factura Electrónica">Factura (33)</option>
+                            <option value="Contado">Contado</option>
+                            <option value="Crédito">Crédito</option>
                         </select>
-                        <p class="mt-1 text-xs text-gray-500">Solo referencia; no se emite al SII.</p>
                     </div>
 
                     <div>
@@ -359,6 +396,7 @@
                             <option value="Efectivo">Efectivo</option>
                             <option value="Transferencia">Transferencia</option>
                             <option value="Tarjeta">Tarjeta</option>
+                            <option value="Crédito">Crédito</option>
                         </select>
                     </div>
                 </div>
@@ -393,8 +431,10 @@ const idsCamposCliente = [
     'comuna_cliente',
     'ciudad_cliente',
     'acteco_emisor',
+    'tipo_venta',
     'numero_oc',
     'tipo_documento',
+    'forma_pago',
     'medio_pago'
 ];
 
@@ -406,6 +446,10 @@ const ciudadCliente = document.getElementById('ciudad_cliente');
 const tipoDocumentoSelect = document.getElementById('tipo_documento');
 const giroClienteInput = document.getElementById('giro_cliente');
 const etiquetaGiroCliente = document.getElementById('etiqueta-giro-cliente');
+const camposFacturaCliente = [...document.querySelectorAll('.dato-factura-cliente')];
+const direccionClienteInput = document.getElementById('direccion_cliente');
+const regionClienteSelect = document.getElementById('region_cliente');
+const comunaClienteSelect = document.getElementById('comuna_cliente');
 
 comunaCliente.addEventListener('change', () => {
     if (!ciudadCliente.value.trim()) {
@@ -419,6 +463,11 @@ function actualizarRequisitoGiro() {
     etiquetaGiroCliente.textContent = requiereGiro
         ? 'Giro del cliente *'
         : 'Giro del cliente (opcional para boleta)';
+    camposFacturaCliente.forEach(campo => campo.classList.toggle('hidden', !requiereGiro));
+    direccionClienteInput.required = requiereGiro;
+    regionClienteSelect.required = requiereGiro;
+    comunaClienteSelect.required = requiereGiro;
+    ciudadCliente.required = requiereGiro;
 }
 
 tipoDocumentoSelect.addEventListener('change', actualizarRequisitoGiro);
@@ -819,7 +868,7 @@ async function procesarVenta() {
         datosFaltantes.push('un correo válido');
     }
 
-    if (!direccion) {
+    if (requiereGiro && !direccion) {
         datosFaltantes.push('dirección del cliente');
     }
 
@@ -840,7 +889,7 @@ async function procesarVenta() {
         return;
     }
 
-    if (!region || !comuna || !ciudad) {
+    if (requiereGiro && (!region || !comuna || !ciudad)) {
         window.resmapAlert('Completa la región, comuna y ciudad del cliente.', 'warning');
         return;
     }
@@ -874,6 +923,7 @@ async function procesarVenta() {
         tipo_venta: 'del_giro',
         tipo_compra: 'del_giro',
         numero_oc: document.getElementById('numero_oc').value.trim(),
+        forma_pago: document.getElementById('forma_pago').value,
         detalles: carro.map(item => ({
             id_producto: item.id_producto,
             cantidad: item.cantidad

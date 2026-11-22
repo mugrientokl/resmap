@@ -71,14 +71,12 @@ class FaceRecognitionTest extends TestCase
         $this->assertArrayNotHasKey('face_descriptor', $user->toArray());
     }
 
-    public function test_face_login_creates_a_session_only_when_password_and_server_side_match_both_pass(): void
+    public function test_face_login_creates_a_session_with_only_a_matching_descriptor(): void
     {
         $user = $this->userWithFace();
 
         $this->from(route('login'))
             ->post(route('login.face'), [
-                'login' => $user->username,
-                'password' => self::PASSWORD,
                 'face_descriptor' => $this->descriptor(0.012),
             ])
             ->assertRedirect(route('dashboard'))
@@ -87,45 +85,52 @@ class FaceRecognitionTest extends TestCase
         $this->assertAuthenticatedAs($user);
     }
 
-    public function test_face_login_rejects_a_wrong_descriptor_or_password(): void
+    public function test_face_login_rejects_a_wrong_descriptor(): void
     {
         $user = $this->userWithFace();
 
         $this->from(route('login'))
             ->post(route('login.face'), [
-                'login' => $user->username,
-                'password' => self::PASSWORD,
                 'face_descriptor' => $this->descriptor(0.9),
             ])
             ->assertRedirect(route('login'))
-            ->assertSessionHasErrors('login');
-
-        $this->assertGuest();
-
-        $this->from(route('login'))
-            ->post(route('login.face'), [
-                'login' => $user->username,
-                'password' => 'incorrect-password',
-                'face_descriptor' => $this->descriptor(0.01),
-            ])
-            ->assertRedirect(route('login'))
-            ->assertSessionHasErrors('login');
+            ->assertSessionHasErrors('face');
 
         $this->assertGuest();
     }
 
-    public function test_inactive_user_cannot_sign_in_with_a_matching_face_and_password(): void
+    public function test_face_login_requires_a_unique_server_side_match(): void
+    {
+        $descriptor = $this->descriptor(0.01);
+
+        foreach (['Administrador', 'Vendedor'] as $role) {
+            $user = User::factory()->create(['rol' => $role]);
+            $user->forceFill([
+                'face_descriptor' => $descriptor,
+                'face_consent_at' => now(),
+            ])->save();
+        }
+
+        $this->from(route('login'))
+            ->post(route('login.face'), [
+                'face_descriptor' => $descriptor,
+            ])
+            ->assertRedirect(route('login'))
+            ->assertSessionHasErrors('face');
+
+        $this->assertGuest();
+    }
+
+    public function test_inactive_user_cannot_sign_in_with_a_matching_face(): void
     {
         $user = $this->userWithFace(['activo' => false]);
 
         $this->from(route('login'))
             ->post(route('login.face'), [
-                'login' => $user->username,
-                'password' => self::PASSWORD,
                 'face_descriptor' => $this->descriptor(0.01),
             ])
             ->assertRedirect(route('login'))
-            ->assertSessionHasErrors('login');
+            ->assertSessionHasErrors('face');
 
         $this->assertGuest();
     }

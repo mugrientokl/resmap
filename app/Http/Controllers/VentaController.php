@@ -31,7 +31,8 @@ class VentaController extends Controller
 
         $datos = $request->validate([
             'tipo_documento' => 'required|string|in:Boleta Electrónica,Factura Electrónica',
-            'medio_pago' => 'required|string|in:Efectivo,Transferencia,Tarjeta',
+            'medio_pago' => 'required|string|in:Efectivo,Transferencia,Tarjeta,Crédito',
+            'forma_pago' => 'nullable|string|in:Contado,Crédito',
             'rut' => ['required', 'string', 'max:20', new RutChileno],
             'nombre_cliente' => 'required|string|max:255',
             'contacto' => 'required|string|max:255',
@@ -45,10 +46,30 @@ class VentaController extends Controller
             ],
             'correo_cliente' => 'required|email|max:255',
             'telefono_cliente' => ['nullable', 'string', 'regex:/^\+56[2-9][0-9]{8}$/'],
-            'direccion_cliente' => 'required|string|max:255',
-            'region_cliente' => 'required|string|max:100',
-            'comuna_cliente' => 'required|string|max:100',
-            'ciudad_cliente' => 'required|string|max:100',
+            'direccion_cliente' => [
+                Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'region_cliente' => [
+                Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'comuna_cliente' => [
+                Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'ciudad_cliente' => [
+                Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
+                'nullable',
+                'string',
+                'max:100',
+            ],
             'acteco_emisor' => ['required', Rule::in(array_keys(config('services.cotizaciones.actividades_emisor')))],
             'tipo_venta' => ['required', Rule::in(['del_giro'])],
             'tipo_compra' => ['required', Rule::in(['del_giro'])],
@@ -70,10 +91,10 @@ class VentaController extends Controller
                         'giro' => $datos['giro_cliente'] ?? null,
                         'correo' => $datos['correo_cliente'],
                         'telefono' => $datos['telefono_cliente'] ?? null,
-                        'direccion' => $datos['direccion_cliente'],
-                        'region' => $datos['region_cliente'],
-                        'comuna' => $datos['comuna_cliente'],
-                        'ciudad' => $datos['ciudad_cliente'],
+                        'direccion' => $datos['direccion_cliente'] ?? null,
+                        'region' => $datos['region_cliente'] ?? null,
+                        'comuna' => $datos['comuna_cliente'] ?? null,
+                        'ciudad' => $datos['ciudad_cliente'] ?? null,
                     ]
                 );
 
@@ -157,6 +178,7 @@ class VentaController extends Controller
                         'tipo_compra' => $datos['tipo_compra'],
                         'correo' => $datos['correo_cliente'],
                         'numero_oc' => $datos['numero_oc'] ?? null,
+                        'forma_pago' => $datos['forma_pago'] ?? 'Contado',
                         'giro_emisor' => $actividades[$datos['acteco_emisor']],
                     ],
                 ]);

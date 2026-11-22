@@ -200,8 +200,14 @@ class SolicitudWebController extends Controller
 
     private function productosDeSolicitud(SolicitudWeb $solicitud)
     {
-        return collect($solicitud->detalles_productos)->map(function (array $detalle) {
-            $producto = Producto::find($detalle['id_producto']);
+        $detalles = collect($solicitud->detalles_productos ?? []);
+        $productos = Producto::query()
+            ->whereIn('id_producto', $detalles->pluck('id_producto')->filter())
+            ->get()
+            ->keyBy('id_producto');
+
+        return $detalles->map(function (array $detalle) use ($productos) {
+            $producto = $productos->get($detalle['id_producto']);
             $cantidad = (int) $detalle['cantidad'];
             $precioIva = (float) ($producto?->precio ?? 0);
             $precioNeto = round($precioIva / 1.19);

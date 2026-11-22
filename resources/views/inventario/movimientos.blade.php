@@ -174,7 +174,6 @@
                     <button id="movement-new-provider" type="button" @unless(auth()->user()->tienePermiso('proveedores.crear')) hidden @endunless class="hidden rounded-md border border-[#d9aaa3] px-3 py-2 text-sm font-bold text-[#9f2f25] hover:bg-[#f7e8e6]">Nuevo proveedor</button>
                 </div>
                 <p id="movement-provider-success" class="mt-1 text-sm text-green-700" role="status"></p>
-                <p class="mt-1 text-xs text-gray-600">La compra es un ingreso y la devolución al proveedor es un egreso. @if(auth()->user()->tienePermiso('proveedores.ver'))<a href="{{ route('proveedores.index') }}" class="font-bold text-[#9f2f25] underline">Administrar proveedores</a>@endif</p>
             </div>
             <div>
                 <label for="movement-event-date" class="mb-1 block text-sm font-medium text-gray-700">Fecha del evento</label>
@@ -184,7 +183,7 @@
                 <label for="movement-document" class="mb-1 block text-sm font-medium text-gray-700">Número de folio / documento</label>
                 <input id="movement-document" name="documento_proveedor" value="{{ old('documento_proveedor') }}" maxlength="100" class="w-full rounded-md border border-gray-300 p-2 text-sm">
             </div>
-            <div class="md:col-span-2">
+            <div class="md:col-span-1">
                 <label for="movement-observations" class="mb-1 block text-sm font-medium text-gray-700">Observaciones</label>
                 <textarea id="movement-observations" name="observaciones" maxlength="2000" rows="2" class="w-full rounded-md border border-gray-300 p-2 text-sm">{{ old('observaciones') }}</textarea>
             </div>
@@ -211,10 +210,14 @@
                             <input id="movement-product-{{ $index }}-quantity" type="number" name="productos[{{ $index }}][cantidad]" value="{{ $linea['cantidad'] ?? '' }}" min="1" max="2147483647" class="movement-quantity w-full rounded-md border border-gray-300 p-2 text-sm">
                         </div>
                         <div class="movement-price-field hidden">
-                            <label for="movement-product-{{ $index }}-price" class="mb-1 block text-sm font-medium text-gray-700">Costo neto total de adquisición</label>
+                            <label for="movement-product-{{ $index }}-price" class="mb-1 block text-sm font-medium text-gray-700">Costo neto unitario de adquisición</label>
                             <input id="movement-product-{{ $index }}-price" type="number" name="productos[{{ $index }}][precio_entrada]" value="{{ $linea['precio_entrada'] ?? '' }}" min="0" max="99999999.99" step="0.01" class="movement-price w-full rounded-md border border-gray-300 p-2 text-sm">
-                            <p class="mt-1 text-xs text-gray-600">El precio del producto se actualizará al costo neto unitario de esta adquisición más IVA (19 %).</p>
+                            <p class="movement-cost-preview mt-1 text-xs text-gray-600"></p>
                             <p class="movement-last-purchase mt-1 text-xs text-gray-600" aria-live="polite"></p>
+                            <label class="mt-2 flex items-center gap-2 text-xs font-medium text-gray-700">
+                                <input type="checkbox" name="productos[{{ $index }}][aplicar_precio_venta]" value="1" class="movement-apply-price rounded border-gray-300">
+                                Actualizar el precio de venta con el resultado recomendado
+                            </label>
                         </div>
                         <button type="button" class="remove-movement-line justify-self-start text-sm font-medium text-red-700 underline">Quitar producto</button>
                     </div>
@@ -230,7 +233,7 @@
         </form>
     </div>
 </div>
-<div id="movement-provider-modal" class="fixed inset-0 z-[60] hidden overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="movement-provider-modal-title">
+<div id="movement-provider-modal" class="fixed inset-0 z-60 hidden overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="movement-provider-modal-title">
     <div class="mx-auto my-6 w-full max-w-md rounded-lg bg-white shadow-2xl">
         <form id="movement-provider-form" action="{{ route('proveedores.store') }}" method="POST">
             @csrf
@@ -545,6 +548,31 @@
                     if (lastPurchase.proveedor) details.push(`Proveedor: ${lastPurchase.proveedor}`);
                     lastPurchaseMessage.textContent = `Última adquisición registrada: ${details.filter(Boolean).join(' · ')}`;
                 }
+                const catalogItem = productCatalog.find((item) => String(item.id) === product.value);
+                const applyPrice = line.querySelector('.movement-apply-price');
+                if (catalogItem && applyPrice.dataset.productId !== product.value) {
+                    applyPrice.dataset.productId = product.value;
+                    applyPrice.checked = catalogItem.modo_precio === 'automatico';
+                }
+                const costPreview = line.querySelector('.movement-cost-preview');
+                if (selected && catalogItem && isPurchase) {
+                    const quantity = Number(line.querySelector('.movement-quantity').value || 0);
+                    const unitCost = Number(price.value || 0);
+                    const previousCost = catalogItem.costo_promedio_neto;
+                    const newAverage = quantity > 0
+                        ? ((catalogItem.stock * (previousCost || 0)) + (quantity * unitCost)) / (catalogItem.stock + quantity)
+                        : 0;
+                    const margin = Number(catalogItem.margen_objetivo || 30);
+                    const recommended = newAverage > 0
+                        ? Math.round(newAverage * (1 + margin / 100) * 1.19 * 100) / 100
+                        : 0;
+                    const money = (amount) => `$${new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(amount)}`;
+                    costPreview.textContent = quantity > 0 && unitCost > 0
+                        ? `Costo total: ${money(quantity * unitCost)} · Costo promedio nuevo: ${money(newAverage)} · Precio recomendado: ${money(recommended)} con IVA`
+                        : `Costo promedio actual: ${previousCost !== null ? money(previousCost) : 'sin registrar'} · Precio actual: ${money(catalogItem.precio)} con IVA`;
+                } else {
+                    costPreview.textContent = '';
+                }
                 line.querySelector('.remove-movement-line').classList.toggle('hidden', lines.length === 1);
             });
             addMovementLineButton.disabled = lines.length >= 100 || lines.some((line) => !line.querySelector('input[type="hidden"]').value);
@@ -566,7 +594,11 @@
                     }
                 });
             });
-            line.querySelectorAll('input').forEach((input) => { input.value = ''; input.setCustomValidity(''); });
+            line.querySelectorAll('input').forEach((input) => {
+                input.value = '';
+                input.checked = false;
+                input.setCustomValidity('');
+            });
             line.querySelector('select').value = '';
             line.querySelector('[role="listbox"]').classList.add('hidden');
             line.querySelector('[role="combobox"]').setAttribute('aria-expanded', 'false');
@@ -580,6 +612,8 @@
         const setupMovementLine = (line) => {
             const picker = line.querySelector('.product-picker');
             picker.addEventListener('productchange', updateMovementLines);
+            line.querySelector('.movement-quantity').addEventListener('input', updateMovementLines);
+            line.querySelector('.movement-price').addEventListener('input', updateMovementLines);
             line.querySelector('.remove-movement-line').addEventListener('click', () => {
                 line.remove();
                 updateMovementLines();

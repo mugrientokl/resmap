@@ -47,7 +47,8 @@
                 <strong>RESMAP</strong><br>
                 RUT 76.991.966-K<br>
                 Av. Gabriela Mistral 1255, Bodega 48 – Los Ángeles<br>
-                resmap.la@gmail.com
+                resmap.la@gmail.com · +56 9 76477124<br>
+                S.I.I. – Los Ángeles
             </td>
         </tr>
     </table>
@@ -68,7 +69,8 @@
                 RESMAP<br>
                 RUT: 76.991.966-K<br>
                 Dirección: Av. Gabriela Mistral 1255, Bodega 48, Los Ángeles<br>
-                Correo: resmap.la@gmail.com<br>
+                Correo: resmap.la@gmail.com · Teléfono: +56 9 76477124<br>
+                S.I.I.: Los Ángeles<br>
                 @if(!empty($datosResumen['giro_emisor']))Giro: {{ $datosResumen['giro_emisor'] }}<br>@endif
                 @if(!empty($datosResumen['acteco_emisor']))ACTECO: {{ $datosResumen['acteco_emisor'] }}<br>@endif
                 @if(!empty($datosResumen['tipo_venta']))Tipo de venta: Del giro<br>@endif
@@ -82,11 +84,12 @@
                 @endif
                 @if(!empty($datosResumen['giro']))Giro: {{ $datosResumen['giro'] }}<br>@endif
                 @if(!empty($datosResumen['correo']) || $cliente?->correo)Correo: {{ $datosResumen['correo'] ?? $cliente->correo }}<br>@endif
-                @if($cliente?->telefono)Teléfono: {{ $cliente->telefono }}<br>@endif
+                @if(!empty($datosResumen['telefono']) || $cliente?->telefono)Teléfono: {{ $datosResumen['telefono'] ?? $cliente->telefono }}<br>@endif
                 @if(!empty($datosResumen['direccion']))Dirección: {{ $datosResumen['direccion'] }}<br>
                 Comuna: {{ $datosResumen['comuna'] ?? 'No informada' }}<br>
                 @elseif($direccionCliente)Dirección: {{ $direccionCliente }}<br>@endif
                 @if(!empty($datosResumen['ciudad']))Ciudad: {{ $datosResumen['ciudad'] }}<br>@elseif($cliente?->ciudad)Ciudad: {{ $cliente->ciudad }}<br>@endif
+                @if(!empty($datosResumen['region']))Región: {{ $datosResumen['region'] }}<br>@elseif($cliente?->region)Región: {{ $cliente->region }}<br>@endif
                 @if(!empty($datosResumen['tipo_compra']))Tipo de compra: Del giro<br>@endif
             </td>
         </tr>
@@ -97,6 +100,7 @@
                 <strong>DETALLE DE LA VENTA</strong><br>
                 Vendedor: {{ $venta->user?->name ?? 'N/A' }}<br>
                 Documento de referencia: {{ $venta->tipo_documento }}<br>
+                Forma de pago: {{ $datosResumen['forma_pago'] ?? 'Contado' }}<br>
                 Medio de pago: {{ $venta->medio_pago }}<br>
             </td>
         </tr>

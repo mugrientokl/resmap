@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Mail\CotizacionCliente;
+use App\Jobs\EnviarCotizacionEmail;
+use App\Jobs\EnviarCotizacionWhatsApp;
 use App\Models\Cliente;
 use App\Models\Cotizacion;
 use App\Models\CotizacionDetalle;
@@ -19,11 +20,13 @@ use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\OrdenCompraRecibida;
 use App\Rules\RutChileno;
+use App\Services\CotizacionPdf;
 use App\Services\Facturacion\ProveedorFacturacion;
 use App\Services\InventarioReservaService;
 use App\Services\ResumenInternoVentaPdf;
 use App\Services\VentaCotizacionService;
 use App\Services\WhatsAppCloudApi;
+use App\Support\Rut;
 use App\Support\TelefonoChileno;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Client\ConnectionException;
@@ -32,15 +35,14 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use InvalidArgumentException;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -99,10 +101,23 @@ class CotizacionController extends Controller
                 ->lockForUpdate()
                 ->get()
                 ->keyBy('id_producto');
+            $reservadosPorProducto = $reservas->cantidadReservadaPorProducto(
+                $items->keys()->all(),
+                $cotizacion->id_cotizacion,
+            );
 
             foreach ($items as $productoId => $cantidad) {
                 if (! $productos->has($productoId) || ! $productos->get($productoId)->activo) {
                     throw ValidationException::withMessages(['cotizacion' => 'Uno de los productos ya no está disponible.']);
+                }
+
+                $producto = $productos->get($productoId);
+                $disponible = max(0, (int) $producto->stock - (int) ($reservadosPorProducto[$productoId] ?? 0));
+
+                if ($cantidad > $disponible) {
+                    throw ValidationException::withMessages([
+                        'detalles_productos' => "Stock insuficiente para {$producto->nombre}: solicitaste {$cantidad} y quedan {$disponible} disponibles.",
+                    ]);
                 }
             }
 
@@ -169,7 +184,7 @@ class CotizacionController extends Controller
         return redirect()->route('solicitudes.show', $solicitud)->with('success', 'Se creó la versión de cotización.');
     }
 
-    public function enviar(CotizacionVersion $version, WhatsAppCloudApi $whatsapp): RedirectResponse
+    public function enviar(CotizacionVersion $version): RedirectResponse
     {
         $version->load(['cotizacion.solicitud.cliente', 'detalles']);
         abort_unless($version->estado === 'borrador', 422, 'Solo se pueden enviar cotizaciones en borrador.');
@@ -191,22 +206,13 @@ class CotizacionController extends Controller
             absolute: false,
         );
         $urlPdf = rtrim((string) config('app.url'), '/').$rutaPdf;
-        $pdf = $this->generarPdf($version);
         $avisos = [];
 
-        if ($clienteSnapshot->correo) {
-            try {
-                Mail::to($clienteSnapshot->correo)->send(new CotizacionCliente($version, $urlPdf, $pdf));
-                $version->update(['email_estado' => 'aceptado_por_smtp']);
-            } catch (TransportExceptionInterface $exception) {
-                $version->update(['email_estado' => 'fallido']);
-                Log::warning('Falló el envío de la cotización por correo.', [
-                    'version_id' => $version->id_version,
-                    'error' => $exception->getMessage(),
-                ]);
-                $avisos[] = 'No fue posible enviar el correo; revisa el log de la aplicación.';
-            }
+        $enviarCorreo = filled($clienteSnapshot->correo);
+        if ($enviarCorreo) {
+            $version->update(['email_estado' => 'en_cola']);
         } else {
+            $version->update(['email_estado' => 'sin_correo']);
             $avisos[] = 'El cliente no tiene correo registrado.';
         }
 
@@ -215,52 +221,68 @@ class CotizacionController extends Controller
             && ! $rechazoWhatsApp;
         $telefonoWhatsApp = $cliente->telefono_whatsapp
             ?? ($tieneConsentimientoWhatsApp ? $cliente->telefono : null);
+        $whatsappConfigurado = (bool) config('services.whatsapp.enabled')
+            && filled(config('services.whatsapp.api_version'))
+            && filled(config('services.whatsapp.phone_number_id'))
+            && filled(config('services.whatsapp.access_token'))
+            && filled(config('services.whatsapp.quote_template'));
+        $enviarWhatsApp = $telefonoWhatsApp && $tieneConsentimientoWhatsApp && $whatsappConfigurado;
 
-        if ($telefonoWhatsApp && $tieneConsentimientoWhatsApp) {
-            $usarBotonUrl = (bool) config('services.whatsapp.quote_url_button');
-            $parametrosPlantilla = [$clienteSnapshot->nombre, (string) $cotizacion->id_cotizacion, (string) $version->numero_version];
-            if (! $usarBotonUrl) {
-                $parametrosPlantilla[] = $urlPdf;
-            }
-            try {
-                $whatsapp->enviarPlantillaCotizacion(
-                    $telefonoWhatsApp,
-                    "Cotización #{$cotizacion->id_cotizacion}, versión {$version->numero_version}. Comunícate con RESMAP para responder o solicitar cambios.",
-                    $parametrosPlantilla,
-                    [],
-                    $cotizacion,
-                    $version,
-                    $usarBotonUrl ? Str::after($rutaPdf, '/cotizaciones/') : null,
-                );
-                $version->update(['whatsapp_estado' => 'aceptado_por_meta']);
-            } catch (ConnectionException|RequestException|RuntimeException|InvalidArgumentException $exception) {
-                $version->update(['whatsapp_estado' => 'fallido']);
-                Log::warning('Falló el envío de cotización por WhatsApp.', [
-                    'version_id' => $version->id_version,
-                    'error' => $exception->getMessage(),
-                ]);
-                $avisos[] = 'No fue posible enviar WhatsApp; revisa credenciales, consentimiento y destinatario de prueba.';
-            }
+        if ($enviarWhatsApp) {
+            $version->update(['whatsapp_estado' => 'en_cola']);
         } else {
             $version->update([
                 'whatsapp_estado' => $rechazoWhatsApp || ! $tieneConsentimientoWhatsApp
                     ? 'no_autorizado'
-                    : 'sin_telefono',
+                    : (! $telefonoWhatsApp ? 'sin_telefono' : 'no_configurado'),
             ]);
+            if ($telefonoWhatsApp && $tieneConsentimientoWhatsApp && ! $whatsappConfigurado) {
+                $avisos[] = 'WhatsApp no está configurado para envíos.';
+            }
         }
 
         $cotizacion->update(['estado' => 'enviada']);
 
+        if ($enviarCorreo) {
+            try {
+                Bus::dispatch((new EnviarCotizacionEmail($version->id_version, $urlPdf))->afterCommit());
+            } catch (\Throwable $exception) {
+                $version->update(['email_estado' => 'fallido']);
+                Log::warning('No fue posible encolar el correo de la cotización.', [
+                    'version_id' => $version->id_version,
+                    'error' => $exception->getMessage(),
+                ]);
+                $avisos[] = 'No fue posible poner el correo en cola.';
+            }
+        }
+        if ($enviarWhatsApp) {
+            try {
+                Bus::dispatch((new EnviarCotizacionWhatsApp(
+                    $version->id_version,
+                    $telefonoWhatsApp,
+                    $urlPdf,
+                    Str::after($rutaPdf, '/cotizaciones/'),
+                ))->afterCommit());
+            } catch (\Throwable $exception) {
+                $version->update(['whatsapp_estado' => 'fallido']);
+                Log::warning('No fue posible encolar el WhatsApp de la cotización.', [
+                    'version_id' => $version->id_version,
+                    'error' => $exception->getMessage(),
+                ]);
+                $avisos[] = 'No fue posible poner WhatsApp en cola.';
+            }
+        }
+
         return redirect()->route('solicitudes.show', $cotizacion->solicitud_id)
-            ->with('success', 'La cotización fue preparada. La aceptación SMTP/Meta no garantiza entrega al destinatario.')
+            ->with('success', 'La cotización quedó en cola para envío. Puedes revisar el estado de cada canal.')
             ->with('warning', implode(' ', $avisos));
     }
 
-    public function pdf(CotizacionVersion $version)
+    public function pdf(CotizacionVersion $version, CotizacionPdf $pdf)
     {
         $version->load(['cotizacion.solicitud.cliente', 'detalles']);
 
-        return response($this->generarPdf($version), 200, [
+        return response($pdf->generar($version), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'attachment; filename="cotizacion-'.$version->cotizacion_id.'-v'.$version->numero_version.'.pdf"',
         ]);
@@ -330,23 +352,64 @@ class CotizacionController extends Controller
             && $venta->estado_venta === 'confirmada'
             && $venta->stock_descontado_at !== null, 403);
         $actividades = config('services.cotizaciones.actividades_emisor');
+        $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
         $datos = $request->validate([
+            'tipo_documento' => ['required', 'string', 'in:Boleta Electrónica,Factura Electrónica'],
+            'medio_pago' => ['nullable', 'string', 'in:Efectivo,Transferencia,Tarjeta,Crédito'],
+            'forma_pago' => ['nullable', 'string', 'in:Contado,Crédito'],
             'acteco_emisor' => ['required', Rule::in(array_keys($actividades))],
             'tipo_venta' => ['required', Rule::in(['del_giro'])],
             'nombre' => ['required', 'string', 'max:255'],
             'rut' => ['required', 'string', 'max:20', new RutChileno],
-            'giro' => ['required', 'string', 'max:255'],
-            'direccion' => ['required', 'string', 'max:255'],
-            'comuna' => ['required', 'string', 'max:100'],
-            'ciudad' => ['required', 'string', 'max:100'],
+            'giro' => [
+                Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'direccion' => [
+                Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'region' => [
+                Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'comuna' => [
+                Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
+                'nullable',
+                'string',
+                'max:100',
+            ],
+            'ciudad' => [
+                Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
+                'nullable',
+                'string',
+                'max:100',
+            ],
             'contacto' => ['required', 'string', 'max:255'],
             'tipo_compra' => ['required', Rule::in(['del_giro'])],
             'correo' => ['required', 'email', 'max:255'],
+            'telefono' => ['nullable', 'string', 'max:20'],
             'numero_oc' => [Rule::requiredIf($venta->cotizacion_version_id !== null), 'nullable', 'string', 'max:100'],
         ]);
         $datos['giro_emisor'] = $actividades[$datos['acteco_emisor']];
+        $datos['forma_pago'] = $datos['forma_pago'] ?? 'Contado';
+        $datos['medio_pago'] = $datos['medio_pago'] ?? (
+            in_array($venta->medio_pago, ['Efectivo', 'Transferencia', 'Tarjeta', 'Crédito'], true)
+                ? $venta->medio_pago
+                : 'Efectivo'
+        );
         if ($venta->cotizacion_version_id === null) {
-            $venta->update(['datos_resumen' => $datos]);
+            $venta->update([
+                'tipo_documento' => $datos['tipo_documento'],
+                'medio_pago' => $datos['medio_pago'],
+                'datos_resumen' => $datos,
+            ]);
 
             return $resumen->descargar($venta);
         }
@@ -358,6 +421,8 @@ class CotizacionController extends Controller
             }
 
             $venta->datos_resumen = $datos;
+            $venta->tipo_documento = $datos['tipo_documento'];
+            $venta->medio_pago = $datos['medio_pago'];
             $venta->resumen_interno_pdf = base64_encode($resumen->generar($venta));
             $venta->save();
         });
@@ -398,13 +463,13 @@ class CotizacionController extends Controller
         ]);
     }
 
-    public function pdfPublico(CotizacionVersion $version)
+    public function pdfPublico(CotizacionVersion $version, CotizacionPdf $pdf)
     {
         abort_if($version->vigente_hasta->isPast(), 410, 'La cotización ya no está vigente.');
 
         $version->load(['cotizacion.solicitud.cliente', 'detalles']);
 
-        return response($this->generarPdf($version), 200, [
+        return response($pdf->generar($version), 200, [
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="cotizacion-'.$version->cotizacion_id.'-v'.$version->numero_version.'.pdf"',
         ]);
@@ -1175,20 +1240,5 @@ class CotizacionController extends Controller
     private function soloDigitos(string $telefono): string
     {
         return preg_replace('/\D+/', '', $telefono) ?? '';
-    }
-
-    private function generarPdf(CotizacionVersion $version): string
-    {
-        $version->loadMissing(['cotizacion.solicitud', 'detalles']);
-        $logo = file_get_contents(public_path('images/resmap sin fondo.png'));
-        if ($logo === false) {
-            throw new RuntimeException('No fue posible leer el logo de RESMAP para generar la cotización.');
-        }
-
-        return Pdf::loadView('cotizaciones.pdf', [
-            'version' => $version,
-            'cliente' => Cliente::desdeSnapshot($version->snapshotDatosCliente()),
-            'logoDataUri' => 'data:image/png;base64,'.base64_encode($logo),
-        ])->setPaper('a4')->output();
     }
 }

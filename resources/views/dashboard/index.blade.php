@@ -48,7 +48,7 @@
 
     <div id="dashboard-live" aria-live="polite">
     @php
-        $datosPanel = ['anio' => $seleccion['anio'], 'mes' => $seleccion['mes'], 'dia' => $seleccion['dia'], 'ventasMensuales' => $ventasMensuales, 'ventasDiarias' => $ventasDiarias, 'productos' => $productosMasVendidos, 'pdf' => route('dashboard.exportar.pdf', $parametrosPeriodo)];
+        $datosPanel = ['anio' => $seleccion['anio'], 'mes' => $seleccion['mes'], 'dia' => $seleccion['dia'], 'ventasMensuales' => $ventasMensuales, 'ventasSemanales' => $ventasSemanales, 'productos' => $productosMasVendidos, 'pdf' => route('dashboard.exportar.pdf', $parametrosPeriodo)];
     @endphp
     <script type="application/json" id="dashboard-data">@json($datosPanel)</script>
     <form method="GET" action="{{ route('dashboard') }}" class="period-bar" id="dashboard-period-form">
@@ -121,28 +121,52 @@
                 <small>{{ $dinero($resumen['cotizaciones']['monto']) }} originados en cotizaciones</small>
             </div>
         </div>
-    </div>
 
-    @if($seleccion['mes'] === null)
-    <div class="chart-card chart-wide">
-        <div class="chart-card-heading">
-            <span class="chart-kicker">{{ $seleccion['anio'] }}</span>
-            <h3>Ventas por mes</h3>
-            <p>Monto vendido en cada mes. Haz clic en una barra para filtrar todo el dashboard por ese mes.</p>
+        <div class="stat-card">
+            <div class="stat-icon icon-pending"><i class="fas fa-hourglass-half"></i></div>
+            <div class="stat-content">
+                <h3>Cotizaciones no completadas</h3>
+                <p class="stat-value">{{ number_format($cotizacionesNoCompletadas, 0, ',', '.') }}</p>
+                <small>Cotizaciones abiertas o pendientes en el período</small>
+            </div>
         </div>
-        <canvas id="ventasMensualesChart" aria-label="Ventas por mes"></canvas>
+
+        <div class="stat-card">
+            <div class="stat-icon {{ $rentabilidad['utilidadBruta'] !== null && $rentabilidad['utilidadBruta'] >= 0 ? 'icon-profit' : 'icon-loss' }}"><i class="fas {{ $rentabilidad['utilidadBruta'] !== null && $rentabilidad['utilidadBruta'] >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down' }}"></i></div>
+            <div class="stat-content">
+                <h3>Utilidad bruta</h3>
+                @if($rentabilidad['utilidadBruta'] !== null)
+                    <p class="stat-value {{ $rentabilidad['utilidadBruta'] >= 0 ? 'text-green-700' : 'text-red-700' }}">{{ $dinero($rentabilidad['utilidadBruta']) }}</p>
+                    @if($rentabilidad['margenBruto'] !== null)
+                        <small>Margen bruto: {{ number_format($rentabilidad['margenBruto'], 2, ',', '.') }}% sobre ventas netas</small>
+                    @endif
+                @else
+                    <p class="stat-value text-gray-500">Sin datos completos</p>
+                    <small>Faltan {{ $rentabilidad['detallesSinCosto'] }} costos de adquisición registrados</small>
+                @endif
+            </div>
+        </div>
     </div>
-    @endif
 
     <div class="charts-container">
+        @if($seleccion['mes'] === null)
+        <div class="chart-card">
+            <div class="chart-card-heading">
+                <span class="chart-kicker">{{ $seleccion['anio'] }}</span>
+                <h3>Ventas por mes</h3>
+                <p>Monto vendido en cada mes. Haz clic en una barra para filtrar todo el dashboard por ese mes.</p>
+            </div>
+            <canvas id="ventasMensualesChart" aria-label="Ventas por mes"></canvas>
+        </div>
+        @endif
         @if($seleccion['mes'] !== null)
         <div class="chart-card">
             <div class="chart-card-heading">
                 <span class="chart-kicker">{{ ucfirst($seleccion['etiqueta']) }}</span>
-                <h3>Ventas por día</h3>
-                <p>Monto vendido cada día del mes. Haz clic en un día para ver solo ese día.</p>
+                <h3>Ventas por semana</h3>
+                <p>Monto vendido agrupado por semanas del mes seleccionado.</p>
             </div>
-            <canvas id="ventasDiariasChart" aria-label="Ventas por día"></canvas>
+            <canvas id="ventasDiariasChart" aria-label="Ventas por semana"></canvas>
         </div>
         @endif
 
@@ -354,7 +378,7 @@
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(4, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: clamp(12px, 1.4vw, 20px);
         margin-bottom: 24px;
     }
@@ -386,6 +410,9 @@
     .icon-revenue { background: #e8f5ec; color: #1f7a3d; }
     .icon-clients { background: #eaf1fb; color: #2a5db0; }
     .icon-today { background: #fff4e0; color: #b7791f; }
+    .icon-pending { background: #f3eafd; color: #7352a3; }
+    .icon-profit { background: #e8f5ec; color: #1f7a3d; }
+    .icon-loss { background: #fdecea; color: #b52f25; }
 
     .stat-content { min-width: 0; }
 
@@ -563,7 +590,7 @@
         function montar() {
         graficos.forEach(grafico => grafico.destroy());
         graficos = [];
-        const { anio, mes: mesSeleccionado, dia: diaSeleccionado, ventasMensuales, ventasDiarias, productos, pdf } =
+        const { anio, mes: mesSeleccionado, dia: diaSeleccionado, ventasMensuales, ventasSemanales, productos, pdf } =
             JSON.parse(document.getElementById('dashboard-data').textContent);
         document.getElementById('dashboard-export-pdf').href = pdf;
 
@@ -577,9 +604,9 @@
 
         if (document.getElementById('ventasDiariasChart')) graficos.push(graficoBarras(
             'ventasDiariasChart',
-            ventasDiarias,
-            d => diaSeleccionado === null || d.dia === diaSeleccionado,
-            d => irA({ anio, mes: mesSeleccionado, dia: d.dia }),
+            ventasSemanales,
+            () => true,
+            () => {},
             d => d.cantidad + (d.cantidad === 1 ? ' venta' : ' ventas')
         ));
 

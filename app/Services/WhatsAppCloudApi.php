@@ -139,8 +139,14 @@ class WhatsAppCloudApi
         $telefono = $this->normalizarTelefono($telefono);
         $this->validarConfiguracion($telefono);
 
-        if ($claveIdempotencia !== null && MensajeWhatsApp::where('clave_idempotencia', $claveIdempotencia)->exists()) {
-            throw new RuntimeException('Este mensaje ya fue procesado; no se volverá a enviar.');
+        $mensajeExistente = $claveIdempotencia === null
+            ? null
+            : MensajeWhatsApp::query()->where('clave_idempotencia', $claveIdempotencia)->first();
+        if ($mensajeExistente?->estado === 'aceptado_por_meta' && $mensajeExistente->id_proveedor) {
+            return (string) $mensajeExistente->id_proveedor;
+        }
+        if ($mensajeExistente?->estado === 'pendiente') {
+            throw new RuntimeException('Este mensaje ya está siendo procesado; no se volverá a enviar.');
         }
 
         $datosRegistro = $payload;
@@ -184,7 +190,7 @@ class WhatsAppCloudApi
             unset($componente);
         }
 
-        $mensaje = MensajeWhatsApp::create([
+        $atributosMensaje = [
             'cotizacion_id' => $cotizacion?->id_cotizacion,
             'version_id' => $version?->id_version,
             'direccion' => 'saliente',
@@ -194,7 +200,12 @@ class WhatsAppCloudApi
             'clave_idempotencia' => $claveIdempotencia,
             'contenido' => $contenido,
             'datos' => $datosRegistro,
-        ]);
+            'error' => null,
+            'id_proveedor' => null,
+        ];
+        $mensaje = $mensajeExistente
+            ? tap($mensajeExistente)->update($atributosMensaje)
+            : MensajeWhatsApp::create($atributosMensaje);
 
         try {
             $respuesta = Http::withToken((string) config('services.whatsapp.access_token'))

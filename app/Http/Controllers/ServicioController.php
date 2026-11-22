@@ -11,7 +11,6 @@ use App\Support\Rut;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class ServicioController extends Controller
 {
@@ -95,12 +94,13 @@ class ServicioController extends Controller
                 'solicitud_id' => $solicitud->id_solicitud,
             ]);
         }
+        $notificacion = new SolicitudWebRecibida($solicitud);
         foreach ($destinatarios as $user) {
             try {
-                $user->notify(new SolicitudWebRecibida($solicitud));
-            } catch (TransportExceptionInterface $exception) {
+                $user->notify($notificacion->afterCommit());
+            } catch (\Throwable $exception) {
                 $fallosNotificacion = true;
-                Log::warning('La solicitud de servicio quedó registrada, pero falló el correo interno.', [
+                Log::warning('No fue posible enviar el correo interno de la solicitud de servicio.', [
                     'solicitud_id' => $solicitud->id_solicitud,
                     'usuario_id' => $user->id,
                     'error' => $exception->getMessage(),

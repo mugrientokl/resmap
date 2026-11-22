@@ -14,6 +14,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class ProductoController extends Controller
@@ -277,10 +278,31 @@ class ProductoController extends Controller
     public function store(Request $request)
     {
         if (is_string($request->input('nombre'))) {
-            $request->merge(['nombre' => trim($request->input('nombre'))]);
+            $request->merge(['nombre' => Producto::normalizarNombre($request->input('nombre'))]);
+        }
+        if (is_string($request->input('codigo_barra'))) {
+            $request->merge(['codigo_barra' => strtoupper(trim($request->input('codigo_barra')))]);
         }
         $validator = Validator::make($request->all(), [
-            'codigo_barra' => ['prohibited'],
+            'codigo_barra' => [
+                'nullable',
+                'string',
+                'max:255',
+                'regex:/^[A-Za-z]{3}\d{3,}$/',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request): void {
+                    if (! is_string($value) || $value === '') {
+                        return;
+                    }
+                    $nombre = is_string($request->input('nombre')) ? $request->input('nombre') : '';
+                    $prefijo = Producto::prefijoCodigo($nombre);
+                    if (strlen($prefijo) !== 3 || ! str_starts_with(strtoupper($value), $prefijo)) {
+                        $fail('El código debe comenzar con las tres primeras letras del nombre.');
+                    }
+                    if (Producto::codigoExiste($value)) {
+                        $fail('Ya existe un repuesto con ese código.');
+                    }
+                },
+            ],
             'codigo_origen' => ['prohibited'],
             'nombre' => [
                 'required',
@@ -297,7 +319,10 @@ class ProductoController extends Controller
                 },
             ],
             'descripcion' => 'nullable|string',
-            'precio' => 'required|numeric|min:0|max:99999999.99',
+            'precio' => [Rule::requiredIf($request->input('modo_precio') !== 'automatico'), 'nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'costo_neto_unitario' => [Rule::requiredIf($request->input('modo_precio') === 'automatico'), 'nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'margen_objetivo' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'modo_precio' => ['nullable', 'in:manual,automatico'],
             'stock' => 'required|integer|min:0|max:2147483647',
             'stock_critico' => 'required|integer|min:0|max:2147483647',
             'unidad' => 'required|in:unidad,metro',
@@ -306,6 +331,8 @@ class ProductoController extends Controller
             'imagen' => 'nullable|image|max:4096',
         ], [
             'nombre.not_regex' => 'El nombre del repuesto no puede contener únicamente números; debe incluir al menos una letra.',
+            'codigo_barra.required' => 'Ingresa el código del repuesto.',
+            'codigo_barra.regex' => 'El código debe tener tres letras seguidas de al menos tres números.',
         ]);
 
         if ($validator->fails()) {
@@ -316,6 +343,22 @@ class ProductoController extends Controller
         }
 
         $datos = $validator->validated();
+        $modoPrecio = $datos['modo_precio'] ?? 'manual';
+        $margenObjetivo = isset($datos['margen_objetivo']) ? (float) $datos['margen_objetivo'] : 30.0;
+        $costoNetoInicial = isset($datos['costo_neto_unitario'])
+            ? (float) $datos['costo_neto_unitario']
+            : null;
+        unset($datos['costo_neto_unitario']);
+
+        if ($modoPrecio === 'automatico') {
+            $datos['precio'] = Producto::calcularPrecioVentaRecomendado(
+                (float) $costoNetoInicial,
+                $margenObjetivo,
+            );
+        }
+        $datos['costo_promedio_neto'] = $costoNetoInicial;
+        $datos['margen_objetivo'] = $margenObjetivo;
+
         unset($datos['imagen']);
 
         $imagenNueva = $request->hasFile('imagen')
@@ -326,10 +369,14 @@ class ProductoController extends Controller
         }
 
         try {
-            $producto = Producto::crearConCodigo($datos);
+            $codigoManual = filled($datos['codigo_barra'] ?? null) ? $datos['codigo_barra'] : null;
+            $producto = Producto::crearConCodigo($datos, $codigoManual);
         } catch (UniqueConstraintViolationException $exception) {
             if ($imagenNueva !== null) {
                 Storage::disk('public')->delete($imagenNueva);
+            }
+            if (! empty($datos['codigo_barra']) && Producto::codigoExiste($datos['codigo_barra'])) {
+                return redirect()->back()->withInput()->withErrors(['codigo_barra' => 'Ya existe un repuesto con ese código.']);
             }
             if (Producto::nombreExiste($datos['nombre'])) {
                 return redirect()->back()->withInput()->withErrors(['nombre' => 'Ya existe un repuesto con ese nombre.']);
@@ -349,7 +396,17 @@ class ProductoController extends Controller
             'cantidad' => $producto->stock,
             'stock_anterior' => 0,
             'stock_nuevo' => $producto->stock,
-            'motivo' => 'Producto creado',
+            'motivo' => 'Stock inicial',
+            'precio_entrada' => $costoNetoInicial !== null && $producto->stock > 0
+                ? round($costoNetoInicial * $producto->stock, 2)
+                : null,
+            'cantidad_adquirida' => $costoNetoInicial !== null && $producto->stock > 0
+                ? $producto->stock
+                : null,
+            'costo_unitario_neto' => $costoNetoInicial,
+            'costo_total_neto' => $costoNetoInicial !== null && $producto->stock > 0
+                ? round($costoNetoInicial * $producto->stock, 2)
+                : null,
         ]);
 
         return redirect()
@@ -371,7 +428,10 @@ class ProductoController extends Controller
         $producto = Producto::findOrFail($id);
         $seDesactiva = $producto->activo && ! $request->boolean('activo');
         if (is_string($request->input('nombre'))) {
-            $request->merge(['nombre' => trim($request->input('nombre'))]);
+            $request->merge(['nombre' => Producto::normalizarNombre($request->input('nombre'))]);
+        }
+        if (is_string($request->input('codigo_barra'))) {
+            $request->merge(['codigo_barra' => strtoupper(trim($request->input('codigo_barra')))]);
         }
 
         $validator = Validator::make($request->all(), [
@@ -380,9 +440,29 @@ class ProductoController extends Controller
                 'required',
                 'string',
                 'max:255',
-                'regex:/^[A-Za-z0-9._\/-]+$/',
-                'unique:productos,codigo_barra,'.$id.',id_producto',
-                'in:'.$producto->codigo_barra,
+                function (string $attribute, mixed $value, \Closure $fail) use ($request, $producto): void {
+                    if (! is_string($value) || $value === '') {
+                        return;
+                    }
+                    $codigoActual = strtoupper($producto->codigo_barra ?? '');
+                    $codigoOrigenActual = strtoupper($producto->codigo_origen ?? '');
+                    if (in_array(strtoupper($value), [$codigoActual, $codigoOrigenActual], true)) {
+                        return;
+                    }
+                    if (! preg_match('/^[A-Z]{3}\d{3,}$/', strtoupper($value))) {
+                        $fail('El código debe tener tres letras seguidas de al menos tres números.');
+
+                        return;
+                    }
+                    $nombre = is_string($request->input('nombre')) ? $request->input('nombre') : $producto->nombre;
+                    $prefijo = Producto::prefijoCodigo($nombre);
+                    if (! str_starts_with(strtoupper($value), $prefijo)) {
+                        $fail('El código debe comenzar con las tres primeras letras del nombre.');
+                    }
+                    if (Producto::codigoExiste($value)) {
+                        $fail('Ya existe un repuesto con ese código.');
+                    }
+                },
             ],
             'nombre' => [
                 'required',
@@ -396,7 +476,10 @@ class ProductoController extends Controller
                 },
             ],
             'descripcion' => 'nullable|string',
-            'precio' => 'required|numeric|min:0|max:99999999.99',
+            'precio' => [Rule::requiredIf($request->input('modo_precio') !== 'automatico'), 'nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'costo_neto_unitario' => [Rule::requiredIf($request->input('modo_precio') === 'automatico'), 'nullable', 'numeric', 'min:0', 'max:99999999.99'],
+            'margen_objetivo' => ['nullable', 'numeric', 'min:0', 'max:999.99'],
+            'modo_precio' => ['nullable', 'in:manual,automatico'],
             'stock' => 'required|integer|min:0|max:2147483647',
             'stock_critico' => 'required|integer|min:0|max:2147483647',
             'unidad' => 'required|in:unidad,metro',
@@ -422,6 +505,21 @@ class ProductoController extends Controller
         }
 
         $datos = $validator->validated();
+        $modoPrecio = $datos['modo_precio'] ?? 'manual';
+        $margenObjetivo = isset($datos['margen_objetivo']) ? (float) $datos['margen_objetivo'] : 30.0;
+        $costoNeto = isset($datos['costo_neto_unitario'])
+            ? (float) $datos['costo_neto_unitario']
+            : null;
+        unset($datos['costo_neto_unitario']);
+
+        if ($modoPrecio === 'automatico') {
+            $datos['precio'] = Producto::calcularPrecioVentaRecomendado(
+                (float) $costoNeto,
+                $margenObjetivo,
+            );
+        }
+        $datos['costo_promedio_neto'] = $costoNeto;
+        $datos['margen_objetivo'] = $margenObjetivo;
         $motivoDesactivacion = trim((string) ($datos['motivo_desactivacion'] ?? ''));
         unset($datos['imagen'], $datos['motivo_desactivacion']);
 
@@ -458,6 +556,7 @@ class ProductoController extends Controller
                     ]);
                 }
 
+                $datos['codigo_origen'] = $datos['codigo_barra'];
                 $producto->update($datos);
                 if ($productoDesactivado) {
                     $stockAnteriorAlDesactivar = $stockAnterior;

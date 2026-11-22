@@ -25,15 +25,9 @@ php artisan serve
 
 La aplicación queda normalmente en `http://127.0.0.1:8000`.
 
-Para cargar el inventario real desde el CSV incluido:
-
-```powershell
-php artisan db:seed --class=ProductoRealSeeder
-```
-
 La migración de identificadores reemplaza los códigos de barras y de origen por códigos `RESMAP-` basados en el ID del producto y distingue los nombres duplicados. Conserva los valores anteriores en `producto_identificadores_anteriores`; los datos originales del CSV también permanecen en `productos_importados`. Los productos nuevos reciben su código automáticamente y los nombres no pueden repetirse, incluso con diferencias de mayúsculas. Antes de migrar, genera y verifica un respaldo y considera que las etiquetas y referencias externas con códigos anteriores deberán actualizarse.
 
-Las cuentas de prueba del `UserSeeder` son `admin` y `vendedor1`, ambas con contraseña `password123`.
+Las cuentas de prueba del `UserSeeder` son `admin` y `vendedor1`. Sus contraseñas temporales aleatorias se muestran al ejecutar el seeder.
 
 ## Funciones
 
@@ -78,8 +72,7 @@ Después de actualizar el código, ejecuta `php artisan migrate` para agregar lo
 
 - `database/migrations`: crea usuarios, categorías, productos, clientes, ventas, solicitudes, movimientos y auditorías.
 - `database/seeders/UserSeeder.php`: cuentas de prueba.
-- `database/seeders/ProductoRealSeeder.php`: importa el CSV real y conserva datos de origen.
-- `database/seeders/csv/LISTADO DE PRECIOS RESMAP.csv`: fuente del inventario importado.
+- `database/seeders/ProductoRealSeeder.php`: conservado para una futura carga controlada de inventario real.
 
 ### Interfaz
 
@@ -98,12 +91,12 @@ Después de actualizar el código, ejecuta `php artisan migrate` para agregar lo
 php artisan migrate
 php artisan migrate:status
 php artisan db:seed --class=UserSeeder
-php artisan db:seed --class=ProductoRealSeeder
 php artisan app:backup-database
 php artisan app:backup-database --baseline
 php artisan app:verify-database-backup database-AAAA-MM-DD_HH-mm-ss.zip
 php artisan app:restore-database-backup database-AAAA-MM-DD_HH-mm-ss.zip --force
 php artisan schedule:run
+php artisan queue:work --queue=default --tries=3 --timeout=90
 php artisan route:list
 php artisan view:cache
 php artisan config:cache
@@ -112,6 +105,8 @@ vendor/bin/pint --dirty --format agent
 ```
 
 `app:backup-database` guarda ZIPs en `storage/app/private/backups`, incluye todas las tablas del esquema configurado y los archivos de `storage/app/public`, y comprueba los checksums SHA-256 antes de guardarlos. No usa JSON como alternativa: si `mysqldump` falla, el comando falla explícitamente. `--baseline` conserva una copia inicial fuera de la rotación automática; los backups diarios mantienen los últimos `BACKUP_KEEP` archivos (14 por defecto). En producción, `BACKUP_ARCHIVE_PASSWORD` es obligatorio y cifra el ZIP con AES-256; guarda esa clave fuera de los backups y consérvala para poder verificar o restaurar.
+
+Los PDFs y envíos de cotizaciones, WhatsApp y avisos internos se procesan en la cola. En producción debe mantenerse activo `php artisan queue:work --queue=default --tries=3 --timeout=90`; el scheduler no reemplaza al worker. Supervisa `failed_jobs` y reinicia el worker después de desplegar código. Si se usa `QUEUE_CONNECTION=sync`, los trabajos vuelven a ejecutarse dentro de la petición y no se obtiene esta optimización.
 
 El scheduler ejecuta el backup todos los días a las 02:00 y registra los fallos como críticos. La tarea del sistema operativo no se activa sola. En Windows, crea una tarea en el Programador de tareas con trigger diario a las 02:00, programa `php.exe` (obtenlo con `where.exe php`), argumentos `artisan schedule:run` y directorio de inicio `C:\laragon\www\resmap-app`; el equipo debe estar encendido. En Linux, configura la entrada cron estándar cada minuto.
 
@@ -165,62 +160,4 @@ La suite incluye pruebas de reservas y cotizaciones B2B, el momento del descuent
 
 - `database/migrations/2026_09_02_000000_create_sessions_table.php` es una migración histórica; se conserva porque ya puede formar parte del historial de una instalación.
 - `resources/js/app.js` es una entrada de Vite declarada en `vite.config.js`, aunque las vistas actuales cargan Tailwind por CDN.
-- `AGENTS.md`, `CLAUDE.md` y `boost.json` contienen configuración de asistencia/desarrollo, no son código de la aplicación.
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
-
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
-
-## About Laravel
-
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
-
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
-
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
-```
-
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
-
-## Contributing
-
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
-
-## Code of Conduct
-
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
-
-## Security Vulnerabilities
-
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
-
-## License
-
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+- `AGENTS.md`, `boost.json` y `.github/copilot-instructions.md` contienen configuración de asistencia/desarrollo, no son código de la aplicación.

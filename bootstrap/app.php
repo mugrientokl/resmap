@@ -4,6 +4,7 @@ use App\Http\Middleware\EnsureActiveUser;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\ForceHttps;
 use App\Http\Middleware\NoStoreMiddleware;
+use App\Http\Middleware\RequestRateLimiter;
 use App\Http\Middleware\RoleMiddleware;
 use App\Services\RegistroActividad;
 use Illuminate\Auth\Access\AuthorizationException;
@@ -40,6 +41,9 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('actividad:verificar')
             ->dailyAt('03:30')
             ->withoutOverlapping();
+        $schedule->command('notificaciones:depurar')
+            ->dailyAt('03:45')
+            ->withoutOverlapping();
         $schedule->command('app:marcar-cotizaciones-vencidas')
             ->everyFiveMinutes()
             ->withoutOverlapping();
@@ -55,7 +59,11 @@ return Application::configure(basePath: dirname(__DIR__))
             NoStoreMiddleware::class,
             EnsureActiveUser::class,
         ]);
-        $middleware->alias(['role' => RoleMiddleware::class, 'permiso' => EnsurePermission::class]);
+        $middleware->alias([
+            'role' => RoleMiddleware::class,
+            'permiso' => EnsurePermission::class,
+            'request.limit' => RequestRateLimiter::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(

@@ -22,7 +22,6 @@ class InventarioMovimientoController extends Controller
         'grupo:uso_interno' => 'Uso interno',
         'grupo:venta' => 'Venta',
         'grupo:stock_inicial' => 'Stock inicial',
-        'grupo:otros' => 'Otros',
     ];
 
     public function index(Request $request)
@@ -43,7 +42,7 @@ class InventarioMovimientoController extends Controller
                 $query->where('tipo', $filters['tipo']);
             })
             ->when(isset($filters['motivo']), function ($query) use ($filters): void {
-                if (array_key_exists($filters['motivo'], self::MOTIVOS_FILTRO)) {
+                if (\array_key_exists($filters['motivo'], self::MOTIVOS_FILTRO)) {
                     $query->whereRaw(
                         '(case
                             when tipo = ? then ?
@@ -52,7 +51,7 @@ class InventarioMovimientoController extends Controller
                             when motivo = ? then ?
                             when motivo = ? then ?
                             when tipo = ? then ?
-                            when motivo in (?, ?) then ?
+                            when motivo in (?, ?, ?) then ?
                             else ?
                         end) = ?',
                         [
@@ -62,8 +61,8 @@ class InventarioMovimientoController extends Controller
                             'Devolución', 'grupo:devolucion',
                             'Uso interno', 'grupo:uso_interno',
                             'ajuste', 'grupo:ajuste',
-                            'Producto creado', 'Stock inicial reconstruido para el historial de ventas', 'grupo:stock_inicial',
-                            'grupo:otros', $filters['motivo'],
+                            'Producto creado', 'Stock inicial', 'Stock inicial reconstruido para el historial de ventas', 'grupo:stock_inicial',
+                            'grupo:desconocido', $filters['motivo'],
                         ],
                     );
                 } else {
@@ -112,14 +111,15 @@ class InventarioMovimientoController extends Controller
             ->get(['id_movimiento', 'id_producto', 'fecha_evento', 'created_at', 'cantidad_adquirida', 'precio_entrada', 'proveedor'])
             ->keyBy('id_producto');
 
-        return Producto::query()
+        return DB::table('productos')
             ->leftJoin('categorias', 'categorias.id_categoria', '=', 'productos.id_categoria')
             ->orderBy('productos.nombre')
             ->get([
                 'productos.id_producto', 'productos.nombre', 'productos.codigo_barra', 'productos.codigo_origen',
                 'productos.stock', 'productos.id_categoria', 'categorias.nombre_categoria',
+                'productos.precio', 'productos.costo_promedio_neto', 'productos.margen_objetivo', 'productos.modo_precio',
             ])
-            ->map(function (Producto $producto) use ($ultimasAdquisiciones): array {
+            ->map(function (object $producto) use ($ultimasAdquisiciones): array {
                 $categoria = $producto->nombre_categoria ?? 'Sin Categoría';
                 $adquisicion = $ultimasAdquisiciones->get($producto->id_producto);
 
@@ -127,6 +127,10 @@ class InventarioMovimientoController extends Controller
                     'id' => $producto->id_producto,
                     'categoria' => $producto->id_categoria,
                     'stock' => (int) $producto->stock,
+                    'precio' => (float) $producto->precio,
+                    'costo_promedio_neto' => $producto->costo_promedio_neto !== null ? (float) $producto->costo_promedio_neto : null,
+                    'margen_objetivo' => (float) $producto->margen_objetivo,
+                    'modo_precio' => $producto->modo_precio,
                     'busqueda' => trim($producto->nombre.' '.$categoria.' '.$producto->codigo_barra.' '.($producto->codigo_origen ?? '')),
                     'etiqueta' => $producto->nombre.' | Cat: '.$categoria.' | Stock: '.$producto->stock,
                     'ultima_adquisicion' => $adquisicion ? [
@@ -160,11 +164,19 @@ class InventarioMovimientoController extends Controller
             'documento_proveedor' => $movimiento->documento_proveedor,
             'precio_entrada' => $movimiento->precio_entrada !== null ? (float) $movimiento->precio_entrada : null,
             'cantidad_adquirida' => $movimiento->cantidad_adquirida,
-            'precio_unitario_adquisicion' => $movimiento->precio_entrada !== null && $movimiento->cantidad_adquirida > 0
-                ? round((float) $movimiento->precio_entrada / $movimiento->cantidad_adquirida, 2)
-                : null,
-            'precio_venta_recomendado' => $movimiento->precio_entrada !== null && $movimiento->cantidad_adquirida > 0
-                ? round(((float) $movimiento->precio_entrada / $movimiento->cantidad_adquirida) * 1.19, 2)
+            'precio_unitario_adquisicion' => $movimiento->costo_unitario_neto !== null
+                ? (float) $movimiento->costo_unitario_neto
+                : ($movimiento->precio_entrada !== null && $movimiento->cantidad_adquirida > 0
+                    ? round((float) $movimiento->precio_entrada / $movimiento->cantidad_adquirida, 2)
+                    : null),
+            'costo_total_neto' => $movimiento->costo_total_neto !== null
+                ? (float) $movimiento->costo_total_neto
+                : $movimiento->precio_entrada,
+            'precio_venta_recomendado' => $movimiento->costo_unitario_neto !== null
+                ? Producto::calcularPrecioVentaRecomendado(
+                    (float) $movimiento->costo_unitario_neto,
+                    (float) ($movimiento->producto?->margen_objetivo ?? 30),
+                )
                 : null,
             'observaciones' => $movimiento->observaciones,
             'venta' => $movimiento->venta ? [
@@ -185,7 +197,7 @@ class InventarioMovimientoController extends Controller
     {
         $multiple = $request->has('productos');
         $requiereProveedor = $request->input('tipo') === 'adquisicion'
-            || in_array($request->input('motivo'), ['Compra / Adquisición', 'Devolución'], true);
+            || \in_array($request->input('motivo'), ['Compra / Adquisición', 'Devolución'], true);
 
         $rules = [
             'tipo' => ['nullable', 'string', 'in:adquisicion,merma,ajuste,ingreso,egreso'],
@@ -202,6 +214,7 @@ class InventarioMovimientoController extends Controller
                 'productos.*.id_producto' => ['required', 'integer', 'distinct', 'exists:productos,id_producto'],
                 'productos.*.cantidad' => ['required', 'integer', 'min:'.($request->input('tipo') === 'ajuste' ? 0 : 1), 'max:2147483647'],
                 'productos.*.precio_entrada' => [Rule::requiredIf($esCompra), 'nullable', 'numeric', 'min:0', 'max:99999999.99'],
+                'productos.*.aplicar_precio_venta' => ['nullable', 'boolean'],
             ];
         } else {
             $rules += [
@@ -209,6 +222,7 @@ class InventarioMovimientoController extends Controller
                 'stock_nuevo' => [Rule::requiredIf(! $request->filled('tipo') || $request->input('tipo') === 'ajuste'), 'nullable', 'integer', 'min:0', 'max:2147483647'],
                 'cantidad' => ['nullable', 'required_if:tipo,adquisicion,merma,ingreso,egreso', 'integer', 'min:1', 'max:2147483647'],
                 'precio_entrada' => ['nullable', 'required_if:tipo,adquisicion', 'numeric', 'min:0', 'max:99999999.99'],
+                'aplicar_precio_venta' => ['nullable', 'boolean'],
             ];
         }
         $validated = $request->validate($rules);
@@ -219,7 +233,7 @@ class InventarioMovimientoController extends Controller
                 'egreso' => ['Merma / Daño', 'Devolución'],
                 'ajuste' => ['Ajuste de inventario', 'Uso interno'],
             ];
-            if (! in_array($validated['motivo'], $motivosPermitidos[$validated['tipo'] ?? ''] ?? [], true)) {
+            if (! \in_array($validated['motivo'], $motivosPermitidos[$validated['tipo'] ?? ''] ?? [], true)) {
                 throw ValidationException::withMessages(['motivo' => 'El motivo no corresponde al tipo de movimiento.']);
             }
         }
@@ -227,7 +241,7 @@ class InventarioMovimientoController extends Controller
         if ($validated['motivo'] === 'Devolución' && ($validated['tipo'] ?? 'ajuste') !== 'egreso') {
             throw ValidationException::withMessages(['tipo' => 'Una devolución al proveedor debe ser un egreso.']);
         }
-        if ($validated['motivo'] === 'Compra / Adquisición' && ! in_array($validated['tipo'] ?? 'ajuste', ['ingreso', 'adquisicion'], true)) {
+        if ($validated['motivo'] === 'Compra / Adquisición' && ! \in_array($validated['tipo'] ?? 'ajuste', ['ingreso', 'adquisicion'], true)) {
             throw ValidationException::withMessages(['tipo' => 'Una adquisición debe ser un ingreso.']);
         }
         if (! $multiple && $esCompra && ! isset($validated['precio_entrada'])) {
@@ -248,6 +262,7 @@ class InventarioMovimientoController extends Controller
                     'id_producto' => $validated['id_producto'],
                     'cantidad' => $tipo === 'ajuste' ? ($validated['stock_nuevo'] ?? 0) : ($validated['cantidad'] ?? 0),
                     'precio_entrada' => $validated['precio_entrada'] ?? null,
+                    'aplicar_precio_venta' => (bool) ($validated['aplicar_precio_venta'] ?? false),
                 ]];
                 usort($lineas, fn (array $primera, array $segunda): int => (int) $primera['id_producto'] <=> (int) $segunda['id_producto']);
                 foreach ($lineas as $linea) {
@@ -278,17 +293,31 @@ class InventarioMovimientoController extends Controller
 
                     $datosProducto = ['stock' => $stockNuevo];
                     if ($esCompra && isset($linea['precio_entrada']) && $cantidad > 0) {
-                        $precioConIva = round(((float) $linea['precio_entrada'] / $cantidad) * 1.19, 2);
-                        if ($precioConIva > 99999999.99) {
-                            throw new \RuntimeException('El precio resultante supera el máximo permitido.');
+                        $costoUnitarioNeto = (float) $linea['precio_entrada'];
+                        $costoPromedio = Producto::calcularCostoPromedioPonderado(
+                            $stockAnterior,
+                            $producto->costo_promedio_neto !== null ? (float) $producto->costo_promedio_neto : null,
+                            $cantidad,
+                            $costoUnitarioNeto,
+                        );
+                        $datosProducto['costo_promedio_neto'] = $costoPromedio;
+
+                        if ((bool) ($linea['aplicar_precio_venta'] ?? false)) {
+                            $precioRecomendado = Producto::calcularPrecioVentaRecomendado(
+                                $costoPromedio,
+                                (float) $producto->margen_objetivo,
+                            );
+                            if ($precioRecomendado > 99999999.99) {
+                                throw new \RuntimeException('El precio resultante supera el máximo permitido.');
+                            }
+                            $datosProducto['precio'] = $precioRecomendado;
                         }
-                        $datosProducto['precio'] = $precioConIva;
                     }
                     $producto->update($datosProducto);
 
                     InventarioMovimiento::create([
                         'id_producto' => $producto->id_producto,
-                        'user_id' => $request->user()->id,
+                        'user_id' => $request->user()->getAuthIdentifier(),
                         'tipo' => $tipo,
                         'cantidad' => $cantidad,
                         'stock_anterior' => $stockAnterior,
@@ -299,8 +328,14 @@ class InventarioMovimientoController extends Controller
                         'proveedor' => $proveedor?->nombre,
                         'contacto_proveedor' => $proveedor?->contacto,
                         'documento_proveedor' => $validated['documento_proveedor'] ?? null,
-                        'precio_entrada' => $esCompra ? ($linea['precio_entrada'] ?? null) : null,
+                        'precio_entrada' => $esCompra
+                            ? round((float) ($linea['precio_entrada'] ?? 0) * $cantidad, 2)
+                            : null,
                         'cantidad_adquirida' => $esCompra ? $cantidad : null,
+                        'costo_unitario_neto' => $esCompra ? (float) ($linea['precio_entrada'] ?? 0) : null,
+                        'costo_total_neto' => $esCompra
+                            ? round((float) ($linea['precio_entrada'] ?? 0) * $cantidad, 2)
+                            : null,
                         'observaciones' => $validated['observaciones'] ?? null,
                     ]);
                 }

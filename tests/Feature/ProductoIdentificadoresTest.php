@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Models\Producto;
 use App\Models\User;
-use Database\Seeders\ProductoRealSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
@@ -12,6 +11,38 @@ use Tests\TestCase;
 class ProductoIdentificadoresTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_new_product_calculates_and_persists_automatic_sale_price(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $categoria = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Prueba']);
+
+        $this->actingAs($admin)->post(route('productos.store'), [
+            'codigo_barra' => 'FIL777',
+            'nombre' => 'Filtro automático',
+            'precio' => '999',
+            'stock' => 5,
+            'stock_critico' => 1,
+            'id_categoria' => $categoria,
+            'unidad' => 'unidad',
+            'activo' => '1',
+            'modo_precio' => 'automatico',
+            'costo_neto_unitario' => '1000',
+            'margen_objetivo' => '30',
+        ])->assertSessionHasNoErrors();
+
+        $producto = Producto::where('nombre', 'Filtro automático')->firstOrFail();
+        $this->assertSame(1547.0, (float) $producto->precio);
+        $this->assertSame(1000.0, (float) $producto->costo_promedio_neto);
+        $this->assertSame(30.0, (float) $producto->margen_objetivo);
+        $this->assertSame('automatico', $producto->modo_precio);
+        $this->assertDatabaseHas('inventario_movimientos', [
+            'id_producto' => $producto->id_producto,
+            'motivo' => 'Stock inicial',
+            'costo_unitario_neto' => 1000,
+            'costo_total_neto' => 5000,
+        ]);
+    }
 
     public function test_existing_identifiers_are_preserved_and_duplicates_are_renamed(): void
     {
@@ -50,6 +81,49 @@ class ProductoIdentificadoresTest extends TestCase
         $this->put(route('productos.update', $producto->id_producto), [...$datos, 'codigo_barra' => 'OTRO'])->assertSessionHasErrors('codigo_barra');
         $this->put(route('productos.update', $producto->id_producto), [...$datos, 'codigo_barra' => $producto->codigo_barra])
             ->assertSessionHasNoErrors();
+    }
+
+    public function test_manual_codes_follow_the_name_prefix_and_reject_duplicates(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $categoria = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Prueba']);
+        $datos = [
+            'nombre' => 'Filtro hidráulico',
+            'codigo_barra' => 'fil245',
+            'precio' => 100,
+            'stock' => 1,
+            'stock_critico' => 1,
+            'id_categoria' => $categoria,
+            'unidad' => 'unidad',
+            'activo' => '1',
+        ];
+
+        $this->actingAs($admin)
+            ->post(route('productos.store'), $datos)
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('productos', [
+            'nombre' => 'Filtro hidráulico',
+            'codigo_barra' => 'FIL245',
+            'codigo_origen' => 'FIL245',
+        ]);
+
+        $this->post(route('productos.store'), [
+            ...$datos,
+            'nombre' => 'Filtro especial',
+            'codigo_barra' => 'fil245',
+        ])->assertSessionHasErrors(['codigo_barra' => 'Ya existe un repuesto con ese código.']);
+
+        $this->post(route('productos.store'), [
+            ...$datos,
+            'nombre' => 'Martillo',
+            'codigo_barra' => 'FIL001',
+        ])->assertSessionHasErrors(['codigo_barra' => 'El código debe comenzar con las tres primeras letras del nombre.']);
+
+        $this->post(route('productos.store'), [
+            ...$datos,
+            'nombre' => 'Martillo',
+            'codigo_barra' => 'MAR1',
+        ])->assertSessionHasErrors('codigo_barra');
     }
 
     public function test_names_are_unique_ignoring_unicode_case_on_create_and_update(): void
@@ -128,18 +202,5 @@ class ProductoIdentificadoresTest extends TestCase
         $this->assertTrue(Producto::nombreExiste('MARTILLO'));
         $migration->down();
         $this->assertDatabaseHas('productos', ['nombre' => 'Martíllo', 'codigo_barra' => 'ANT002']);
-    }
-
-    public function test_import_can_run_twice_without_creating_duplicate_products(): void
-    {
-        $this->seed(ProductoRealSeeder::class);
-        $cantidad = Producto::count();
-        $codigos = Producto::orderBy('id_producto')->pluck('codigo_barra', 'id_producto')->all();
-        $this->assertGreaterThan(0, $cantidad);
-        $this->assertEmpty(array_filter($codigos, fn (string $codigo): bool => ! preg_match('/^[A-Z]{3}\d{3,}$/', $codigo)));
-
-        $this->seed(ProductoRealSeeder::class);
-        $this->assertSame($cantidad, Producto::count());
-        $this->assertSame($codigos, Producto::orderBy('id_producto')->pluck('codigo_barra', 'id_producto')->all());
     }
 }

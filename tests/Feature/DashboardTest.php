@@ -7,6 +7,7 @@ use App\Models\Cliente;
 use App\Models\Cotizacion;
 use App\Models\CotizacionVersion;
 use App\Models\DetalleVenta;
+use App\Models\InventarioMovimiento;
 use App\Models\Producto;
 use App\Models\SolicitudWeb;
 use App\Models\User;
@@ -72,12 +73,43 @@ class DashboardTest extends TestCase
             ->assertSee('$2.380')
             ->assertSee('Período de los indicadores')
             ->assertSee((string) now()->year)
+            ->assertSee('Utilidad bruta')
+            ->assertSee('Sin datos completos')
+            ->assertDontSee('Porcentaje de ganancia')
             ->assertDontSee('Accesos rápidos')
             ->assertDontSee('Monto vendido hoy')
             ->assertDontSee('Total de cotizaciones')
             ->assertDontSee('Productos más vendidos esta semana')
             ->assertSee('Top 10 productos más vendidos')
             ->assertSee('ventasMensualesChart', false);
+    }
+
+    public function test_dashboard_replaces_unreliable_percentage_with_gross_profit_when_cost_is_complete(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $producto = $this->producto('DASH-COSTO-001', 'Producto con costo');
+        $venta = $this->venta($admin, 1190);
+        $this->detalle($venta, $producto, 1);
+
+        InventarioMovimiento::create([
+            'id_producto' => $producto->id_producto,
+            'tipo' => 'adquisicion',
+            'cantidad' => 1,
+            'stock_anterior' => 0,
+            'stock_nuevo' => 1,
+            'motivo' => 'Compra / Adquisición',
+            'fecha_evento' => now()->subDay()->toDateString(),
+            'precio_entrada' => 500,
+            'cantidad_adquirida' => 1,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('Utilidad bruta')
+            ->assertSee('$500')
+            ->assertSee('Margen bruto: 50,00%')
+            ->assertDontSee('Porcentaje de ganancia');
     }
 
     public function test_selecting_a_month_filters_cards_charts_and_top_products(): void

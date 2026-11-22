@@ -13,7 +13,7 @@
 
     @if(session('success'))
         <div id="success-toast"
-            class="fixed inset-x-4 top-4 z-[60] mx-auto flex max-w-2xl items-start gap-4 rounded-2xl border border-green-300 bg-green-50 p-5 text-green-950 shadow-[0_20px_60px_rgba(36,24,23,0.25)] sm:top-8 sm:gap-5 sm:p-7"
+            class="fixed inset-x-4 top-4 z-60 mx-auto flex max-w-2xl items-start gap-4 rounded-2xl border border-green-300 bg-green-50 p-5 text-green-950 shadow-[0_20px_60px_rgba(36,24,23,0.25)] sm:top-8 sm:gap-5 sm:p-7"
             role="status" aria-live="polite" data-auto-dismiss>
             <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#e5f5e9] text-[#21713e] sm:h-14 sm:w-14" aria-hidden="true">
                 <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 4 4L19 6"/></svg>
@@ -73,17 +73,17 @@
         </button>
     </form>
 
-    <div class="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         @forelse($productos as $producto)
-            <article class="flex flex-col justify-between bg-white p-6 shadow-sm">
-                <div>
-                    <div class="relative mb-5">
+            <article class="flex h-full flex-col bg-white p-5 shadow-sm sm:p-6">
+                <div class="flex flex-1 flex-col">
+                    <div class="relative mb-5 aspect-square w-full overflow-hidden">
                         @if($producto->imagen)
                             <img src="{{ asset('storage/'.$producto->imagen) }}"
                                 alt="{{ $producto->nombre }}"
-                                class="h-48 w-full object-cover">
+                                class="h-full w-full object-cover">
                         @else
-                            <div class="flex h-48 items-center justify-center bg-[#f7e8e6] text-sm font-bold uppercase tracking-widest text-[#9f2f25]">
+                            <div class="flex h-full w-full items-center justify-center bg-[#f7e8e6] text-sm font-bold uppercase tracking-widest text-[#9f2f25]">
                                 RESMAP
                             </div>
                         @endif
@@ -98,7 +98,7 @@
                         {{ $producto->categoria?->nombre_categoria ?? 'Repuesto' }}
                     </p>
 
-                    <h2 class="mt-3 text-lg font-black text-[#241817]">
+                    <h2 class="mt-3 min-h-14 text-lg font-black text-[#241817]">
                         {{ $producto->nombre }}
                     </h2>
 
@@ -106,10 +106,12 @@
                         <p class="mt-2 text-xs font-bold text-amber-700">
                             Sin stock disponible. Stock: 0
                         </p>
+                    @else
+                        <p class="mt-2 min-h-4"></p>
                     @endif
                 </div>
 
-                <div class="mt-7 flex items-center justify-between gap-3">
+                <div class="mt-auto flex items-center justify-between gap-3 pt-5">
                     <span class="text-xl font-black text-[#8f241d]">
                         $ {{ number_format($producto->precio, 0, ',', '.') }}
 

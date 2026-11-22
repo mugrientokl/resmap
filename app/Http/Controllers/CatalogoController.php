@@ -18,7 +18,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\ValidationException;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class CatalogoController extends Controller
 {
@@ -296,30 +295,15 @@ class CatalogoController extends Controller
         User::whereIn('rol', ['Administrador', 'Vendedor'])
             ->get()
             ->filter(fn (User $user): bool => $user->tienePermiso('cotizaciones.ver'))
-            ->each(function (User $user) use (
-                $notificacion,
-                $solicitud
-            ): void {
+            ->each(function (User $user) use ($notificacion, $solicitud): void {
                 try {
-                    $user->notify($notificacion);
-                } catch (TransportExceptionInterface $exception) {
-                    Log::warning(
-                        'La solicitud quedó registrada, pero falló el correo interno.',
-                        [
-                            'solicitud_id' => $solicitud->id_solicitud,
-                            'usuario_id' => $user->id,
-                            'error' => $exception->getMessage(),
-                        ]
-                    );
+                    $user->notify($notificacion->afterCommit());
                 } catch (\Throwable $exception) {
-                    Log::warning(
-                        'No fue posible enviar la notificación de solicitud web.',
-                        [
-                            'solicitud_id' => $solicitud->id_solicitud,
-                            'usuario_id' => $user->id,
-                            'error' => $exception->getMessage(),
-                        ]
-                    );
+                    Log::warning('La solicitud quedó registrada, pero falló el correo interno.', [
+                        'solicitud_id' => $solicitud->id_solicitud,
+                        'usuario_id' => $user->id,
+                        'error' => $exception->getMessage(),
+                    ]);
                 }
             });
 

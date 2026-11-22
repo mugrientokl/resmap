@@ -174,7 +174,13 @@
                             @endforeach
                         </ul>
                         @if($version->enviada_at)
-                            <p class="mt-2 text-xs text-gray-600">Correo: {{ str_replace('_', ' ', $version->email_estado ?: 'no enviado') }} · WhatsApp: {{ str_replace('_', ' ', $version->whatsapp_estado ?: 'no enviado') }}</p>
+                            <p class="mt-2 text-xs text-gray-600" role="status">
+                                Correo: {{ str_replace('_', ' ', $version->email_estado ?: 'no enviado') }} ·
+                                WhatsApp: {{ str_replace('_', ' ', $version->whatsapp_estado ?: 'no enviado') }}
+                                @if(in_array('en_cola', [$version->email_estado, $version->whatsapp_estado], true))
+                                    · Actualizando estado automáticamente
+                                @endif
+                            </p>
                         @endif
                     </div>
                 @endforeach
@@ -268,8 +274,22 @@
                         <h3 class="text-lg font-black">Generar resumen interno · Venta #{{ $venta->id_venta }}</h3>
                         <p class="text-sm text-amber-800">Este documento no es una factura ni un DTE tributario.</p>
                         <fieldset class="space-y-3 rounded-md border border-[#ead8d5] bg-[#fffaf9] p-4">
+                            <legend class="px-1 font-black">Tipo de documento</legend>
+                            <label class="block text-sm font-bold">Documento *
+                                <select id="tipo_documento_resumen" name="tipo_documento" required class="mt-1 block w-full rounded-md border p-2">
+                                    <option value="Boleta Electrónica" @selected(old('tipo_documento', $venta->tipo_documento) === 'Boleta Electrónica')>Boleta electrónica (39)</option>
+                                    <option value="Factura Electrónica" @selected(old('tipo_documento', $venta->tipo_documento ?? 'Factura Electrónica') === 'Factura Electrónica')>Factura electrónica (33)</option>
+                                </select>
+                            </label>
+                            <p class="text-xs leading-5 text-gray-600">Selecciona primero el documento. Los campos del receptor cambiarán según corresponda.</p>
+                        </fieldset>
+                        <fieldset class="space-y-3 rounded-md border border-[#ead8d5] bg-[#fffaf9] p-4">
                             <legend class="px-1 font-black">Datos del emisor</legend>
-                            <p class="text-sm">RESMAP · RUT 76.991.966-K<br>Av. Gabriela Mistral 1255, Bodega 48, Los Ángeles · resmap.la@gmail.com</p>
+                            <p class="text-sm leading-6">RESMAP SPA · RUT 76.991.966-K<br>
+                                Giro: venta de repuestos y servicios eléctricos en terreno de maquinaria pesada, ferretería<br>
+                                Av. Gabriela Mistral 1255, Bodega 48, Los Ángeles · resmap.la@gmail.com · +56 9 76477124<br>
+                                Tipo de venta: Del giro · S.I.I. Los Ángeles
+                            </p>
                             <label class="block text-sm font-bold">Giro y ACTECO
                                 <select name="acteco_emisor" required class="mt-1 block w-full rounded-md border p-2">
                                     <option value="">Selecciona un giro</option>
@@ -292,18 +312,33 @@
                                     'nombre' => ['Razón social', $cliente->razon_social ?: $cliente->nombre, 255],
                                     'giro' => ['Giro', $cliente->giro, 255],
                                     'direccion' => ['Dirección', $cliente->direccion, 255],
+                                    'region' => ['Región', $cliente->region, 100],
                                     'comuna' => ['Comuna', $cliente->comuna, 100],
                                     'ciudad' => ['Ciudad', $cliente->ciudad, 100],
                                     'contacto' => ['Contacto', $solicitud->contacto ?: $cliente->contacto, 255],
                                     'correo' => ['Correo', $cliente->correo, 255],
+                                    'telefono' => ['Teléfono', $cliente->telefono, 20],
                                 ] as $campo => [$etiqueta, $valor, $maximo])
-                                    <label class="text-sm font-bold">{{ $etiqueta }}
-                                        <input name="{{ $campo }}" type="{{ $campo === 'correo' ? 'email' : 'text' }}" value="{{ old($campo, $datosResumen[$campo] ?? $valor) }}" required maxlength="{{ $maximo }}" @if($campo === 'rut') data-rut autocomplete="off" @endif class="mt-1 block w-full rounded-md border p-2">
+                                    <label class="{{ in_array($campo, ['giro', 'direccion', 'region', 'comuna', 'ciudad'], true) ? 'dato-factura-resumen ' : '' }}text-sm font-bold">{{ $etiqueta }}
+                                        <input name="{{ $campo }}" type="{{ $campo === 'correo' ? 'email' : 'text' }}" value="{{ old($campo, $datosResumen[$campo] ?? $valor) }}" @if(in_array($campo, ['rut','nombre','contacto','correo'], true)) required @elseif(in_array($campo, ['giro','direccion','region','comuna','ciudad'], true)) data-requerido-factura @endif maxlength="{{ $maximo }}" @if($campo === 'rut') data-rut autocomplete="off" @endif class="mt-1 block w-full rounded-md border p-2">
                                     </label>
                                 @endforeach
                                 <label class="text-sm font-bold">Tipo de compra
                                     <select name="tipo_compra" required class="mt-1 block w-full rounded-md border p-2">
                                         <option value="del_giro" @selected(old('tipo_compra', $datosResumen['tipo_compra'] ?? 'del_giro') === 'del_giro')>Del giro</option>
+                                    </select>
+                                </label>
+                                <label class="text-sm font-bold">Forma de pago
+                                    <select name="forma_pago" required class="mt-1 block w-full rounded-md border p-2">
+                                        <option value="Contado" @selected(old('forma_pago', $datosResumen['forma_pago'] ?? 'Contado') === 'Contado')>Contado</option>
+                                        <option value="Crédito" @selected(old('forma_pago', $datosResumen['forma_pago'] ?? '') === 'Crédito')>Crédito</option>
+                                    </select>
+                                </label>
+                                <label class="text-sm font-bold">Medio de pago
+                                    <select name="medio_pago" required class="mt-1 block w-full rounded-md border p-2">
+                                        @foreach(['Efectivo', 'Transferencia', 'Tarjeta', 'Crédito'] as $medio)
+                                            <option value="{{ $medio }}" @selected(old('medio_pago', $venta->medio_pago) === $medio)>{{ $medio }}</option>
+                                        @endforeach
                                     </select>
                                 </label>
                             </div>
@@ -322,6 +357,19 @@
 </div>
 <script src="{{ asset('js/rut.js') }}"></script>
 <script>
+    @if(in_array('en_cola', [$ultimaVersion?->email_estado, $ultimaVersion?->whatsapp_estado], true))
+        const claveActualizacionCotizacion = 'cotizacion-envio-{{ $ultimaVersion?->id_version }}';
+        const intentosActualizacion = Number(sessionStorage.getItem(claveActualizacionCotizacion) || 0);
+        if (intentosActualizacion < 6) {
+            sessionStorage.setItem(claveActualizacionCotizacion, String(intentosActualizacion + 1));
+            setTimeout(() => window.location.reload(), 5000);
+        }
+    @else
+        @if($ultimaVersion)
+            sessionStorage.removeItem('cotizacion-envio-{{ $ultimaVersion->id_version }}');
+        @endif
+    @endif
+
     const repuestosServicio = document.getElementById('repuestos-servicio');
     const botonRepuestoServicio = document.getElementById('agregar-repuesto-servicio');
     if (repuestosServicio && botonRepuestoServicio) {
@@ -357,13 +405,39 @@
             mensaje.classList.add('hidden');
             mensaje.textContent = '';
             info.textContent = producto ? `Stock: ${producto.stock} · Disponible para esta cotización: ${producto.disponible}.` : '';
-            if (producto && cantidad.value !== '' && Number(cantidad.value) >= 1 && Number(cantidad.value) >= producto.disponible) {
-                mensaje.textContent = 'Stock insuficiente';
-                mensaje.classList.remove('hidden');
-                temporizadoresStock.set(item, setTimeout(() => {
-                    mensaje.classList.add('hidden');
-                    mensaje.textContent = '';
-                }, 3000));
+            cantidad.setCustomValidity('');
+            if (producto) {
+                cantidad.max = String(Math.max(0, producto.disponible));
+                if (producto.disponible <= 0) {
+                    cantidad.value = '0';
+                    cantidad.setCustomValidity('No hay stock disponible para este repuesto.');
+                    mensaje.textContent = 'No hay stock disponible';
+                    mensaje.classList.remove('hidden');
+                    temporizadoresStock.set(item, setTimeout(() => {
+                        mensaje.classList.add('hidden');
+                        mensaje.textContent = '';
+                    }, 3000));
+                } else if (cantidad.value !== '') {
+                    const solicitado = Number.parseInt(cantidad.value, 10) || 1;
+                    const limitado = Math.max(1, Math.min(producto.disponible, solicitado));
+                    if (limitado !== solicitado) {
+                        cantidad.value = String(limitado);
+                        cantidad.setCustomValidity(`La cantidad máxima disponible es ${producto.disponible}.`);
+                        mensaje.textContent = `Stock limitado: máximo ${producto.disponible}`;
+                        mensaje.classList.remove('hidden');
+                        temporizadoresStock.set(item, setTimeout(() => {
+                            mensaje.classList.add('hidden');
+                            mensaje.textContent = '';
+                        }, 3000));
+                    } else if (solicitado >= producto.disponible) {
+                        mensaje.textContent = `Cantidad máxima disponible: ${producto.disponible}`;
+                        mensaje.classList.remove('hidden');
+                        temporizadoresStock.set(item, setTimeout(() => {
+                            mensaje.classList.add('hidden');
+                            mensaje.textContent = '';
+                        }, 3000));
+                    }
+                }
             }
         };
         itemsCotizacion.querySelectorAll('[data-item]').forEach(item => validarItem(item));
@@ -371,6 +445,24 @@
         botonAgregar.addEventListener('click', () => {
             const plantilla = document.getElementById('nuevo-item').innerHTML.replaceAll('__INDEX__', siguienteItem++);
             itemsCotizacion.insertAdjacentHTML('beforeend', plantilla);
+        });
+        itemsCotizacion.closest('form').addEventListener('submit', event => {
+            let bloqueado = false;
+            itemsCotizacion.querySelectorAll('[data-item]').forEach(item => {
+                validarItem(item);
+                const id = item.querySelector('[data-producto-id]').value;
+                const producto = productosPorId.get(id);
+                const cantidad = item.querySelector('[data-cantidad]');
+                const buscador = item.querySelector('[data-buscar-producto]');
+                if (!producto) {
+                    bloqueado = true;
+                    (buscador || cantidad).reportValidity();
+                } else if (producto.disponible <= 0 || Number.parseInt(cantidad.value, 10) > producto.disponible) {
+                    bloqueado = true;
+                    cantidad.reportValidity();
+                }
+            });
+            if (bloqueado) event.preventDefault();
         });
         itemsCotizacion.addEventListener('click', event => {
             if (event.target.closest('[data-quitar]')) event.target.closest('[data-item]').remove();
@@ -399,14 +491,21 @@
                 const opcion = document.createElement('button');
                 opcion.type = 'button';
                 opcion.className = 'block w-full border-b p-2 text-left text-sm hover:bg-gray-100 disabled:text-gray-400';
-                opcion.textContent = `${producto.nombre} · ${producto.codigo} · Stock: ${producto.stock} · Disponible: ${producto.disponible}${seleccionados.has(String(producto.id)) ? ' · Ya agregado' : ''}`;
-                opcion.disabled = seleccionados.has(String(producto.id));
+                const yaAgregado = seleccionados.has(String(producto.id));
+                const sinStock = producto.disponible <= 0;
+                opcion.textContent = `${producto.nombre} · ${producto.codigo} · Stock: ${producto.stock} · Disponible: ${producto.disponible}${yaAgregado ? ' · Ya agregado' : ''}${sinStock ? ' · Sin stock' : ''}`;
+                opcion.disabled = yaAgregado || sinStock;
                 opcion.addEventListener('click', () => {
                     const duplicado = Array.from(itemsCotizacion.querySelectorAll('[data-producto-id]'))
                         .some(input => input !== item.querySelector('[data-producto-id]') && input.value === String(producto.id));
                     if (duplicado) {
                         item.querySelector('[data-stock-info]').textContent = 'Este repuesto ya fue agregado.';
                         opcion.disabled = true;
+                        return;
+                    }
+                    if (producto.disponible <= 0) {
+                        item.querySelector('[data-stock-mensaje]').textContent = 'No hay stock disponible';
+                        item.querySelector('[data-stock-mensaje]').classList.remove('hidden');
                         return;
                     }
                     item.querySelector('[data-producto-id]').value = producto.id;
@@ -427,7 +526,20 @@
     if (formResumen) {
         const rutReceptor = formResumen.elements.rut;
         const mensajeReceptor = document.getElementById('receptor-mensaje');
-        const camposReceptor = ['nombre', 'giro', 'direccion', 'comuna', 'ciudad', 'contacto', 'correo'];
+        const camposReceptor = ['nombre', 'giro', 'direccion', 'region', 'comuna', 'ciudad', 'contacto', 'correo', 'telefono'];
+        const tipoDocumentoResumen = document.getElementById('tipo_documento_resumen');
+
+        function actualizarCamposDocumento() {
+            const requiereFactura = tipoDocumentoResumen.value === 'Factura Electrónica';
+            document.querySelectorAll('.dato-factura-resumen').forEach(campo => {
+                campo.classList.toggle('hidden', !requiereFactura);
+                const input = campo.querySelector('[name]');
+                if (input) input.required = requiereFactura;
+            });
+        }
+
+        tipoDocumentoResumen.addEventListener('change', actualizarCamposDocumento);
+        actualizarCamposDocumento();
         let rutAnterior = window.ResmapRut.normalizar(rutReceptor.value);
         let temporizador;
         let controlador;

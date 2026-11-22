@@ -42,7 +42,7 @@
     @php
         $dinero = fn (float $monto): string => '$'.number_format($monto, 0, ',', '.');
         $maxMensual = max(1, collect($ventasMensuales)->max('total'));
-        $maxDiario = max(1, collect($ventasDiarias)->max('total'));
+        $maxDiario = max(1, collect($ventasSemanales)->max('total'));
         $maxProducto = max(1, collect($productosMasVendidos)->max('total_vendido'));
     @endphp
 
@@ -118,19 +118,19 @@
     </div>
     @else
     <div class="chart">
-        <h2>Ventas por día — {{ ucfirst($seleccion['etiqueta']) }}</h2>
+        <h2>Ventas por semana — {{ ucfirst($seleccion['etiqueta']) }}</h2>
         <table class="bars">
             <tr>
-                @foreach($ventasDiarias as $dia)
+                @foreach($ventasSemanales as $dia)
                     <td>
-                        <div class="{{ $seleccion['dia'] === null || $seleccion['dia'] === $dia['dia'] ? 'bar' : 'bar-light' }}" style="height: {{ max(1, (int) round(($dia['total'] / $maxDiario) * 90)) }}px; width: 80%;"></div>
+                        <div class="bar" style="height: {{ max(1, (int) round(($dia['total'] / $maxDiario) * 90)) }}px; width: 80%;"></div>
                     </td>
                 @endforeach
             </tr>
         </table>
         <table class="labels labels-day axis">
             <tr>
-                @foreach($ventasDiarias as $dia)
+                @foreach($ventasSemanales as $dia)
                     <td>{{ $dia['etiqueta'] }}</td>
                 @endforeach
             </tr>
