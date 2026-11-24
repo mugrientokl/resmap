@@ -58,11 +58,13 @@
         Razón social: {{ $cliente->nombre }}<br>
         RUT: {{ $cliente->rut_formateado }}<br>
         @if(filled($cliente->contacto))Atención / contacto: {{ $cliente->contacto }}<br>@endif
-        @if(filled($version->cotizacion->solicitud->cargo))Cargo: {{ $version->cotizacion->solicitud->cargo }}<br>@endif
+        @if(filled($version->cotizacion->solicitud->cargo))Cargo / área: {{ $version->cotizacion->solicitud->cargo }}<br>@endif
         @if($cliente->correo)Correo: {{ $cliente->correo }}<br>@endif
         Teléfono: {{ $cliente->telefono ?: 'No informado' }}<br>
         Región: {{ $cliente->region ?: 'No informada' }}<br>
+        Comuna: {{ $cliente->comuna ?: 'No informada' }}<br>
         Ciudad: {{ $cliente->ciudad ?: 'No informada' }}<br>
+        Dirección: {{ $cliente->direccion ?: 'No informada' }}<br>
     </div>
     <p class="section-title">DETALLE DE PRODUCTOS</p>
     <table class="items">
@@ -97,7 +99,7 @@
     <div class="footer">
         Esperando tener una buena acogida por parte de ustedes<br>
         Atte.<br>
-        John Sanzana Aravena · +56976477124 · +56951523990<br>
+        John Sanzana Aravena · +56976477124<br>
         resmap.la@gmail.com · Av. Gabriela Mistral 1255, Bodega 48 – Los Ángeles
     </div>
 </body>

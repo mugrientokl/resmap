@@ -15,7 +15,7 @@
         </div>
     @endif
     <form method="POST" action="{{ route('password.email') }}" class="mt-8 space-y-5">@csrf
-        <div><label for="email" class="block text-sm font-bold">Correo</label><input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus class="mt-2 w-full border border-gray-300 p-3"></div>
+        <div><label for="email" class="block text-sm font-bold">Correo</label><input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl" class="mt-2 w-full border border-gray-300 p-3"></div>
         <button class="w-full bg-[#b52f25] p-3 font-bold text-white">Enviar enlace</button>
     </form>
 </main>

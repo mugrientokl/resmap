@@ -14,11 +14,13 @@
         <label class="block text-sm font-bold">Tipo de servicio <span class="text-[#b52f25]" aria-hidden="true">*</span><select name="tipo_servicio" required class="mt-2 w-full border border-[#d9aaa3] p-3"><option value="">Selecciona una opción</option>@foreach(['Mantención', 'Reparación', 'Soldadura'] as $tipo)<option value="{{ $tipo }}" @selected(old('tipo_servicio', $tipoServicioSeleccionado) === $tipo)>{{ $tipo }}</option>@endforeach</select></label>
         <label class="block text-sm font-bold md:col-span-2">Describe tu necesidad <span class="text-[#b52f25]" aria-hidden="true">*</span><textarea name="descripcion_servicio" required minlength="10" maxlength="3000" rows="5" placeholder="Ej.: mantención de maquinaria, soldadura de joystick..." class="mt-2 w-full border border-[#d9aaa3] p-3">{{ old('descripcion_servicio') }}</textarea></label>
         <div class="border-t border-[#e8c8c3] pt-6 md:col-span-2"><h2 class="text-xl font-black text-[#8f241d]">Tus datos</h2></div>
-        <label class="block text-sm font-bold">RUT <span class="text-[#b52f25]" aria-hidden="true">*</span><input name="rut" value="{{ old('rut') }}" required placeholder="12.345.678-5" data-rut maxlength="12" class="mt-2 w-full border border-[#d9aaa3] p-3"><span class="mt-1 block text-xs font-normal text-gray-500">Puedes escribirlo con o sin puntos y guion.</span></label>
+        <label class="block text-sm font-bold md:col-span-2">Tipo de cliente <span class="text-[#b52f25]" aria-hidden="true">*</span><select id="tipo_cliente_servicio" name="tipo_cliente" required class="mt-2 w-full border border-[#d9aaa3] bg-white p-3"><option value="Persona" @selected(old('tipo_cliente', 'Persona') === 'Persona')>Persona natural</option><option value="Empresa" @selected(old('tipo_cliente', 'Persona') === 'Empresa')>Empresa</option></select></label>
+        <label class="block text-sm font-bold"><span id="tipo-identificacion-servicio">{{ old('tipo_cliente', 'Persona') === 'Empresa' ? 'RUT' : 'RUN' }}</span> <span class="text-[#b52f25]" aria-hidden="true">*</span><input name="rut" value="{{ old('rut') }}" required placeholder="12.345.678-5" data-rut maxlength="12" class="mt-2 w-full border border-[#d9aaa3] p-3"><span class="mt-1 block text-xs font-normal text-gray-500">Puedes escribirlo con o sin puntos y guion.</span></label>
         <label class="block text-sm font-bold">Nombre o razón social <span class="text-[#b52f25]" aria-hidden="true">*</span><input name="nombre" value="{{ old('nombre') }}" required class="mt-2 w-full border border-[#d9aaa3] p-3"></label>
+        <label id="giro_servicio_wrapper" class="hidden block text-sm font-bold">Giro <span class="text-[#b52f25]" aria-hidden="true">*</span><input id="giro_servicio" name="giro" value="{{ old('giro') }}" maxlength="255" placeholder="Ej.: comercio de repuestos" class="mt-2 w-full border border-[#d9aaa3] p-3"></label>
         <label class="block text-sm font-bold">Contacto <span class="text-[#b52f25]" aria-hidden="true">*</span><input name="contacto" value="{{ old('contacto') }}" required maxlength="255" placeholder="Persona o responsable" class="mt-2 w-full border border-[#d9aaa3] p-3"></label>
-        <label class="block text-sm font-bold">Cargo <span class="font-normal text-gray-500">(opcional)</span><input name="cargo" value="{{ old('cargo') }}" maxlength="255" placeholder="Ej.: OT, equipo o patente" class="mt-2 w-full border border-[#d9aaa3] p-3"></label>
-        <label class="block text-sm font-bold">Correo <span class="text-[#b52f25]" aria-hidden="true">*</span><input name="correo" type="email" value="{{ old('correo') }}" required maxlength="255" placeholder="correo@ejemplo.cl" class="mt-2 w-full border border-[#d9aaa3] p-3"></label>
+        <label class="block text-sm font-bold">Cargo o área <span class="font-normal text-gray-500">(opcional)</span><input name="cargo" value="{{ old('cargo') }}" maxlength="255" placeholder="Ej.: OT, compras o administración" class="mt-2 w-full border border-[#d9aaa3] p-3"></label>
+        <label class="block text-sm font-bold">Correo <span class="text-[#b52f25]" aria-hidden="true">*</span><input name="correo" type="email" value="{{ old('correo') }}" required maxlength="255" pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl" placeholder="correo@ejemplo.cl" class="mt-2 w-full border border-[#d9aaa3] p-3"></label>
         <div class="block text-sm font-bold"><label for="telefono">Teléfono <span class="text-[#b52f25]" aria-hidden="true">*</span></label><div class="mt-2 flex"><select id="prefijo_telefono" name="prefijo_telefono" required aria-label="Código de país"></select><input id="telefono" name="telefono" value="{{ old('telefono') }}" required pattern="[2-9][0-9]{8}" maxlength="9" inputmode="numeric" placeholder="912345678" class="min-w-0 flex-1 border border-[#d9aaa3] p-3"></div></div>
         <label class="block text-sm font-bold md:col-span-2">Dirección <span class="text-[#b52f25]" aria-hidden="true">*</span><input name="direccion" value="{{ old('direccion') }}" required maxlength="255" class="mt-2 w-full border border-[#d9aaa3] p-3"></label>
         <label class="block text-sm font-bold">Región <span class="text-[#b52f25]" aria-hidden="true">*</span><select id="region_solicitud" name="region" required class="mt-2 w-full border border-[#d9aaa3] bg-white p-3"><option value="">Selecciona una región</option></select></label>
@@ -32,5 +34,16 @@
     inicializarSelectorTelefono('prefijo_telefono', 'telefono');
     document.getElementById('telefono').value = window.telefonoNacionalChile(document.getElementById('telefono').value);
     inicializarUbicacionChile('region_solicitud', 'comuna_solicitud', @json(old('region')), @json(old('comuna')));
+    const tipoCliente = document.getElementById('tipo_cliente_servicio');
+    const giroWrapper = document.getElementById('giro_servicio_wrapper');
+    const giro = document.getElementById('giro_servicio');
+    const actualizarTipoCliente = () => {
+        const esEmpresa = tipoCliente?.value === 'Empresa';
+        document.getElementById('tipo-identificacion-servicio').textContent = esEmpresa ? 'RUT' : 'RUN';
+        giroWrapper?.classList.toggle('hidden', !esEmpresa);
+        if (giro) giro.required = esEmpresa;
+    };
+    tipoCliente?.addEventListener('change', actualizarTipoCliente);
+    actualizarTipoCliente();
 </script>
 @endsection

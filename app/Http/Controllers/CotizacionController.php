@@ -19,6 +19,7 @@ use App\Models\SolicitudWeb;
 use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\OrdenCompraRecibida;
+use App\Rules\CorreoConDominio;
 use App\Rules\RutChileno;
 use App\Services\CotizacionPdf;
 use App\Services\Facturacion\ProveedorFacturacion;
@@ -393,7 +394,7 @@ class CotizacionController extends Controller
             ],
             'contacto' => ['required', 'string', 'max:255'],
             'tipo_compra' => ['required', Rule::in(['del_giro'])],
-            'correo' => ['required', 'email', 'max:255'],
+            'correo' => ['required', 'email', new CorreoConDominio, 'max:255'],
             'telefono' => ['nullable', 'string', 'max:20'],
             'numero_oc' => [Rule::requiredIf($venta->cotizacion_version_id !== null), 'nullable', 'string', 'max:100'],
         ]);

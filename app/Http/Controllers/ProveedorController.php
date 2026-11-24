@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Proveedor;
+use App\Rules\CorreoConDominio;
 use App\Support\TelefonoChileno;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -53,7 +54,7 @@ class ProveedorController extends Controller
             'nombre' => ['required', 'string', 'max:255', Rule::unique('proveedores', 'nombre')->ignore($proveedor?->id)],
             'contacto' => ['required', 'string', 'max:255'],
             'telefono' => ['required', 'string', 'regex:/^\+56[2-9][0-9]{8}$/'],
-            'correo' => ['required', 'string', 'email', 'max:255'],
+            'correo' => ['required', 'string', 'email', new CorreoConDominio, 'max:255'],
             'pagina_web' => ['nullable', 'string', 'url:http,https', 'max:255'],
         ], [
             'nombre.required' => 'El nombre del proveedor es obligatorio.',

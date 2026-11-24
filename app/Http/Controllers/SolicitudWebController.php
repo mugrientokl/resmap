@@ -29,6 +29,13 @@ class SolicitudWebController extends Controller
             'cotizacion.versiones.ordenesCompra',
             'cotizacion.versiones.venta.creditoAutorizadoPor',
         ])
+            ->when($request->filled('tipo'), function ($query) use ($request): void {
+                match ($request->string('tipo')->toString()) {
+                    'cotizaciones' => $query->where('tipo_solicitud', '!=', 'servicio'),
+                    'servicios' => $query->where('tipo_solicitud', 'servicio'),
+                    default => null,
+                };
+            })
             ->when($request->filled('estado'), function ($query) use ($request): void {
                 match ($request->string('estado')->toString()) {
                     'servicios' => $query->where('tipo_solicitud', 'servicio'),
@@ -68,6 +75,7 @@ class SolicitudWebController extends Controller
             })
             ->when($request->filled('desde'), fn ($query) => $query->whereDate('fecha', '>=', $request->date('desde')))
             ->when($request->filled('hasta'), fn ($query) => $query->whereDate('fecha', '<=', $request->date('hasta')))
+            ->orderByDesc('fecha')
             ->orderByDesc('id_solicitud')
             ->paginate(20)
             ->withQueryString();
@@ -137,7 +145,10 @@ class SolicitudWebController extends Controller
             }], 'cantidad')
             ->orderBy('nombre')->get();
         $solicitud->setAttribute('estado_comercial', $this->estadoComercial($solicitud));
-        $cliente = Cliente::desdeSnapshot($solicitud->snapshotDatosCliente());
+        $datosCliente = $solicitud->snapshotDatosCliente();
+        $cliente = $datosCliente !== []
+            ? Cliente::desdeSnapshot($datosCliente)
+            : ($solicitud->cliente ?? Cliente::desdeSnapshot([]));
 
         return view('solicitudes.show', compact('solicitud', 'cliente', 'productos', 'totales', 'productosDisponibles'));
     }

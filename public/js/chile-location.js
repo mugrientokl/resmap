@@ -173,6 +173,13 @@ window.inicializarFormularioCatalogo = function () {
     regionWrapper.innerHTML = '<select id="region_solicitud" name="region" required class="w-full border border-[#d9aaa3] bg-white p-3 text-[#241817]"><option value="">Selecciona una región</option></select>';
     const comunaWrapper = document.createElement('div');
     comunaWrapper.innerHTML = '<select id="comuna_solicitud" name="comuna" required disabled class="w-full border border-[#d9aaa3] bg-white p-3 text-[#241817]"><option value="">Selecciona una comuna</option></select>';
-    submit.before(regionWrapper, comunaWrapper);
-    inicializarUbicacionChile('region_solicitud', 'comuna_solicitud');
+    form.querySelector('#aviso-whatsapp-solicitud').before(regionWrapper, comunaWrapper);
+    const regionInicial = form.dataset.regionInitial || '';
+    const comunaInicial = form.dataset.comunaInitial || '';
+    inicializarUbicacionChile(
+        'region_solicitud',
+        'comuna_solicitud',
+        regionInicial,
+        comunaInicial
+    );
 };

@@ -177,6 +177,10 @@ class ResumenInternoVentaTest extends TestCase
 
         $venta->update(['stock_descontado_at' => now()]);
 
+        $this->postJson(route('ventas.generar-resumen', $venta->id_venta), [
+            'correo' => 'cliente@empresa',
+        ])->assertUnprocessable()->assertJsonValidationErrors('correo');
+
         $this->get(route('solicitudes.show', $solicitud->id_solicitud))
             ->assertSee(route('ventas.generar-resumen', $venta->id_venta), false)
             ->assertSee('Generar resumen interno')

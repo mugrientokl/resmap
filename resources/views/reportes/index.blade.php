@@ -38,7 +38,7 @@
                 <div class="report-section-heading"><div><h3>Detalles de la venta</h3><p>Refina la búsqueda con uno o más filtros.</p></div></div>
                 <div class="report-filter-grid">
                     <label class="report-field"><span>N.º de venta</span><input type="number" name="venta_id" value="{{ request('venta_id') }}" placeholder="Ej. 123"></label>
-                    <label class="report-field"><span>Cliente o RUT</span><input type="search" name="cliente" value="{{ request('cliente') }}" placeholder="Nombre o RUT"></label>
+                    <label class="report-field"><span>Cliente, RUT o RUN</span><input type="search" name="cliente" value="{{ request('cliente') }}" placeholder="Nombre, RUT o RUN"></label>
                     <label class="report-field"><span>Vendedor</span><select name="usuario"><option value="">Todos los vendedores</option>@foreach($usuarios as $usuario)<option value="{{ $usuario->id }}" @selected((string) request('usuario') === (string) $usuario->id)>{{ $usuario->name }}</option>@endforeach</select></label>
                     <label class="report-field"><span>Medio de pago</span><select name="medio_pago"><option value="">Todos los medios de pago</option>@foreach(['Efectivo','Transferencia','Tarjeta','Otro'] as $medio)<option value="{{ $medio }}" @selected(request('medio_pago') === $medio)>{{ $medio }}</option>@endforeach</select></label>
                 </div>

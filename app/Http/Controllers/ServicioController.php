@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\SolicitudWeb;
 use App\Models\User;
 use App\Notifications\SolicitudWebRecibida;
+use App\Rules\CorreoConDominio;
 use App\Rules\RutChileno;
 use App\Services\ActualizarDatosCliente;
 use App\Support\Rut;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class ServicioController extends Controller
 {
@@ -29,11 +31,18 @@ class ServicioController extends Controller
         $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
 
         $data = $request->validate([
+            'tipo_cliente' => ['nullable', 'in:Persona,Empresa'],
             'rut' => ['required', 'string', 'max:20', new RutChileno],
             'nombre' => ['required', 'string', 'max:255'],
+            'giro' => [
+                Rule::requiredIf($request->input('tipo_cliente') === 'Empresa'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'contacto' => ['required', 'string', 'max:255'],
             'cargo' => ['nullable', 'string', 'max:255'],
-            'correo' => ['required', 'email', 'max:255'],
+            'correo' => ['required', 'email', new CorreoConDominio, 'max:255'],
             'prefijo_telefono' => ['required', 'in:+56,+569'],
             'telefono' => ['required', 'regex:/^[0-9]{8,9}$/'],
             'direccion' => ['required', 'string', 'max:255'],
@@ -42,7 +51,7 @@ class ServicioController extends Controller
             'tipo_servicio' => ['required', 'in:Mantención,Reparación,Soldadura'],
             'descripcion_servicio' => ['required', 'string', 'min:10', 'max:3000'],
         ], [
-            'rut.required' => 'Escribe tu RUT, por ejemplo: 12.345.678-5.',
+            'rut.required' => 'Escribe tu RUT o RUN, por ejemplo: 12.345.678-5.',
             'nombre.required' => 'Escribe tu nombre o razón social.',
             'correo.required' => 'Escribe tu correo electrónico.',
             'correo.email' => 'Escribe un correo electrónico válido.',
@@ -61,9 +70,11 @@ class ServicioController extends Controller
 
         $solicitud = DB::transaction(function () use ($data, $telefono, $actualizarCliente): SolicitudWeb {
             $datosCliente = [
+                'tipo_cliente' => $data['tipo_cliente'] ?? 'Persona',
                 'rut' => $data['rut'],
                 'nombre' => $data['nombre'],
                 'contacto' => $data['contacto'],
+                'giro' => $data['giro'] ?? null,
                 'correo' => $data['correo'],
                 'telefono' => $telefono,
                 'direccion' => $data['direccion'],

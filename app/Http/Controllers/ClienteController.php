@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Auditoria;
 use App\Models\Cliente;
+use App\Rules\CorreoConDominio;
 use App\Rules\RutChileno;
 use App\Services\ResumenInternoVentaPdf;
 use App\Support\Rut;
@@ -243,7 +244,7 @@ class ClienteController extends Controller
             ],
             'nombre' => ['required', 'string', 'max:255'],
             'contacto' => ['nullable', 'string', 'max:255'],
-            'correo' => ['nullable', 'email', 'max:255'],
+            'correo' => ['nullable', 'email', new CorreoConDominio, 'max:255'],
             'telefono' => ['nullable', 'string', 'regex:/^\+56[2-9][0-9]{8}$/'],
             'direccion' => ['nullable', 'string', 'max:255'],
         ]);

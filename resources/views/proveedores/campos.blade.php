@@ -18,7 +18,7 @@
     <p id="{{ $prefix }}-legacy-phone" class="mt-1 hidden text-sm text-gray-600"></p>
 </div>
 <label class="block text-sm font-medium text-gray-700">Correo electrónico <span class="text-[#b52f25]" aria-hidden="true">*</span>
-    <input id="{{ $prefix }}-email" name="correo" type="email" value="{{ $useOld ? old('correo') : '' }}" required maxlength="255" class="mt-1 w-full rounded-md border border-gray-300 p-2">
+    <input id="{{ $prefix }}-email" name="correo" type="email" value="{{ $useOld ? old('correo') : '' }}" required maxlength="255" pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl" class="mt-1 w-full rounded-md border border-gray-300 p-2">
 </label>
 <label class="block text-sm font-medium text-gray-700">Página web (opcional)
     <input id="{{ $prefix }}-website" name="pagina_web" type="url" value="{{ $useOld ? old('pagina_web') : '' }}" maxlength="255" placeholder="https://ejemplo.cl" class="mt-1 w-full rounded-md border border-gray-300 p-2">

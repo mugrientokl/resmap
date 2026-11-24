@@ -10,6 +10,7 @@ use App\Models\ReservaInventario;
 use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\ProductoStockCritico;
+use App\Rules\CorreoConDominio;
 use App\Rules\RutChileno;
 use App\Services\ResumenInternoVentaPdf;
 use App\Support\Rut;
@@ -47,7 +48,7 @@ class VentaController extends Controller
                 'string',
                 'max:255',
             ],
-            'correo_cliente' => 'required|email|max:255',
+            'correo_cliente' => ['required', 'email', new CorreoConDominio, 'max:255'],
             'telefono_cliente' => ['nullable', 'string', 'regex:/^\+56[2-9][0-9]{8}$/'],
             'direccion_cliente' => [
                 Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),

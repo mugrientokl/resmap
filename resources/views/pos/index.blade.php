@@ -268,13 +268,13 @@
 
                 <div>
                     <label for="rut" class="block text-xs font-medium text-gray-700">
-                        RUT Empresa / Cliente
+                        <span id="tipo-identificacion-pos">RUN (persona / boleta)</span>
                     </label>
                     <input type="text" id="rut" placeholder="12.345.678-9" data-rut maxlength="12"
                         autocomplete="off"
                         class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                     <p id="mensaje-cliente" class="mt-1 text-xs text-gray-600" role="status">
-                        Ingresa el RUT para buscar los datos del cliente.
+                        Ingresa el RUT o RUN para buscar los datos del cliente.
                     </p>
                 </div>
 
@@ -312,7 +312,7 @@
                         <label for="correo_cliente" class="block text-xs font-medium text-gray-700">
                             Correo *
                         </label>
-                        <input type="email" id="correo_cliente" required maxlength="255" placeholder="contacto@empresa.cl"
+                        <input type="email" id="correo_cliente" required maxlength="255" pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl" placeholder="contacto@empresa.cl"
                             class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2 text-sm">
                     </div>
 
@@ -474,6 +474,9 @@ comunaCliente.addEventListener('change', () => {
 
 function actualizarRequisitoGiro() {
     const requiereGiro = tipoDocumentoSelect.value === 'Factura Electrónica';
+    document.getElementById('tipo-identificacion-pos').textContent = requiereGiro
+        ? 'RUT (empresa / factura)'
+        : 'RUN (persona / boleta)';
     giroClienteInput.required = requiereGiro;
     etiquetaGiroCliente.textContent = requiereGiro
         ? 'Giro del cliente *'
@@ -859,7 +862,7 @@ async function procesarVenta() {
     const requiereGiro = tipoDocumento === 'Factura Electrónica';
 
     if (!rut || !nombre) {
-        window.resmapAlert('Ingresa el RUT y el nombre del cliente.', 'warning');
+        window.resmapAlert('Ingresa el RUT o RUN y el nombre del cliente.', 'warning');
         return;
     }
 
@@ -1119,7 +1122,7 @@ renderCarro();
         const valor = normalizarRut(rut.value);
 
         if (valor.length < 8 || valor.length > 9) {
-            mostrarMensaje('Ingresa el RUT completo.');
+            mostrarMensaje('Ingresa el RUT o RUN completo.');
             return;
         }
 
@@ -1179,7 +1182,7 @@ renderCarro();
             comuna.value = cliente.comuna || '';
 
             mostrarMensaje(
-                'RUT ya registrado. Se autocompletaron los datos del cliente.',
+                'RUT o RUN ya registrado. Se autocompletaron los datos del cliente.',
                 'success'
             );
             guardarBorrador();

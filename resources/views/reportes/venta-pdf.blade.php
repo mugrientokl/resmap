@@ -158,7 +158,7 @@
     <div class="note"><strong>Documento interno</strong><br>Este resumen no es una boleta, factura ni un documento tributario electrónico.</div>
     <div class="footer">
         <strong>Contacto RESMAP</strong><br>
-        John Sanzana Aravena · +56976477124 · +56951523990<br>
+        John Sanzana Aravena · +56976477124<br>
         resmap.la@gmail.com · Av. Gabriela Mistral 1255, Bodega 48 – Los Ángeles
     </div>
 </body>

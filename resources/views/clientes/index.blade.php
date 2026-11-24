@@ -19,7 +19,7 @@
                 id="clientes-buscar"
                 name="buscar"
                 value="{{ request('buscar') }}"
-                placeholder="Buscar por RUT, nombre o correo"
+                placeholder="Buscar por RUT, RUN, nombre o correo"
                 aria-label="Buscar clientes"
                 autocomplete="off"
                 aria-controls="clientes-sugerencias"

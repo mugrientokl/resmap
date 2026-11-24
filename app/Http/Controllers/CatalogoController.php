@@ -10,6 +10,7 @@ use App\Models\SolicitudWeb;
 use App\Models\User;
 use App\Notifications\NuevaCotizacionPendiente;
 use App\Notifications\SolicitudWebRecibida;
+use App\Rules\CorreoConDominio;
 use App\Rules\RutChileno;
 use App\Services\ActualizarDatosCliente;
 use App\Services\InventarioReservaService;
@@ -17,6 +18,7 @@ use App\Support\Rut;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 class CatalogoController extends Controller
@@ -29,15 +31,7 @@ class CatalogoController extends Controller
         )->first();
 
         return view('welcome', [
-            'categorias' => Categoria::withCount([
-                'productos' => fn ($query) => $query->where('activo', true)->conStockDisponible(),
-            ])
-                ->orderByDesc('productos_count')
-                ->limit(6)
-                ->get(),
-
             'kitsSetsCategory' => $kitsSetsCategory,
-
             'kitsYSets' => $kitsSetsCategory
                 ? Producto::with('categoria')
                     ->withSum('reservasActivas as stock_reservado', 'cantidad')
@@ -45,7 +39,7 @@ class CatalogoController extends Controller
                     ->conStockDisponible()
                     ->where('id_categoria', $kitsSetsCategory->id_categoria)
                     ->orderByDesc('precio')
-                    ->limit(8)
+                    ->limit(3)
                     ->get()
                 : collect(),
         ]);
@@ -96,6 +90,7 @@ class CatalogoController extends Controller
         $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
 
         $data = $request->validate([
+            'tipo_cliente' => ['nullable', 'in:Persona,Empresa'],
             'rut' => [
                 'required',
                 'string',
@@ -103,9 +98,15 @@ class CatalogoController extends Controller
                 new RutChileno,
             ],
             'nombre' => ['required', 'string', 'max:255'],
+            'giro' => [
+                Rule::requiredIf($request->input('tipo_cliente') === 'Empresa'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'contacto' => ['required', 'string', 'max:255'],
             'cargo' => ['nullable', 'string', 'max:255'],
-            'correo' => ['required', 'email', 'max:255'],
+            'correo' => ['required', 'email', new CorreoConDominio, 'max:255'],
             'prefijo_telefono' => ['required', 'in:+56,+569'],
             'telefono' => ['required', 'regex:/^[0-9]{8,9}$/'],
             'direccion' => ['nullable', 'string', 'max:255'],
@@ -155,14 +156,14 @@ class CatalogoController extends Controller
             ],
             'direccion_referencias' => ['nullable', 'string', 'max:1000'],
         ], [
-            'rut.required' => 'Escribe tu RUT, por ejemplo: 12.345.678-5.',
+            'rut.required' => 'Escribe tu RUT o RUN, por ejemplo: 12.345.678-5.',
             'nombre.required' => 'Escribe tu nombre o razón social.',
             'correo.email' => 'Escribe un correo electrónico válido.',
             'telefono.required' => 'Escribe tu teléfono chileno.',
             'telefono.regex' => 'El teléfono debe contener los dígitos nacionales.',
             'correo.required' => 'Escribe el correo donde recibirás tu cotización.',
-            'detalles_productos.required' => 'Agrega al menos un repuesto al carrito.',
-            'detalles_productos.min' => 'Agrega al menos un repuesto al carrito.',
+            'detalles_productos.required' => 'Selecciona al menos un repuesto para cotizar.',
+            'detalles_productos.min' => 'Selecciona al menos un repuesto para cotizar.',
         ]);
 
         $telefono = $data['prefijo_telefono'].$data['telefono'];
@@ -233,9 +234,11 @@ class CatalogoController extends Controller
             }
 
             $datosCliente = [
+                'tipo_cliente' => $data['tipo_cliente'] ?? 'Persona',
                 'rut' => $data['rut'],
                 'nombre' => $data['nombre'],
                 'contacto' => $data['contacto'],
+                'giro' => $data['giro'] ?? null,
                 'correo' => $data['correo'] ?? null,
                 'telefono' => $telefono,
                 'telefono_whatsapp' => $telefono,
@@ -311,7 +314,7 @@ class CatalogoController extends Controller
             ->route('catalogo.index')
             ->with(
                 'success',
-                'Solicitud enviada. El equipo de RESMAP se pondrá en contacto contigo.'
+                'Recibimos tu solicitud. Te enviaremos una cotización que indicará su fecha límite de validez.'
             );
     }
 }

@@ -9,6 +9,14 @@
     </div>
     <form method="GET" class="mb-6 flex flex-wrap items-end gap-3 rounded-lg bg-white p-4 shadow-sm">
         <div>
+            <label for="tipo" class="block text-xs font-bold text-gray-600">Tipo</label>
+            <select id="tipo" name="tipo" class="mt-1 rounded-md border p-2">
+                <option value="">Cotizaciones y servicios</option>
+                <option value="cotizaciones" @selected(request('tipo') === 'cotizaciones')>Solo cotizaciones</option>
+                <option value="servicios" @selected(request('tipo') === 'servicios')>Solo servicios</option>
+            </select>
+        </div>
+        <div>
             <label for="estado" class="block text-xs font-bold text-gray-600">Etapa comercial</label>
             <select id="estado" name="estado" class="mt-1 rounded-md border p-2">
                 <option value="">Todas</option>
@@ -19,7 +27,6 @@
                     'aceptada' => 'Cotización aceptada',
                     'completada' => 'Venta completada',
                     'cerrada' => 'Proceso cerrado',
-                    'servicios' => 'Todos los servicios',
                 ] as $valor => $etiqueta)
                     <option value="{{ $valor }}" @selected(request('estado') === $valor)>{{ $etiqueta }}</option>
                 @endforeach

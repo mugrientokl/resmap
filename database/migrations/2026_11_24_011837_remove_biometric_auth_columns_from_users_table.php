@@ -12,8 +12,13 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('users', function (Blueprint $table) {
-            $table->longText('face_descriptor')->nullable();
-            $table->timestamp('face_consent_at')->nullable();
+            if (Schema::hasColumn('users', 'face_descriptor')) {
+                $table->dropColumn('face_descriptor');
+            }
+
+            if (Schema::hasColumn('users', 'face_consent_at')) {
+                $table->dropColumn('face_consent_at');
+            }
         });
     }
 
@@ -22,8 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn(['face_descriptor', 'face_consent_at']);
-        });
+        // The removed data cannot be reconstructed during rollback.
     }
 };

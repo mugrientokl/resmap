@@ -43,7 +43,7 @@
                     <input id="nuevo-name" name="name" value="{{ old('name') }}" required placeholder="Nombre y apellido" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
                 </label>
                 <label for="nuevo-email" class="block text-sm font-bold text-gray-700">Correo electrónico
-                    <input id="nuevo-email" type="email" name="email" value="{{ old('email') }}" required placeholder="correo@ejemplo.com" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
+                    <input id="nuevo-email" type="email" name="email" value="{{ old('email') }}" required pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl" placeholder="correo@ejemplo.com" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
                 </label>
                 <label for="nuevo-rol" class="block text-sm font-bold text-gray-700">Rol
                     <select id="nuevo-rol" name="rol" required class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">

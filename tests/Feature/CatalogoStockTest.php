@@ -52,6 +52,56 @@ class CatalogoStockTest extends TestCase
         $this->assertDatabaseCount('clientes', 0);
     }
 
+    public function test_catalog_form_preserves_customer_data_after_validation_error(): void
+    {
+        $productId = $this->createProductWithStock(3);
+        $datos = [
+            ...$this->validCustomerData(),
+            'tipo_cliente' => 'Empresa',
+            'giro' => 'Venta de repuestos',
+            'cargo' => 'Compras',
+            'correo' => 'correo-invalido',
+            'prefijo_telefono' => '+56',
+            'telefono' => '912345678',
+            'direccion' => 'Calle 123',
+            'region' => 'Metropolitana de Santiago',
+            'comuna' => 'Santiago',
+            'detalles_productos' => [['id_producto' => $productId, 'cantidad' => 1]],
+        ];
+
+        $response = $this->from(route('catalogo.index'))
+            ->post(route('catalogo.solicitudes.store'), $datos)
+            ->assertRedirect(route('catalogo.index'))
+            ->assertSessionHasErrors('correo');
+
+        foreach ($datos as $campo => $valor) {
+            $response->assertSessionHasInput($campo, $valor);
+        }
+
+        $this->get(route('catalogo.index'))
+            ->assertOk()
+            ->assertSee('value="Empresa" checked', false)
+            ->assertDontSee('value="Persona" checked', false)
+            ->assertSee('name="rut" value="12345678-5"', false)
+            ->assertSee('name="nombre" value="Cliente de prueba"', false)
+            ->assertSee('name="giro" value="Venta de repuestos"', false)
+            ->assertSee('name="contacto" value="Contacto de prueba"', false)
+            ->assertSee('name="cargo" value="Compras"', false)
+            ->assertSee('name="correo" type="email" value="correo-invalido"', false)
+            ->assertSee('value="912345678" required', false)
+            ->assertSee('name="direccion" value="Calle 123"', false)
+            ->assertSee('data-region-initial="Metropolitana de Santiago"', false)
+            ->assertSee('data-comuna-initial="Santiago"', false);
+    }
+
+    public function test_catalog_defaults_to_person_for_the_customer_type(): void
+    {
+        $this->get(route('catalogo.index'))
+            ->assertOk()
+            ->assertSee('value="Persona" required checked', false)
+            ->assertDontSee('value="Empresa" checked', false);
+    }
+
     public function test_duplicate_product_lines_are_combined_before_checking_stock(): void
     {
         $productId = $this->createProductWithStock(3);
@@ -108,11 +158,11 @@ class CatalogoStockTest extends TestCase
 
     public function test_catalog_request_success_shows_a_dedicated_confirmation_without_a_duplicate_notification(): void
     {
-        $this->withSession(['success' => 'El equipo de RESMAP se pondrá en contacto contigo.'])
+        $this->withSession(['success' => 'Recibimos tu solicitud. Te enviaremos una cotización que indicará su fecha límite de validez.'])
             ->get(route('catalogo.index'))
             ->assertOk()
-            ->assertSee('¡Tu cotización ha sido enviada con éxito!')
-            ->assertSee('El equipo de RESMAP se pondrá en contacto contigo.')
+            ->assertSee('¡Tu solicitud ha sido enviada con éxito!')
+            ->assertSee('Te enviaremos una cotización que indicará su fecha límite de validez.')
             ->assertSee('border-green-300 bg-green-50', false)
             ->assertSee('Cerrar confirmación')
             ->assertDontSee('<p class="text-base font-black">Operación completada</p>', false);
@@ -230,6 +280,18 @@ class CatalogoStockTest extends TestCase
         ]);
     }
 
+    public function test_catalog_shows_clear_filters_button_when_filters_are_active(): void
+    {
+        $this->get(route('catalogo.index'))
+            ->assertOk()
+            ->assertDontSee('Limpiar filtros');
+
+        $this->get(route('catalogo.index', ['nombre' => 'repuesto']))
+            ->assertOk()
+            ->assertSee('Limpiar filtros')
+            ->assertSee(route('catalogo.index'), false);
+    }
+
     public function test_inactive_product_is_hidden_and_cannot_be_requested(): void
     {
         $productId = $this->createProductWithStock(3);
@@ -325,12 +387,13 @@ class CatalogoStockTest extends TestCase
         }
 
         $home = $this->get(route('home'))->assertOk()
+            ->assertSee('Servicio técnico de confianza')
+            ->assertSee('Ver todos los kits y sets')
             ->assertSee('Kit disponible')
             ->assertDontSee('Kit reservado')
             ->assertDontSee('Kit agotado');
         $this->assertSame([$availableId], $home->viewData('kitsYSets')->pluck('id_producto')->all());
-        $category = $home->viewData('categorias')->firstWhere('id_categoria', $categoryId);
-        $this->assertSame(1, $category->productos_count);
+        $this->assertLessThanOrEqual(3, $home->viewData('kitsYSets')->count());
 
         $catalog = $this->get(route('catalogo.index'))->assertOk()
             ->assertSee('Kit disponible')
@@ -361,7 +424,6 @@ class CatalogoStockTest extends TestCase
         $this->get(route('home'))
             ->assertOk()
             ->assertDontSee($maliciousName, false)
-            ->assertSee(e($maliciousName), false)
             ->assertSee('escaparHTML(item.nombre)', false);
     }
 

@@ -18,7 +18,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 #[Fillable(['username', 'name', 'email', 'password', 'rol'])]
-#[Hidden(['password', 'remember_token', 'face_descriptor'])]
+#[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements CanResetPasswordContract
 {
     use CanResetPassword, HasFactory, Notifiable, SoftDeletes;
@@ -34,8 +34,6 @@ class User extends Authenticatable implements CanResetPasswordContract
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'activo' => 'boolean',
-            'face_descriptor' => 'encrypted:array',
-            'face_consent_at' => 'datetime',
             'permisos' => 'array',
         ];
     }

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Rules\CorreoConDominio;
 use App\Services\RegistroActividad;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
@@ -39,7 +40,7 @@ class UserController extends Controller
         $validated = $request->validate([
             'username' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', 'unique:users,username'],
             'name' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
+            'email' => ['required', 'email', new CorreoConDominio, 'unique:users,email'],
             'rol' => 'required|in:Administrador,Vendedor',
             'permisos_configurados' => ['sometimes', 'boolean'],
             'permisos' => ['sometimes', 'array'],

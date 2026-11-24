@@ -61,14 +61,48 @@
                     <p class="mt-1 text-sm">{{ $solicitud->estado_comercial['detalle'] }}</p>
                 </div>
             </header>
+            @if($solicitud->snapshotDatosCliente() === [] && $solicitud->cliente)
+                <p class="px-6 pt-5 text-sm text-gray-600">Esta solicitud no tiene datos históricos del cliente; se muestran sus datos actuales.</p>
+            @endif
             <dl class="space-y-4 p-6 text-sm">
-                <div><dt class="font-bold">Cliente</dt><dd>{{ $cliente->nombre }}</dd></div>
-                <div><dt class="font-bold">Contacto</dt><dd>{{ $solicitud->contacto ?: 'No informado' }}</dd></div>
-                <div><dt class="font-bold">Cargo</dt><dd>{{ $solicitud->cargo ?: 'No informado' }}</dd></div>
-                <div><dt class="font-bold">RUT</dt><dd>{{ $cliente->rut_formateado }}</dd></div>
-                <div><dt class="font-bold">Correo</dt><dd>{{ $cliente->correo ?: 'No informado' }}</dd></div>
-                <div><dt class="font-bold">Teléfono</dt><dd>{{ $cliente->telefono ?: 'No informado' }}</dd></div>
-                <div><dt class="font-bold">Dirección</dt><dd>{{ $cliente->direccion ?: 'No informada' }}</dd></div>
+                @php
+                    $datosSolicitud = is_array($solicitud->datos_cliente) ? $solicitud->datos_cliente : [];
+                    $tipoCliente = $datosSolicitud['tipo_cliente'] ?? 'No informado';
+                    $nombreCliente = $datosSolicitud['nombre'] ?? $cliente->nombre;
+                    $direccionCliente = $datosSolicitud['direccion'] ?? $cliente->direccion;
+                    $regionCliente = $datosSolicitud['region'] ?? $cliente->region;
+                    $comunaCliente = $datosSolicitud['comuna'] ?? $cliente->comuna;
+                    $ciudadCliente = $datosSolicitud['ciudad'] ?? $cliente->ciudad;
+                    $giroCliente = $datosSolicitud['giro'] ?? $cliente->giro;
+                    $direccionDespacho = collect([
+                        trim(($solicitud->direccion_calle ?? '').' '.($solicitud->direccion_numero ?? '')),
+                        $solicitud->direccion_comuna,
+                        $solicitud->direccion_ciudad,
+                        $solicitud->direccion_region,
+                    ])->filter()->implode(', ');
+                @endphp
+                <div><dt class="font-bold">Tipo de cliente</dt><dd>{{ $tipoCliente }}</dd></div>
+                <div><dt class="font-bold">{{ $tipoCliente === 'Empresa' ? 'Razón social' : 'Cliente' }}</dt><dd>{{ $nombreCliente ?: 'No informado' }}</dd></div>
+                @if($tipoCliente === 'Empresa')
+                    <div><dt class="font-bold">Giro</dt><dd>{{ $giroCliente ?: 'No informado' }}</dd></div>
+                @endif
+                <div><dt class="font-bold">{{ $tipoCliente === 'Empresa' ? 'RUT' : ($tipoCliente === 'Persona' ? 'RUN' : 'RUT / RUN') }}</dt><dd>{{ $cliente->rut_formateado ?: 'No informado' }}</dd></div>
+                <div><dt class="font-bold">Contacto</dt><dd>{{ $solicitud->contacto ?: ($datosSolicitud['contacto'] ?? ($cliente->contacto ?: 'No informado')) }}</dd></div>
+                <div><dt class="font-bold">Cargo o área</dt><dd>{{ $solicitud->cargo ?: 'No informado' }}</dd></div>
+                <div><dt class="font-bold">Correo electrónico</dt><dd>{{ $datosSolicitud['correo'] ?? ($cliente->correo ?: 'No informado') }}</dd></div>
+                <div><dt class="font-bold">Teléfono</dt><dd>{{ $datosSolicitud['telefono'] ?? ($cliente->telefono ?: 'No informado') }}</dd></div>
+                <div><dt class="font-bold">Dirección</dt><dd>{{ $direccionCliente ?: 'No informada' }}</dd></div>
+                <div><dt class="font-bold">Comuna</dt><dd>{{ $comunaCliente ?: 'No informada' }}</dd></div>
+                <div><dt class="font-bold">Ciudad</dt><dd>{{ $ciudadCliente ?: 'No informada' }}</dd></div>
+                <div><dt class="font-bold">Región</dt><dd>{{ $regionCliente ?: 'No informada' }}</dd></div>
+                @if(!$esServicio)
+                    @if($direccionDespacho)
+                        <div><dt class="font-bold">Dirección de despacho</dt><dd>{{ $direccionDespacho ?: 'No informada' }}</dd></div>
+                    @endif
+                    @if($solicitud->direccion_referencias)
+                        <div><dt class="font-bold">Referencias de entrega</dt><dd>{{ $solicitud->direccion_referencias }}</dd></div>
+                    @endif
+                @endif
             </dl>
         </section>
         <section class="min-w-0 bg-white p-6 shadow-sm">
@@ -308,7 +342,7 @@
                             <legend class="px-1 font-black">Datos del receptor</legend>
                             <div class="grid gap-3 sm:grid-cols-2">
                                 @foreach([
-                                    'rut' => ['RUT', $cliente->rut_formateado, 20],
+                                    'rut' => ['RUT / RUN', $cliente->rut_formateado, 20],
                                     'nombre' => ['Razón social', $cliente->razon_social ?: $cliente->nombre, 255],
                                     'giro' => ['Giro', $cliente->giro, 255],
                                     'direccion' => ['Dirección', $cliente->direccion, 255],
@@ -319,8 +353,8 @@
                                     'correo' => ['Correo', $cliente->correo, 255],
                                     'telefono' => ['Teléfono', $cliente->telefono, 20],
                                 ] as $campo => [$etiqueta, $valor, $maximo])
-                                    <label class="{{ in_array($campo, ['giro', 'direccion', 'region', 'comuna', 'ciudad'], true) ? 'dato-factura-resumen ' : '' }}text-sm font-bold">{{ $etiqueta }}
-                                        <input name="{{ $campo }}" type="{{ $campo === 'correo' ? 'email' : 'text' }}" value="{{ old($campo, $datosResumen[$campo] ?? $valor) }}" @if(in_array($campo, ['rut','nombre','contacto','correo'], true)) required @elseif(in_array($campo, ['giro','direccion','region','comuna','ciudad'], true)) data-requerido-factura @endif maxlength="{{ $maximo }}" @if($campo === 'rut') data-rut autocomplete="off" @endif class="mt-1 block w-full rounded-md border p-2">
+                                    <label class="{{ in_array($campo, ['giro', 'direccion', 'region', 'comuna', 'ciudad'], true) ? 'dato-factura-resumen ' : '' }}text-sm font-bold">@if($campo === 'rut')<span id="tipo-identificacion-resumen">RUT / RUN</span>@else{{ $etiqueta }}@endif
+                                        <input name="{{ $campo }}" type="{{ $campo === 'correo' ? 'email' : 'text' }}" value="{{ old($campo, $datosResumen[$campo] ?? $valor) }}" @if(in_array($campo, ['rut','nombre','contacto','correo'], true)) required @elseif(in_array($campo, ['giro','direccion','region','comuna','ciudad'], true)) data-requerido-factura @endif maxlength="{{ $maximo }}" @if($campo === 'rut') data-rut autocomplete="off" @endif @if($campo === 'correo') pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl" @endif class="mt-1 block w-full rounded-md border p-2">
                                     </label>
                                 @endforeach
                                 <label class="text-sm font-bold">Tipo de compra
@@ -531,6 +565,9 @@
 
         function actualizarCamposDocumento() {
             const requiereFactura = tipoDocumentoResumen.value === 'Factura Electrónica';
+            document.getElementById('tipo-identificacion-resumen').textContent = requiereFactura
+                ? 'RUT (empresa / factura)'
+                : 'RUN (persona / boleta)';
             document.querySelectorAll('.dato-factura-resumen').forEach(campo => {
                 campo.classList.toggle('hidden', !requiereFactura);
                 const input = campo.querySelector('[name]');
@@ -576,7 +613,7 @@
                     });
                     mensajeReceptor.textContent = 'Datos encontrados. Revísalos y modifícalos si es necesario.';
                 } else {
-                    mensajeReceptor.textContent = 'RUT no encontrado. Ingresa los datos del receptor.';
+                    mensajeReceptor.textContent = 'RUT o RUN no encontrado. Ingresa los datos del receptor.';
                 }
             } catch (error) {
                 if (error.name !== 'AbortError') {
@@ -593,7 +630,7 @@
             controlador?.abort();
             camposEditados.clear();
             camposReceptor.forEach(campo => { formResumen.elements[campo].value = ''; });
-            mensajeReceptor.textContent = 'Ingresa un RUT completo para buscar los datos del receptor.';
+            mensajeReceptor.textContent = 'Ingresa un RUT o RUN completo para buscar los datos del receptor.';
             if (/^\d{7,8}-[\dK]$/.test(rut)) temporizador = setTimeout(buscarReceptor, 600);
         });
     }

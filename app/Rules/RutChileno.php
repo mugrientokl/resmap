@@ -11,7 +11,7 @@ class RutChileno implements ValidationRule
     {
         $rut = strtoupper(preg_replace('/[^0-9K]/', '', (string) $value));
         if (! preg_match('/^[0-9]{7,8}[0-9K]$/', $rut)) {
-            $fail('El RUT chileno no tiene un formato válido.');
+            $fail('El RUT o RUN chileno no tiene un formato válido.');
 
             return;
         }
@@ -34,7 +34,7 @@ class RutChileno implements ValidationRule
         };
 
         if ($calculado !== $verificador) {
-            $fail('El dígito verificador del RUT no es válido.');
+            $fail('El dígito verificador del RUT o RUN no es válido.');
         }
     }
 }

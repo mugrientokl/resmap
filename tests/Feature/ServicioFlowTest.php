@@ -88,6 +88,14 @@ class ServicioFlowTest extends TestCase
         $this->assertDatabaseCount('solicitud_webs', 0);
     }
 
+    public function test_service_defaults_to_person_for_the_identification_type(): void
+    {
+        $this->get(route('servicios.index'))->assertOk()
+            ->assertSee('value="Persona" selected', false)
+            ->assertDontSee('value="Empresa" selected', false)
+            ->assertSee('id="tipo-identificacion-servicio">RUN', false);
+    }
+
     public function test_service_accepts_chilean_national_numbers_and_rejects_foreign_or_duplicate_prefixes(): void
     {
         Notification::fake();

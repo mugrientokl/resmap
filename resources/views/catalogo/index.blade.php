@@ -19,7 +19,7 @@
                 <svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="m5 12 4 4L19 6"/></svg>
             </span>
             <div class="min-w-0 flex-1">
-                <p class="text-xl font-black leading-tight text-green-950 sm:text-2xl">¡Tu cotización ha sido enviada con éxito!</p>
+                <p class="text-xl font-black leading-tight text-green-950 sm:text-2xl">¡Tu solicitud ha sido enviada con éxito!</p>
                 <p class="mt-2 text-base leading-relaxed text-green-900">{{ session('success') }}</p>
             </div>
             <button type="button" class="-mr-2 -mt-2 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-2xl text-green-800 hover:bg-green-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-800" aria-label="Cerrar confirmación" data-dismiss-notification>&times;</button>
@@ -36,7 +36,7 @@
     @endif
 
     <form method="GET" action="{{ route('catalogo.index') }}"
-        class="mt-10 grid gap-3 bg-white p-5 shadow-sm md:grid-cols-[1fr_240px_auto]">
+        class="mt-10 grid gap-3 bg-white p-5 shadow-sm md:grid-cols-[1fr_240px_auto_auto]">
 
         <div id="catalogo-selector" class="relative min-w-0">
             <label for="catalogo-buscar" class="sr-only">Buscar producto</label>
@@ -71,6 +71,12 @@
             class="bg-[#b52f25] px-6 py-3 font-bold text-white hover:bg-[#8f241d]">
             Buscar
         </button>
+        @if(request()->filled('nombre') || request()->filled('categoria'))
+            <a href="{{ route('catalogo.index') }}"
+                class="inline-flex items-center justify-center border border-[#d9aaa3] px-5 py-3 font-bold text-[#8f241d] hover:bg-[#f7e8e6]">
+                Limpiar filtros
+            </a>
+        @endif
     </form>
 
     <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -152,7 +158,7 @@
             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l2 11h11l3-8H6m2 12h.01M17 19h.01"/></svg>
         </span>
         <div class="min-w-0 flex-1">
-            <p class="text-base font-black leading-snug text-[#8f241d]">Tu carrito</p>
+            <p class="text-base font-black leading-snug text-[#8f241d]">Tu selección</p>
             <div class="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
                 <div id="resumen-carrito"
                     class="flex w-full min-w-0 flex-1 flex-col gap-1 sm:w-auto sm:flex-row sm:gap-4"
@@ -167,7 +173,7 @@
 
         <button id="abrir-carrito-completo" type="button" onclick="abrirCarrito()"
             class="inline-flex shrink-0 items-center gap-2 rounded-md bg-[#b52f25] px-2 py-3 text-xs font-bold text-white shadow-md transition hover:bg-[#8f241d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d] sm:px-4 sm:text-base">
-            Ver carrito
+            Ir a cotizar
             <span id="contador-carrito"
                 class="rounded-full bg-white px-2 py-0.5 text-xs text-[#b52f25]">
                 0
@@ -182,11 +188,11 @@
     <div class="ml-auto flex h-full w-full max-w-lg flex-col bg-white text-[#241817] shadow-2xl">
         <div class="flex items-center justify-between border-b border-[#e8c8c3] p-5">
             <h2 id="carrito-titulo" class="text-2xl font-black text-[#8f241d]">
-                Tu carrito
+                Selección para cotizar
             </h2>
 
             <button type="button" onclick="cerrarCarrito()"
-                class="rounded-md px-2 text-2xl text-[#8f241d] hover:bg-[#f7e8e6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]" aria-label="Cerrar carrito">
+                class="rounded-md px-2 text-2xl text-[#8f241d] hover:bg-[#f7e8e6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]" aria-label="Cerrar selección">
                 &times;
             </button>
         </div>
@@ -243,10 +249,26 @@
         @endif
 
         <form method="POST" action="{{ route('catalogo.solicitudes.store') }}"
+            data-region-initial="{{ old('region') }}"
+            data-comuna-initial="{{ old('comuna') }}"
             class="grid grid-cols-1 items-start gap-4 p-6 sm:grid-cols-2">
             @csrf
 
             <div id="detalles_productos" class="contents"></div>
+
+            <fieldset class="sm:col-span-2">
+                <legend class="text-sm font-bold">Tipo de cliente <span class="text-[#b52f25]" aria-hidden="true">*</span></legend>
+                <div class="mt-2 flex flex-wrap gap-4">
+                    <label class="flex items-center gap-2 font-semibold">
+                        <input type="radio" name="tipo_cliente" value="Persona" required @checked(old('tipo_cliente', 'Persona') === 'Persona')>
+                        Persona
+                    </label>
+                    <label class="flex items-center gap-2 font-semibold">
+                        <input type="radio" name="tipo_cliente" value="Empresa" @checked(old('tipo_cliente', 'Persona') === 'Empresa')>
+                        Empresa
+                    </label>
+                </div>
+            </fieldset>
 
             <div>
                 <input id="rut_solicitud" name="rut" value="{{ old('rut') }}" required
@@ -261,16 +283,24 @@
                 placeholder="Razón social o nombre"
                 class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
 
+            <div id="giro_solicitud_wrapper" class="hidden">
+                <label class="block text-sm font-bold" for="giro_solicitud">Giro <span class="text-[#b52f25]" aria-hidden="true">*</span>
+                    <input id="giro_solicitud" name="giro" value="{{ old('giro') }}" maxlength="255"
+                        placeholder="Ej.: comercio de repuestos"
+                        class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
+                </label>
+            </div>
+
             <label class="block text-sm font-bold" for="contacto_solicitud">Atención / contacto <span class="text-[#b52f25]" aria-hidden="true">*</span>
                 <input id="contacto_solicitud" name="contacto" value="{{ old('contacto') }}" required maxlength="255"
                     placeholder="Nombre de la persona responsable" class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
             </label>
-            <label class="block text-sm font-bold" for="cargo_solicitud">Cargo <span class="font-normal text-gray-500">(opcional)</span>
+            <label class="block text-sm font-bold" for="cargo_solicitud">Cargo o área <span class="font-normal text-gray-500">(opcional)</span>
                 <input id="cargo_solicitud" name="cargo" value="{{ old('cargo') }}" maxlength="255"
-                    placeholder="Ej.: jefe de compras, OT o equipo" class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
+                    class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
             </label>
 
-            <input name="correo" type="email" value="{{ old('correo') }}" required
+            <input name="correo" type="email" value="{{ old('correo') }}" required pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl"
                 placeholder="Correo"
                 class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
 
@@ -286,16 +316,16 @@
                         placeholder="912345678"
                         class="min-w-0 flex-1 border border-[#d9aaa3] p-3 text-[#241817]">
                 </div>
-                <p class="mt-1 text-sm text-gray-600">Te contactaremos por WhatsApp a este número para enviarte la cotización.</p>
             </div>
 
             <input name="direccion" value="{{ old('direccion') }}"
                 placeholder="Dirección"
                 class="w-full border border-[#d9aaa3] p-3 text-[#241817] sm:col-span-2">
 
+            <p id="aviso-whatsapp-solicitud" class="text-sm text-gray-600 sm:col-span-2">Enviaremos la cotización por WhatsApp al número de teléfono indicado.</p>
             <button type="submit"
                 class="bg-[#b52f25] p-3 font-bold text-white hover:bg-[#8f241d] sm:col-span-2">
-                Enviar cotización
+                Solicitar cotización
             </button>
         </form>
     </div>
@@ -644,8 +674,8 @@ function renderCarrito() {
                             class="h-8 w-8 rounded-full bg-[#f7e8e6] font-bold text-[#8f241d] hover:bg-white">+</button>
                         <button type="button"
                             onclick="cambiarCantidad(${id}, -${cantidad})"
-                            aria-label="Quitar ${escaparHTML(item.nombre)} del carrito"
-                            title="Quitar del carrito"
+                            aria-label="Quitar ${escaparHTML(item.nombre)} de la selección"
+                            title="Quitar de la selección"
                             class="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#8f241d] hover:bg-[#f7e8e6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]">
                             <svg aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
                         </button>
@@ -653,7 +683,7 @@ function renderCarrito() {
                 </div>
             `;
         }).join('')
-        : '<p class="py-8 text-center text-gray-500">Tu carrito está vacío.</p>';
+        : '<p class="py-8 text-center text-gray-500">Aún no has seleccionado repuestos.</p>';
 
     document.querySelectorAll('[id^="selector-"]').forEach(selector => {
         const id = Number(selector.id.replace('selector-', ''));
@@ -765,7 +795,8 @@ if (solicitudForm) {
 
     const rut = solicitudForm.querySelector('input[name="rut"]');
     rut.id = 'rut_solicitud';
-    rut.before(obligatorioLabel(rut.id, 'RUT'));
+    const rutLabel = obligatorioLabel(rut.id, 'RUN');
+    rut.before(rutLabel);
 
     const nombre = solicitudForm.querySelector('input[name="nombre"]');
     nombre.id = 'nombre_solicitud';
@@ -773,9 +804,21 @@ if (solicitudForm) {
     const nombreWrapper = document.createElement('div');
     nombre.before(nombreWrapper);
     nombreWrapper.append(
-        obligatorioLabel(nombre.id, 'Razón social'),
+        obligatorioLabel(nombre.id, 'Nombre o razón social'),
         nombre
     );
+
+    const tiposCliente = solicitudForm.querySelectorAll('input[name="tipo_cliente"]');
+    const giroWrapper = solicitudForm.querySelector('#giro_solicitud_wrapper');
+    const giro = solicitudForm.querySelector('#giro_solicitud');
+    const actualizarTipoCliente = () => {
+        const esEmpresa = solicitudForm.querySelector('input[name="tipo_cliente"]:checked')?.value === 'Empresa';
+        rutLabel.firstChild.textContent = esEmpresa ? 'RUT ' : 'RUN ';
+        giroWrapper?.classList.toggle('hidden', !esEmpresa);
+        if (giro) giro.required = esEmpresa;
+    };
+    tiposCliente.forEach(tipoCliente => tipoCliente.addEventListener('change', actualizarTipoCliente));
+    actualizarTipoCliente();
 
     const correo = solicitudForm.querySelector('input[name="correo"]');
     correo.id = 'correo_solicitud';
@@ -829,8 +872,9 @@ solicitudForm?.addEventListener('submit', event => {
 
 const urlParams = new URLSearchParams(window.location.search);
 
-if (urlParams.get('open_cart') === 'true') {
+if (urlParams.get('open_cotizacion') === 'true' || urlParams.get('open_cart') === 'true') {
     abrirCarrito();
+    urlParams.delete('open_cotizacion');
     urlParams.delete('open_cart');
 
     const consulta = urlParams.toString();
@@ -851,7 +895,7 @@ if (confirmacionEnviada) {
 }
 
 @if($errors->any())
-    abrirSolicitud();
+    document.getElementById('solicitud-modal').classList.remove('hidden');
 @endif
 </script>
 @endsection

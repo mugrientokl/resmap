@@ -83,8 +83,8 @@ class ActividadTest extends TestCase
     {
         $usuario = User::factory()->create(['rol' => 'Administrador', 'password' => 'clave-muy-segura-123']);
 
-        $this->post('/login', ['login' => $usuario->email, 'password' => 'incorrecta'])->assertSessionHasErrors();
-        $this->post('/login', ['login' => $usuario->email, 'password' => 'clave-muy-segura-123']);
+        $this->post('/login', ['login' => $usuario->username, 'password' => 'incorrecta'])->assertSessionHasErrors();
+        $this->post('/login', ['login' => $usuario->username, 'password' => 'clave-muy-segura-123']);
         $this->post('/logout');
 
         $this->assertDatabaseHas('auditorias', ['accion' => 'inicio_sesion_fallido', 'resultado' => 'fallo']);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Rules\CorreoConDominio;
 use App\Services\RegistroActividad;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\RedirectResponse;
@@ -26,9 +27,63 @@ class AuthController extends Controller
         return view('auth.login');
     }
 
+    public function showProfile(Request $request): View
+    {
+        return view('profile.show');
+    }
+
+    public function updateName(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'username' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', 'unique:users,username,'.auth()->id()],
+            'current_password' => ['required', 'current_password'],
+        ], [
+            'name.required' => 'Ingresa el nombre que deseas mostrar.',
+            'username.required' => 'Ingresa el nombre de usuario.',
+            'username.regex' => 'El usuario solo puede contener letras, números, puntos, guiones y guiones bajos.',
+            'username.unique' => 'Ese nombre de usuario ya está en uso.',
+            'current_password.current_password' => 'La contraseña actual no es correcta.',
+        ]);
+
+        $request->user()->forceFill([
+            'name' => trim($validated['name']),
+            'username' => $validated['username'],
+        ])->save();
+
+        return redirect()->route('perfil.show')->with('success', 'Tu nombre de usuario fue actualizado.');
+    }
+
+    public function updatePassword(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'current_password' => ['required', 'current_password'],
+            'password' => ['required', 'confirmed', 'max:255', PasswordRule::min(12)],
+        ], [
+            'current_password.required' => 'Ingresa tu contraseña actual.',
+            'current_password.current_password' => 'La contraseña actual no es correcta.',
+            'password.required' => 'Ingresa una nueva contraseña.',
+            'password.confirmed' => 'Las contraseñas no coinciden.',
+            'password.min' => 'La contraseña debe tener al menos 12 caracteres.',
+            'password.max' => 'La contraseña no puede superar los 255 caracteres.',
+        ]);
+
+        $user = $request->user();
+        DB::transaction(function () use ($request, $user, $validated): void {
+            $user->forceFill(['password' => $validated['password'], 'remember_token' => null])->save();
+            DB::table(config('session.table'))->where('user_id', $user->id)
+                ->where('id', '!=', $request->session()->getId())->delete();
+            DB::table(config('auth.passwords.users.table'))->where('email', $user->email)->delete();
+        });
+
+        return redirect()->route('perfil.show')->with('success', 'Tu contraseña fue actualizada.');
+    }
+
     public function store(Request $request): RedirectResponse|Response
     {
         if (Auth::check()) {
+            $request->session()->forget('url.intended');
+
             return redirect()->route(Auth::user()->tienePermiso('dashboard.ver') ? 'dashboard' : 'perfil.show');
         }
 
@@ -36,23 +91,22 @@ class AuthController extends Controller
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string', 'max:255'],
         ], [
-            'login.required' => 'Ingresa tu usuario o correo.',
-            'login.string' => 'El usuario o correo debe ser texto válido.',
-            'login.max' => 'El usuario o correo no puede superar los 255 caracteres.',
+            'login.required' => 'Ingresa tu nombre de usuario.',
+            'login.string' => 'El nombre de usuario debe ser texto válido.',
+            'login.max' => 'El nombre de usuario no puede superar los 255 caracteres.',
             'password.required' => 'Ingresa tu contraseña.',
             'password.string' => 'La contraseña debe ser texto válido.',
             'password.max' => 'La contraseña no puede superar los 255 caracteres.',
         ]);
-        $field = filter_var($credentials['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
         $identity = Str::lower($credentials['login']);
         $limiterKey = 'login-failures:'.hash('sha256', $identity.'|'.$request->ip());
         $lockKey = 'login-lock:'.hash('sha256', $identity.'|'.$request->ip());
 
         $validPassword = Auth::validate([
-            $field => $credentials['login'],
+            'username' => $credentials['login'],
             'password' => $credentials['password'],
         ]);
-        $user = User::query()->where($field, $credentials['login'])->first();
+        $user = User::query()->where('username', $credentials['login'])->first();
 
         if (Cache::has($lockKey)
             && (! $validPassword || $user === null || ! $user->activo)
@@ -93,7 +147,7 @@ class AuthController extends Controller
             );
 
             return back()->withErrors([
-                'login' => 'El usuario o correo y la contraseña no coinciden, o la cuenta no está disponible.',
+                'login' => 'El usuario y la contraseña no coinciden, o la cuenta no está disponible.',
             ])->withInput();
         }
 
@@ -104,8 +158,9 @@ class AuthController extends Controller
 
         Auth::login($user);
         $request->session()->regenerate();
+        $request->session()->forget('url.intended');
 
-        return redirect()->intended(route($user->tienePermiso('dashboard.ver') ? 'dashboard' : 'perfil.show'));
+        return redirect()->route($user->tienePermiso('dashboard.ver') ? 'dashboard' : 'perfil.show');
     }
 
     public function destroy(Request $request): RedirectResponse
@@ -130,7 +185,7 @@ class AuthController extends Controller
     public function sendResetLink(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'email', new CorreoConDominio],
         ], [
             'email.required' => 'Ingresa el correo asociado a tu cuenta.',
             'email.email' => 'Ingresa un correo electrónico válido.',
@@ -159,7 +214,7 @@ class AuthController extends Controller
     {
         $data = $request->validate([
             'token' => ['required'],
-            'email' => ['required', 'email'],
+            'email' => ['required', 'email', new CorreoConDominio],
             'password' => ['required', 'confirmed', 'max:255', PasswordRule::min(12)],
         ], [
             'token.required' => 'El enlace de restablecimiento no es válido. Solicita uno nuevo.',

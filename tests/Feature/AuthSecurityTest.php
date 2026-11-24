@@ -55,14 +55,14 @@ class AuthSecurityTest extends TestCase
             ->assertSee('La contraseña se restableció correctamente.');
     }
 
-    public function test_login_page_keeps_password_login_and_facial_recognition_as_separate_options(): void
+    public function test_login_page_keeps_password_login_only(): void
     {
         $this->get(route('login'))
             ->assertOk()
-            ->assertSee('También puedes agregar verificación facial como segundo factor.')
-            ->assertSee('Verificar rostro e ingresar')
             ->assertSee('name="login"', false)
-            ->assertSee('name="password"', false);
+            ->assertSee('name="password"', false)
+            ->assertSee('Nombre de usuario')
+            ->assertDontSee('Usuario o correo');
     }
 
     public function test_login_shows_a_generic_message_for_invalid_or_inactive_credentials(): void
@@ -75,7 +75,7 @@ class AuthSecurityTest extends TestCase
             ])
             ->assertOk()
             ->assertSee('No pudimos iniciar sesión.')
-            ->assertSee('El usuario o correo y la contraseña no coinciden, o la cuenta no está disponible.');
+            ->assertSee('El usuario y la contraseña no coinciden, o la cuenta no está disponible.');
     }
 
     public function test_failed_login_lockout_displays_a_clear_temporary_wait_message(): void
@@ -143,6 +143,29 @@ class AuthSecurityTest extends TestCase
         $this->assertAuthenticatedAs($admin);
     }
 
+    public function test_login_uses_username_and_ignores_the_previous_destination(): void
+    {
+        $user = User::factory()->create([
+            'rol' => 'Administrador',
+            'password' => 'Admin-Secure-Phrase-2026',
+        ]);
+
+        $this->post(route('login.store'), [
+            'login' => $user->email,
+            'password' => 'Admin-Secure-Phrase-2026',
+        ])->assertSessionHasErrors('login');
+        $this->assertGuest();
+
+        $this->withSession(['url.intended' => route('solicitudes.index')])
+            ->post(route('login.store'), [
+                'login' => $user->username,
+                'password' => 'Admin-Secure-Phrase-2026',
+            ])->assertRedirect(route('dashboard'))
+            ->assertSessionMissing('url.intended');
+
+        $this->assertAuthenticatedAs($user);
+    }
+
     public function test_inactive_seller_cannot_sign_in_with_valid_credentials(): void
     {
         $seller = User::factory()->create([
@@ -157,7 +180,7 @@ class AuthSecurityTest extends TestCase
         ])
             ->assertRedirect()
             ->assertSessionHasErrors([
-                'login' => 'El usuario o correo y la contraseña no coinciden, o la cuenta no está disponible.',
+                'login' => 'El usuario y la contraseña no coinciden, o la cuenta no está disponible.',
             ]);
 
         $this->assertGuest();

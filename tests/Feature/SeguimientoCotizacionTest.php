@@ -97,6 +97,44 @@ class SeguimientoCotizacionTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_index_separates_and_lists_quotations_and_services(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $cliente = Cliente::create(['rut' => '44.444.444-4', 'nombre' => 'Cliente mixto']);
+
+        $cotizacion = SolicitudWeb::create([
+            'fecha' => now()->subDay(),
+            'estado' => 'Pendiente',
+            'tipo_solicitud' => 'productos',
+            'id_cliente' => $cliente->id_cliente,
+            'detalles_productos' => [],
+        ]);
+        $servicio = SolicitudWeb::create([
+            'fecha' => now(),
+            'estado' => 'Pendiente',
+            'tipo_solicitud' => 'servicio',
+            'tipo_servicio' => 'Mantención',
+            'id_cliente' => $cliente->id_cliente,
+            'detalles_productos' => [],
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('solicitudes.index'))
+            ->assertOk()
+            ->assertSee('Cotización #'.$cotizacion->id_solicitud)
+            ->assertSee('Servicio #'.$servicio->id_solicitud);
+
+        $this->get(route('solicitudes.index', ['tipo' => 'cotizaciones']))
+            ->assertOk()
+            ->assertSee('Cotización #'.$cotizacion->id_solicitud)
+            ->assertDontSee('Servicio #'.$servicio->id_solicitud);
+
+        $this->get(route('solicitudes.index', ['tipo' => 'servicios']))
+            ->assertOk()
+            ->assertSee('Servicio #'.$servicio->id_solicitud)
+            ->assertDontSee('Cotización #'.$cotizacion->id_solicitud);
+    }
+
     /**
      * @return array{0: SolicitudWeb, 1: CotizacionVersion}
      */

@@ -9,7 +9,7 @@
         @method('PUT')
 
         <div>
-            <label class="block text-sm font-medium text-gray-700">RUT</label>
+            <label class="block text-sm font-medium text-gray-700">RUT (empresa) / RUN (persona)</label>
             <input type="text" name="rut" data-rut maxlength="12" placeholder="12.345.678-9" value="{{ old('rut', $cliente->rut_formateado) }}" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
         </div>
 
@@ -26,7 +26,7 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700">Correo Electrónico</label>
-                <input type="email" name="correo" value="{{ old('correo', $cliente->correo) }}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+                <input type="email" name="correo" value="{{ old('correo', $cliente->correo) }}" pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
             </div>
             <div>
                 <label for="telefono_cliente" class="block text-sm font-medium text-gray-700">Teléfono</label>

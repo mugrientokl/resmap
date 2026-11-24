@@ -18,7 +18,7 @@
         :root { --content-gutter: clamp(1rem, 10vw, 5cm); }
         body.homepage,
         body.catalogo-page,
-        body.servicios-page { --content-gutter: clamp(1rem, 2vw, 2rem); }
+        body.servicios-page { --content-gutter: clamp(1.25rem, 5vw, 5rem); }
 
         body > main {
             max-width: none !important;
@@ -45,6 +45,12 @@
             max-width: calc(100% - var(--content-gutter) - var(--content-gutter)) !important;
             padding-left: 0;
             padding-right: 0;
+        }
+
+        body.public-navigation > nav > div {
+            max-width: none !important;
+            padding-left: clamp(1.25rem, 5vw, 5rem);
+            padding-right: clamp(1.25rem, 5vw, 5rem);
         }
 
         nav[role="navigation"] a,
@@ -329,55 +335,44 @@
             }
         }
         @media (min-width: 768px) {
-            body.navegacion-izquierda { padding-top: 0; padding-left: 6.25rem; }
-            body.navegacion-izquierda > nav:hover,
-            body.navegacion-izquierda > nav:focus-within {
+            body.navegacion-izquierda { padding-top: 0; padding-left: 21rem; }
+            body.navegacion-izquierda > nav {
                 width: 20rem;
                 box-shadow: 8px 0 24px rgba(36, 24, 23, .28);
             }
-            body.navegacion-izquierda > nav:hover > div,
-            body.navegacion-izquierda > nav:focus-within > div {
+            body.navegacion-izquierda > nav > div {
                 padding: 1rem;
-                transition: padding .22s ease;
             }
-            body.navegacion-izquierda > nav:hover .brand-logo,
-            body.navegacion-izquierda > nav:focus-within .brand-logo {
+            body.navegacion-izquierda .brand-logo {
                 max-width: 14.5rem;
             }
-            body.navegacion-izquierda > nav:hover .brand-caption,
-            body.navegacion-izquierda > nav:focus-within .brand-caption {
+            body.navegacion-izquierda .brand-caption {
                 display: block;
             }
-            body.navegacion-izquierda > nav:hover .nav-link,
-            body.navegacion-izquierda > nav:focus-within .nav-link {
+            body.navegacion-izquierda .nav-link {
                 justify-content: flex-start;
                 gap: .75rem;
                 padding: .6rem .75rem;
                 white-space: normal;
             }
-            body.navegacion-izquierda > nav:hover .nav-link > span:not(.nav-badge),
-            body.navegacion-izquierda > nav:focus-within .nav-link > span:not(.nav-badge),
-            body.navegacion-izquierda > nav:hover #profile-menu-button > span:nth-child(2),
-            body.navegacion-izquierda > nav:focus-within #profile-menu-button > span:nth-child(2) {
+            body.navegacion-izquierda .nav-link > span:not(.nav-badge),
+            body.navegacion-izquierda #profile-menu-button > span:nth-child(2) {
                 max-width: 15rem;
                 opacity: 1;
                 transform: translateX(0);
                 text-overflow: clip;
                 white-space: normal;
             }
-            body.navegacion-izquierda > nav:hover #profile-menu-button > svg,
-            body.navegacion-izquierda > nav:focus-within #profile-menu-button > svg {
+            body.navegacion-izquierda #profile-menu-button > svg {
                 max-width: 1rem;
                 opacity: 1;
                 transform: translateX(0);
             }
-            body.navegacion-izquierda > nav:hover #profile-menu-button,
-            body.navegacion-izquierda > nav:focus-within #profile-menu-button {
+            body.navegacion-izquierda #profile-menu-button {
                 justify-content: flex-start;
                 padding: .6rem .75rem;
             }
-            body.navegacion-izquierda > nav:hover .nav-badge,
-            body.navegacion-izquierda > nav:focus-within .nav-badge {
+            body.navegacion-izquierda .nav-badge {
                 position: static;
                 margin-left: auto;
                 font-size: .75rem;
@@ -413,6 +408,33 @@
                 background: #8f241d;
                 box-shadow: 0 2px 8px rgba(36, 24, 23, .25);
             }
+        }
+
+        body.navegacion-izquierda.homepage > main {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        body.homepage > main {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        body.homepage .hero-bleed {
+            margin-left: 0;
+            margin-right: 0;
+            width: 100% !important;
+        }
+        body.homepage footer {
+            padding-left: var(--content-gutter);
+            padding-right: var(--content-gutter);
+        }
+        body.homepage .home-footer-inner {
+            width: 100%;
+            max-width: none;
+        }
+        body.navegacion-izquierda.homepage .hero-bleed {
+            margin-left: 0;
+            margin-right: 0;
+            width: 100% !important;
         }
 
         body.public-navigation .nav-link[aria-current="page"] {
@@ -559,58 +581,46 @@
     </main>
     <footer class="mt-8 border-t border-[#e8c8c3] bg-white px-4 py-8 text-sm text-gray-600">
         @if($isHome)
-            <div class="mx-auto grid max-w-7xl gap-8 text-left md:grid-cols-[1fr_1.2fr] md:items-start">
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-[.25em] text-[#9f2f25]">Contacto RESMAP</p>
-                    <h2 class="mt-2 text-2xl font-black text-[#241817]">Hablemos de tu próximo trabajo</h2>
-                    <div class="mt-5 grid gap-3 text-[#4f403d] sm:grid-cols-2">
-                        <a href="https://wa.me/56976477124" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 transition hover:text-[#9f2f25]" aria-label="Contactar por WhatsApp al +56 9 7647 7124">
-                            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-[#e9f7ee] text-[#168544]" aria-hidden="true">
-                                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6h-.1c-1.7 0-3.4-.5-4.8-1.3l-.3-.2-3.8 1 1-3.7-.2-.3a9.8 9.8 0 1 1 8.2 4.5Zm5.4-7.3c-.3-.1-1.8-.9-2.1-1-.3-.1-.5-.1-.7.2l-.9 1.1c-.2.2-.3.2-.6.1a8 8 0 0 1-4-3.5c-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3 2.8 1.2 2.8.8 3.3.8.5 0 1.8-.7 2-1.4.3-.6.3-1.2.2-1.3Z" /></svg>
-                            </span>
-                            <span>+56 9 7647 7124</span>
-                        </a>
-                        <a href="https://wa.me/56951523990" target="_blank" rel="noopener noreferrer" class="flex items-center gap-3 transition hover:text-[#9f2f25]" aria-label="Contactar por WhatsApp al +56 9 5152 3990">
-                            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-[#e9f7ee] text-[#168544]" aria-hidden="true">
-                                <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6h-.1c-1.7 0-3.4-.5-4.8-1.3l-.3-.2-3.8 1 1-3.7-.2-.3a9.8 9.8 0 1 1 8.2 4.5Zm5.4-7.3c-.3-.1-1.8-.9-2.1-1-.3-.1-.5-.1-.7.2l-.9 1.1c-.2.2-.3.2-.6.1a8 8 0 0 1-4-3.5c-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3 2.8 1.2 2.8.8 3.3.8.5 0 1.8-.7 2-1.4.3-.6.3-1.2.2-1.3Z" /></svg>
-                            </span>
-                            <span>+56 9 5152 3990</span>
-                        </a>
-                        <a href="mailto:resmap.la@gmail.com" class="flex items-center gap-3 transition hover:text-[#9f2f25]">
-                            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-[#f7e8e6] text-[#9f2f25]" aria-hidden="true"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 6.75h18v10.5H3zM3 7l9 6 9-6" /></svg></span>
-                            <span>resmap.la@gmail.com</span>
-                        </a>
-                        <div class="flex items-center gap-3">
-                            <span class="flex h-9 w-9 items-center justify-center rounded-full bg-[#fff4d8] text-[#b17a00]" aria-hidden="true"><svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 21s7-5.2 7-11a7 7 0 1 0-14 0c0 5.8 7 11 7 11Z" /><circle cx="12" cy="10" r="2.3" /></svg></span>
-                            <span>Los Angeles, Biobio, Chile</span>
-                        </div>
+            <div class="home-footer-inner mx-auto">
+                <h2 class="text-center text-4xl font-black uppercase tracking-tight text-[#241817] sm:text-5xl">Contáctanos</h2>
+                <div class="mt-6 grid gap-4 md:grid-cols-3">
+                    <a href="https://wa.me/56976477124" target="_blank" rel="noopener noreferrer" class="group flex min-h-24 items-center gap-4 rounded-lg bg-[#8f241d] px-5 py-4 text-white shadow-lg transition hover:-translate-y-1 hover:bg-[#721d18]" aria-label="Escribirnos por WhatsApp al +56 9 7647 7124">
+                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#8f241d]" aria-hidden="true">
+                            <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6h-.1c-1.7 0-3.4-.5-4.8-1.3l-.3-.2-3.8 1 1-3.7-.2-.3a9.8 9.8 0 1 1 8.2 4.5Zm5.4-7.3c-.3-.1-1.8-.9-2.1-1-.3-.1-.5-.1-.7.2l-.9 1.1c-.2.2-.3.2-.6.1a8 8 0 0 1-4-3.5c-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3 2.8 1.2 2.8.8 3.3.8.5 0 1.8-.7 2-1.4.3-.6.3-1.2.2-1.3Z" /></svg>
+                        </span>
+                        <span><strong class="block text-base">Escríbenos</strong><span class="mt-1 block text-lg font-black">+56 9 7647 7124</span></span>
+                    </a>
+                    <div class="group flex min-h-24 items-center gap-4 rounded-lg border border-[#e8c8c3] bg-white px-5 py-4 text-[#721d18] shadow-lg transition hover:-translate-y-1">
+                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f7e8e6] text-[#b52f25]" aria-hidden="true">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/></svg>
+                        </span>
+                        <span><strong class="block text-base">Horarios de atención</strong><span class="mt-1 block text-lg font-black">Lunes a viernes<br>09:00 AM - 05:00 PM</span></span>
                     </div>
-                    <section class="mt-8 border-t border-[#f0ddda] pt-6" aria-labelledby="about-us-title">
-                        <p id="about-us-title" class="text-xs font-bold uppercase tracking-[.25em] text-[#9f2f25]">Acerca de nosotros</p>
-                        <div class="mt-3 space-y-3 text-sm leading-6 text-[#4f403d]">
-                            <p>En RESMAP, con sede en Los Ángeles, nos especializamos en la comercialización de repuestos y componentes para maquinaria pesada, agrícola y forestal. Trabajamos con proveedores confiables para ofrecer soluciones que ayuden a nuestros clientes a mantener sus equipos operativos.</p>
-                            <p>Complementamos nuestra oferta con servicios de mantención, reparación y soldadura, entregando una atención cercana y orientada a resolver cada necesidad con seguridad, compromiso y calidad.</p>
-                        </div>
-                    </section>
-                </div>
-                <div>
-                    <p class="text-xs font-bold uppercase tracking-[.25em] text-[#9f2f25]">Dónde encontrarnos</p>
-                    <p class="mt-2 flex items-start gap-2 text-[#4f403d]"><svg class="mt-0.5 h-5 w-5 shrink-0 text-[#b17a00]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 21s7-5.2 7-11a7 7 0 1 0-14 0c0 5.8 7 11 7 11Z" /><circle cx="12" cy="10" r="2.3" /></svg><span>Av. Gabriela Mistral 1255, Bodega 48,<br>Los Angeles, Region del Biobio, Chile</span></p>
-                    <div class="mt-4 overflow-hidden rounded-lg border border-[#e8c8c3] bg-[#f7f3f0] shadow-sm">
-                        <iframe title="Ubicacion de RESMAP en Los Angeles, Biobio" src="https://www.google.com/maps?q=-37.4741361,-72.32925&z=17&output=embed" class="h-64 w-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                    <div class="group flex min-h-24 items-center gap-4 rounded-lg bg-[#721d18] px-5 py-4 text-white shadow-lg transition hover:-translate-y-1 hover:bg-[#8f241d]">
+                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#721d18]" aria-hidden="true">
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6.75h18v10.5H3zM3 7l9 6 9-6"/></svg>
+                        </span>
+                        <span class="min-w-0"><strong class="block text-base">Correo electrónico</strong><span class="mt-1 block break-all text-lg font-black">resmap.la@gmail.com</span></span>
                     </div>
-                    <a href="https://www.google.com/maps/search/?api=1&query=-37.4741361,-72.32925" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex items-center font-bold text-[#9f2f25] hover:text-[#721d18]">Abrir en Google Maps <span class="ml-2">→</span></a>
                 </div>
             </div>
-            <section class="mx-auto mt-8 flex max-w-7xl flex-col items-center justify-center gap-5 border-t border-[#f0ddda] pt-6 text-center sm:flex-row" aria-labelledby="instituto-title">
-                <a href="https://admision.virginiogomez.cl/sedes/" target="_blank" rel="noopener noreferrer">
-                    <img src="https://www.virginiogomez.cl/static/admision/Logo_IPVG.png" alt="Instituto Profesional Virginio Gómez" class="h-auto w-48 object-contain" loading="lazy">
-                </a>
-                <div class="text-center sm:text-left">
-                    <h2 id="instituto-title" class="font-bold text-[#241817]">Instituto Profesional Virginio Gómez · Sede Los Ángeles</h2>
-                    <p class="mt-1">Ercilla 444, Los Ángeles, Biobío</p>
-                    <a href="tel:+56432317764" class="mt-1 inline-block hover:text-[#9f2f25]">+56 43 231 7764</a>
+
+            <div class="mx-auto mt-10 max-w-5xl text-center">
+                <p class="text-xs font-bold uppercase tracking-[.25em] text-[#9f2f25]">Dónde encontrarnos</p>
+                <h3 class="mt-2 text-3xl font-black text-[#241817] sm:text-4xl">Av. Gabriela Mistral 1255, Bodega 48</h3>
+                <p class="mt-2 text-lg font-semibold text-[#4f403d]">Los Ángeles, Región del Biobío, Chile</p>
+                <div class="mx-auto mt-5 max-w-4xl overflow-hidden rounded-lg border border-[#e8c8c3] bg-[#f7f3f0] shadow-sm">
+                    <iframe title="Ubicación de RESMAP en Los Ángeles, Biobío" src="https://www.google.com/maps?q=-37.4741361,-72.32925&z=17&output=embed" class="h-72 w-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
                 </div>
+                <a href="https://www.google.com/maps/search/?api=1&query=-37.4741361,-72.32925" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex items-center font-bold text-[#9f2f25] hover:text-[#721d18]">Abrir en Google Maps <span class="ml-2">→</span></a>
+            </div>
+
+            <section class="-mx-4 mt-10 bg-[#721d18] px-4 py-9 text-center text-white" aria-label="Instituto y desarrollo">
+                <p class="mb-5 font-black text-[#ffd5c9]">Desarrollado por Patricia Belen Francisca Illanes Contreras - Gabriel Alexis Pinela Muñoz</p>
+                <a href="https://admision.virginiogomez.cl/sedes/" target="_blank" rel="noopener noreferrer">
+                    <img src="https://www.virginiogomez.cl/static/admision/Logo_IPVG.png" alt="Instituto Profesional Virginio Gómez" class="mx-auto h-auto w-48 object-contain" loading="lazy">
+                </a>
+                <h2 class="mt-3 font-bold text-white">Instituto Profesional Virginio Gómez · Sede Los Ángeles</h2>
             </section>
         @endif
         <p class="mt-8 border-t border-[#f0ddda] pt-5 text-center">© RESMAP 2026. Todos Los Derechos Reservados.</p>

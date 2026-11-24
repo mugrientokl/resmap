@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Cliente;
+use App\Models\SolicitudWeb;
 use App\Models\User;
+use App\Rules\CorreoConDominio;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Validator;
 use Tests\TestCase;
 
 class ContactoClienteTest extends TestCase
@@ -228,6 +231,129 @@ class ContactoClienteTest extends TestCase
         $this->assertSame('Beatriz', $snapshotNuevo['contacto']);
         $this->assertSame('cliente@example.test', $cliente->correo);
         $this->assertSame('Ana', $cliente->contacto);
+    }
+
+    public function test_quote_detail_displays_all_customer_data_from_the_request_snapshot(): void
+    {
+        Notification::fake();
+        $producto = $this->crearProducto();
+
+        $this->post(route('catalogo.solicitudes.store'), [
+            ...$this->datosCliente(),
+            'tipo_cliente' => 'Empresa',
+            'giro' => 'Repuestos industriales',
+            'contacto' => 'Ana solicitud',
+            'cargo' => 'Compras solicitud',
+            'direccion' => 'Calle solicitud 123',
+            'detalles_productos' => [['id_producto' => $producto, 'cantidad' => 1]],
+        ])->assertSessionHasNoErrors();
+
+        $solicitud = SolicitudWeb::firstOrFail();
+        $solicitud->cliente->update(['nombre' => 'Nombre actualizado', 'comuna' => 'Comuna actualizada']);
+
+        $this->actingAs(User::factory()->create(['rol' => 'Administrador']))
+            ->get(route('solicitudes.show', $solicitud->id_solicitud))
+            ->assertOk()
+            ->assertSeeInOrder(['Tipo de cliente', 'Empresa', 'Razón social', 'Empresa de prueba', 'Giro', 'Repuestos industriales'])
+            ->assertSee('12.345.678-5')
+            ->assertSee('Ana solicitud')
+            ->assertSee('Compras solicitud')
+            ->assertSee('cliente@example.test')
+            ->assertSee('+56912345678')
+            ->assertSee('Calle solicitud 123')
+            ->assertSee('Biobío')
+            ->assertSee('Los Ángeles')
+            ->assertDontSee('Método de entrega')
+            ->assertDontSee('Comuna actualizada');
+    }
+
+    public function test_email_requires_a_complete_domain_without_restricting_common_extensions(): void
+    {
+        foreach (['cliente@empresa', 'cliente@empresa.c', 'cliente@empresa..cl', 'cliente@empresa.'] as $correo) {
+            $this->assertTrue(Validator::make(['correo' => $correo], [
+                'correo' => ['required', 'email', new CorreoConDominio],
+            ])->fails(), $correo);
+        }
+
+        foreach (['cliente@empresa.cl', 'cliente@empresa.com', 'cliente@empresa.co.uk', 'cliente@empresa.technology'] as $correo) {
+            $this->assertFalse(Validator::make(['correo' => $correo], [
+                'correo' => ['required', 'email', new CorreoConDominio],
+            ])->fails(), $correo);
+        }
+    }
+
+    public function test_customer_facing_and_internal_forms_reject_emails_without_domain_suffix(): void
+    {
+        $correo = 'cliente@empresa';
+        $producto = $this->crearProducto();
+        $cliente = Cliente::create(['rut' => '12345678-5', 'nombre' => 'Cliente existente']);
+        $datos = [...$this->datosCliente(), 'contacto' => 'Ana', 'correo' => $correo];
+
+        $this->postJson(route('catalogo.solicitudes.store'), [
+            ...$datos, 'detalles_productos' => [['id_producto' => $producto, 'cantidad' => 1]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('correo');
+
+        $this->postJson(route('servicios.store'), [
+            ...$datos, 'direccion' => 'Calle 123', 'tipo_servicio' => 'Mantención',
+            'descripcion_servicio' => 'Revisión preventiva del equipo.',
+        ])->assertUnprocessable()->assertJsonValidationErrors('correo');
+
+        $this->postJson(route('password.email'), ['email' => $correo])
+            ->assertUnprocessable()->assertJsonValidationErrors('email');
+        $this->postJson(route('password.update'), [
+            'email' => $correo, 'token' => 'token', 'password' => 'Una-clave-segura-123',
+            'password_confirmation' => 'Una-clave-segura-123',
+        ])->assertUnprocessable()->assertJsonValidationErrors('email');
+
+        $this->actingAs(User::factory()->create(['rol' => 'Administrador']));
+        $this->putJson(route('clientes.update', $cliente->id_cliente), [
+            'rut' => $cliente->rut, 'nombre' => $cliente->nombre, 'correo' => $correo,
+        ])->assertUnprocessable()->assertJsonValidationErrors('correo');
+        $this->postJson(route('proveedores.store'), [
+            'nombre' => 'Proveedor', 'contacto' => 'Ana', 'telefono' => '912345678', 'correo' => $correo,
+        ])->assertUnprocessable()->assertJsonValidationErrors('correo');
+        $this->postJson(route('usuarios.store'), [
+            'username' => 'usuario-prueba', 'name' => 'Usuario', 'email' => $correo, 'rol' => 'Vendedor',
+        ])->assertUnprocessable()->assertJsonValidationErrors('email');
+        $this->postJson('/ventas', [
+            'rut' => '12345678-5', 'nombre_cliente' => 'Cliente', 'contacto' => 'Ana',
+            'correo_cliente' => $correo, 'tipo_documento' => 'Boleta Electrónica', 'medio_pago' => 'Efectivo',
+            'acteco_emisor' => '475201', 'tipo_venta' => 'del_giro', 'tipo_compra' => 'del_giro',
+            'detalles' => [['id_producto' => $producto, 'cantidad' => 1]],
+        ])->assertUnprocessable()->assertJsonValidationErrors('correo_cliente');
+
+        $this->assertDatabaseCount('solicitud_webs', 0);
+        $this->assertDatabaseCount('ventas', 0);
+    }
+
+    public function test_old_quote_without_a_snapshot_shows_current_customer_data_with_a_notice(): void
+    {
+        $cliente = Cliente::create([
+            'rut' => '12345678-5',
+            'nombre' => 'Cliente actual',
+            'contacto' => 'Contacto actual',
+            'correo' => 'cliente@example.test',
+            'region' => 'Biobío',
+            'comuna' => 'Los Ángeles',
+        ]);
+        $solicitud = SolicitudWeb::create([
+            'fecha' => now(),
+            'estado' => 'Pendiente',
+            'id_cliente' => $cliente->id_cliente,
+            'detalles_productos' => [],
+            'direccion_referencias' => 'Portería',
+        ]);
+
+        $this->actingAs(User::factory()->create(['rol' => 'Administrador']))
+            ->get(route('solicitudes.show', $solicitud->id_solicitud))
+            ->assertOk()
+            ->assertSee('se muestran sus datos actuales')
+            ->assertSee('Cliente actual')
+            ->assertSee('Contacto actual')
+            ->assertSee('cliente@example.test')
+            ->assertSee('Biobío')
+            ->assertSee('Los Ángeles')
+            ->assertSee('Portería');
     }
 
     private function datosCliente(): array

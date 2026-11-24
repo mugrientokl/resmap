@@ -178,7 +178,7 @@ class B2BQuotationFlowTest extends TestCase
         $this->view('cotizaciones.pdf', $datos)
             ->assertSee('Razón social: Cliente de prueba')
             ->assertSee('Atención / contacto: Contacto B2B')
-            ->assertSee('Cargo: OT-123')
+            ->assertSee('Cargo / área: OT-123')
             ->assertSee('Teléfono: +56912345678')
             ->assertSee('Región: Metropolitana')
             ->assertSee('Ciudad: Santiago')
@@ -192,7 +192,7 @@ class B2BQuotationFlowTest extends TestCase
             ->assertOk()->assertHeader('content-type', 'application/pdf');
 
         $version->cotizacion->solicitud->cargo = null;
-        $this->view('cotizaciones.pdf', $datos)->assertDontSee('Cargo:');
+        $this->view('cotizaciones.pdf', $datos)->assertDontSee('Cargo / área:');
     }
 
     public function test_team_records_acceptance_and_converts_quote_to_sale_once(): void
