@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 @php($isHome = request()->routeIs('home'))
 @php($isStaff = auth()->check() && in_array(auth()->user()->rol, ['Administrador', 'Vendedor'], true))
+@php($floatingPublicNavigation = ! $isStaff && request()->routeIs('home', 'catalogo.index', 'servicios.index'))
 <html lang="es">
 <head>
     <meta charset="UTF-8">
@@ -14,6 +15,14 @@
 
         body { padding-top: 76px; }
         body.homepage { padding-top: 0; }
+        body.homepage,
+        body.catalogo-page {
+            background-image: linear-gradient(rgba(8, 17, 22, .25), rgba(8, 17, 22, .35)), url('{{ asset('images/contacto-fondo.jpeg') }}');
+            background-attachment: fixed;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: cover;
+        }
 
         :root { --content-gutter: clamp(1rem, 10vw, 5cm); }
         body.homepage,
@@ -41,6 +50,66 @@
             padding-right: var(--content-gutter);
         }
 
+        .home-footer-info {
+            border-top: 1px solid rgba(214, 107, 96, .6);
+            background: linear-gradient(120deg, #391817, #1d2023 65%, #301817);
+            color: #fff;
+        }
+        .contact-footer .home-contact-section {
+            padding-right: calc(var(--content-gutter) + 5.75rem);
+        }
+        .contact-footer .home-contact-content { grid-template-columns: minmax(0, 1fr); }
+        .home-contact-content > div { min-width: 0; grid-template-columns: minmax(0, 1fr); }
+        @media (max-width: 1023px) {
+            .home-contact-content h3 { overflow-wrap: anywhere; }
+            .home-contact-content address a { max-width: 100%; }
+            .home-contact-cards > :not(h2) { gap: .75rem; }
+            .home-contact-cards > :not(h2) > span:first-child { width: 3rem; height: 3rem; }
+            .home-contact-cards > :not(h2) > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+            .home-contact-cards > :not(h2) strong,
+            .home-contact-cards > :not(h2) > span:last-child > span { font-size: 1rem; overflow-wrap: anywhere; }
+        }
+        @media (min-width: 1024px) {
+            .contact-footer .home-contact-section { padding-right: calc(var(--content-gutter) + 16.5rem); }
+        }
+        @media (min-width: 1280px) {
+            .contact-footer .home-contact-content { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+        }
+        .home-footer-grid {
+            display: grid;
+            gap: 2rem;
+            align-items: start;
+        }
+        .home-footer-brand { display: flex; align-items: center; gap: 1rem; }
+        .home-footer-brand a { flex: 0 0 45%; }
+        .home-footer-brand img { width: 14rem; max-width: 100%; }
+        .home-footer-heading {
+            color: #ffd36f;
+            font-size: 1.125rem;
+            font-weight: 800;
+        }
+        .home-footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem 1.5rem;
+            margin-top: 1rem;
+        }
+        .home-footer-links a {
+            color: rgba(255, 255, 255, .9);
+            transition: color .2s ease;
+        }
+        .home-footer-links a:hover { color: #ffd36f; }
+        .home-footer-links a:focus-visible {
+            outline: 2px solid #ffd36f;
+            outline-offset: 4px;
+        }
+        .home-footer-credit a { display: inline-flex; align-items: center; gap: .5rem; max-width: 100%; }
+        .home-footer-credit img { width: 12rem; min-width: 0; }
+        .home-footer-credit a span { flex-shrink: 0; }
+        @media (min-width: 1024px) {
+            .home-footer-grid { grid-template-columns: 1fr 1fr 1.3fr; gap: 3rem; }
+        }
+
         nav > div.max-w-7xl {
             max-width: calc(100% - var(--content-gutter) - var(--content-gutter)) !important;
             padding-left: 0;
@@ -53,19 +122,19 @@
             padding-right: clamp(1.25rem, 5vw, 5rem);
         }
 
-        nav[role="navigation"] a,
-        nav[role="navigation"] span {
+        body:not(.catalogo-page) nav[role="navigation"] a,
+        body:not(.catalogo-page) nav[role="navigation"] span {
             border-color: #e8c8c3 !important;
             color: #9f2f25 !important;
             background-color: #fff !important;
         }
 
-        nav[role="navigation"] a:hover {
+        body:not(.catalogo-page) nav[role="navigation"] a:hover {
             background-color: #f7e8e6 !important;
             color: #8f241d !important;
         }
 
-        nav[role="navigation"] span[aria-current="page"] span {
+        body:not(.catalogo-page) nav[role="navigation"] span[aria-current="page"] span {
             background-color: #b52f25 !important;
             border-color: #b52f25 !important;
             color: #fff !important;
@@ -423,7 +492,7 @@
             margin-right: 0;
             width: 100% !important;
         }
-        body.homepage footer {
+        body.homepage footer:not(.contact-footer) {
             padding-left: var(--content-gutter);
             padding-right: var(--content-gutter);
         }
@@ -449,7 +518,7 @@
         #public-menu-toggle:focus-visible { outline: 3px solid #ffd5c9; outline-offset: 2px; }
         body.public-navigation.navegacion-superior #public-menu { gap: .25rem; }
         body.public-navigation.navegacion-superior #public-menu > * { white-space: nowrap; }
-        @media (max-width: 767px) {
+        @media (max-width: 1023px) {
             body.public-navigation.navegacion-superior #public-menu-toggle:not([hidden]) {
                 display: flex;
                 align-items: center;
@@ -476,9 +545,235 @@
             }
             body.public-navigation.navegacion-superior #public-menu.is-open { display: flex; }
         }
+
+        body.floating-public-navigation:not(.homepage) {
+            padding-top: calc(clamp(.75rem, 1.4vw, 1.5rem) + clamp(6rem, 8vw, 8rem) + 2rem);
+        }
+        body.floating-public-navigation :is(#home-navigation, #main-navigation) {
+            top: clamp(.75rem, 1.4vw, 1.5rem);
+            right: auto;
+            left: 50%;
+            width: calc(100% - clamp(2rem, 5.7vw, 6rem));
+            transform: translateX(-50%);
+            border: 1px solid rgba(205, 112, 105, .58);
+            border-radius: 9999px;
+            background: linear-gradient(115deg, rgba(75, 31, 29, .94), rgba(37, 40, 43, .96) 55%, rgba(24, 31, 34, .97));
+            box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+            -webkit-backdrop-filter: blur(14px);
+            backdrop-filter: blur(14px);
+            transition: background-color .3s ease, box-shadow .3s ease, transform .3s ease;
+        }
+        body.floating-public-navigation :is(#home-navigation, #main-navigation).is-scrolled {
+            background-color: rgba(20, 32, 38, .9);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, .42);
+        }
+        .navigation-progress {
+            position: absolute;
+            right: 12%;
+            bottom: 3px;
+            left: 12%;
+            height: 3px;
+            overflow: hidden;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, .1);
+            pointer-events: none;
+        }
+        .navigation-progress::after {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: inherit;
+            background: #f6b941;
+            content: '';
+            transform: scaleX(var(--scroll-progress, 0));
+            transform-origin: left;
+        }
+        body.floating-public-navigation :is(#home-navigation, #main-navigation) > div {
+            width: 100%;
+            max-width: none !important;
+            min-height: clamp(6rem, 8vw, 8rem);
+            padding: .45rem clamp(2.5rem, 7vw, 7.5rem);
+            transition: min-height .3s ease;
+        }
+        body.floating-public-navigation .brand-logo {
+            height: clamp(5.25rem, 6.5vw, 6.5rem);
+            max-width: 13rem;
+            filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .45));
+            transition: height .3s ease;
+        }
+        body.floating-public-navigation :is(#home-navigation, #main-navigation).is-compact > div {
+            min-height: 4.5rem;
+        }
+        body.floating-public-navigation :is(#home-navigation, #main-navigation).is-compact .brand-logo {
+            height: 3rem;
+        }
+        body.floating-public-navigation.public-navigation #public-menu { gap: clamp(.25rem, .5vw, .5rem); }
+        body.floating-public-navigation #public-menu .nav-link {
+            min-height: 2.75rem;
+            padding: .6rem 1rem;
+            border: 1px solid transparent;
+            border-radius: 9999px;
+            background: transparent;
+            color: #f8fafc;
+            font-size: clamp(1.125rem, 1.4vw, 1.375rem);
+            font-weight: 500;
+            box-shadow: none;
+            transition: transform .2s ease, color .2s ease, background-color .2s ease, border-color .2s ease, box-shadow .2s ease;
+        }
+        body.floating-public-navigation #public-menu .nav-link:hover {
+            border-color: transparent;
+            background: transparent;
+            color: #ffd5c9;
+            box-shadow: none;
+        }
+        body.floating-public-navigation #public-menu .nav-link[aria-current="page"],
+        body.floating-public-navigation #public-menu .nav-link[aria-current="page"]:hover {
+            border: 1px solid rgba(255, 164, 151, .55);
+            background: #8f241d;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, .28);
+        }
+        body.floating-public-navigation #public-menu .nav-link:focus-visible {
+            outline: 2px solid #ffd5c9;
+            outline-offset: 3px;
+            transform: translateY(-3px);
+        }
+        @media (hover: hover) {
+            body.floating-public-navigation #public-menu .nav-link:hover {
+                transform: translateY(-3px);
+            }
+        }
+        @media (min-width: 1024px) {
+            body.floating-public-navigation.homepage .hero-content {
+                padding-top: calc(clamp(.75rem, 1.4vw, 1.5rem) + clamp(6rem, 8vw, 8rem) + 2rem);
+            }
+        }
+        @media (max-width: 1023px) {
+            body.floating-public-navigation:not(.homepage) { padding-top: 100px; }
+            body.floating-public-navigation :is(#home-navigation, #main-navigation) {
+                top: .75rem;
+                width: calc(100% - 2rem);
+            }
+            body.floating-public-navigation :is(#home-navigation, #main-navigation) > div {
+                min-height: 4.5rem;
+                padding: .35rem .85rem;
+            }
+            body.floating-public-navigation .brand-logo {
+                height: 3.25rem;
+                max-width: 7rem;
+            }
+            body.floating-public-navigation :is(#home-navigation, #main-navigation).is-compact > div {
+                min-height: 3.75rem;
+            }
+            body.floating-public-navigation :is(#home-navigation, #main-navigation).is-compact .brand-logo {
+                height: 2.5rem;
+            }
+            body.floating-public-navigation.public-navigation.navegacion-superior #public-menu {
+                top: calc(100% + .5rem);
+                gap: .25rem;
+                padding: .75rem;
+                border: 1px solid rgba(205, 112, 105, .58);
+                border-radius: 1rem;
+                background: linear-gradient(115deg, rgba(75, 31, 29, .97), rgba(37, 40, 43, .98) 55%, rgba(24, 31, 34, .98));
+                -webkit-backdrop-filter: blur(14px);
+                backdrop-filter: blur(14px);
+            }
+            body.floating-public-navigation #public-menu .nav-link {
+                justify-content: flex-start;
+                padding: .65rem 1rem;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            body.floating-public-navigation :is(#home-navigation, #main-navigation) > div,
+            body.floating-public-navigation .brand-logo,
+            body.floating-public-navigation #public-menu .nav-link {
+                transition: none;
+            }
+            body.floating-public-navigation #public-menu .nav-link:is(:hover, :focus-visible) {
+                transform: none;
+            }
+        }
+
+        .solicitud-modal .solicitud-panel {
+            overflow: hidden;
+            border: 1px solid rgba(214, 107, 96, .7);
+            border-radius: 1.5rem;
+            background: linear-gradient(135deg, #4b1f1d, #25282b 55%, #181f22);
+            color: #fff;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+        }
+        .solicitud-modal .solicitud-header { border-color: rgba(255, 255, 255, .15); }
+        .solicitud-modal .solicitud-title { color: #ffd36f; }
+        .solicitud-modal .solicitud-close {
+            display: flex;
+            width: 2.5rem;
+            height: 2.5rem;
+            align-items: center;
+            justify-content: center;
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, .1);
+            color: #fff;
+        }
+        .solicitud-modal .solicitud-close:hover { background: rgba(255, 255, 255, .2); }
+        .solicitud-modal form label,
+        .solicitud-modal form legend {
+            color: #f8f3f1;
+            font-size: 1.125rem;
+            line-height: 1.4;
+        }
+        .solicitud-modal form :is(label, legend) > span[aria-hidden="true"] { color: #ffaaa0; }
+        .solicitud-modal form label > span:not([aria-hidden]) { color: #d3c7c5; }
+        .solicitud-modal form > p,
+        .solicitud-modal #rut_solicitud + p {
+            color: #d3c7c5;
+            font-size: 1rem;
+            line-height: 1.4;
+        }
+        .solicitud-modal form input:not([type="radio"]):not([type="hidden"]),
+        .solicitud-modal form select:not([name="prefijo_telefono"]),
+        .solicitud-modal form textarea {
+            border-color: rgba(214, 107, 96, .6);
+            background: #202629;
+            color: #fff;
+            font-size: 1.125rem;
+        }
+        .solicitud-modal form :is(input, textarea)::placeholder { color: #bdb5b4; }
+        .solicitud-modal form input[type="radio"] { accent-color: #e85a4e; }
+        .solicitud-modal form select:not([name="prefijo_telefono"]) { color-scheme: dark; }
+        .solicitud-modal form select:disabled { color: #aaa09e; }
+        #servicio-modal form label > span.font-normal { font-size: 1rem; }
+        #servicio-modal form :is(input:not([type="hidden"]), select, textarea) {
+            font-weight: 400;
+            transition: border-color .2s ease, box-shadow .2s ease;
+        }
+        #servicio-modal form :is(input:not([type="hidden"]), select, textarea):hover {
+            border-color: #f08c80;
+        }
+        .solicitud-modal form [aria-label="Seleccionar código de país"] {
+            border-color: rgba(214, 107, 96, .6);
+            background: #202629;
+            color: #fff;
+            font-size: 1.0625rem;
+        }
+        .solicitud-modal form [aria-label="Seleccionar código de país"] + div {
+            border-color: rgba(214, 107, 96, .6);
+            background: #202629;
+            color: #fff;
+        }
+        .solicitud-modal form [aria-label="Seleccionar código de país"] + div button:hover { background: #4b302f; }
+        #servicio-modal form [aria-label="Seleccionar código de país"] { min-height: 100%; }
+        .solicitud-modal form [aria-label="Seleccionar código de país"] + div button,
+        .solicitud-modal form button[type="submit"] { font-size: 1.125rem; }
+        .solicitud-modal :is(input, select, textarea, button):focus-visible {
+            outline: 2px solid #ffd36f;
+            outline-offset: 2px;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            #servicio-modal form :is(input, select, textarea) { transition: none; }
+        }
     </style>
 </head>
-<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ $isStaff ? 'navegacion-izquierda' : 'navegacion-superior public-navigation' }}{{ request()->routeIs('catalogo.index') ? ' catalogo-page' : '' }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}">
+<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ $isStaff ? 'navegacion-izquierda' : 'navegacion-superior public-navigation' }}{{ $floatingPublicNavigation ? ' floating-public-navigation' : '' }}{{ request()->routeIs('catalogo.index') ? ' catalogo-page' : '' }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}">
     @if($isStaff)
         <button type="button" id="mobile-menu-button" class="rounded-md p-2 text-white hover:bg-[#721d18] md:hidden" aria-controls="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" aria-expanded="false" aria-label="Abrir menú">
             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -548,11 +843,15 @@
                 <div id="public-menu" class="flex items-center gap-3 text-sm">
                     <a href="{{ route('home') }}" class="nav-link" @if($isHome) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="m3 10 9-7 9 7M5 9v11h14V9m-9 11v-6h4v6"/></svg><span>Inicio</span></a>
                     <a href="{{ route('catalogo.index') }}" class="nav-link" @if(request()->routeIs('catalogo.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4V5Zm16 0h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6V5Z"/></svg><span>Catálogo</span></a>
-                    <a href="{{ route('servicios.index') }}" class="nav-link" @if(request()->routeIs('servicios.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14.5 6.5a5 5 0 0 0-6.3 6.3l-5 5a2 2 0 0 0 2.8 2.8l5-5a5 5 0 0 0 6.3-6.3l-3.1 3.1-2.6-2.6 2.9-3.3Z"/></svg><span>Servicios</span></a>
+                    <a href="{{ route('servicios.index') }}" data-open-servicio class="nav-link" @if(request()->routeIs('servicios.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14.5 6.5a5 5 0 0 0-6.3 6.3l-5 5a2 2 0 0 0 2.8 2.8l5-5a5 5 0 0 0 6.3-6.3l-3.1 3.1-2.6-2.6 2.9-3.3Z"/></svg><span>Servicios</span></a>
+                    <a href="{{ route('catalogo.index') }}#seleccion-cotizacion" data-open-carrito class="nav-link"><span>Cotización</span></a>
                     <a href="{{ route('login') }}" class="nav-link"><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14 4h5v16h-5M10 8l4 4-4 4m4-4H3"/></svg><span>Acceso interno</span></a>
                 </div>
             @endif
         </div>
+        @if($floatingPublicNavigation)
+            <span class="navigation-progress" aria-hidden="true"></span>
+        @endif
     </nav>
 
     <main class="mx-auto min-h-[calc(100vh-140px)] py-6">
@@ -579,51 +878,79 @@
             </div>
         @yield('content')
     </main>
-    <footer class="mt-8 border-t border-[#e8c8c3] bg-white px-4 py-8 text-sm text-gray-600">
+    @if(request()->routeIs('home', 'catalogo.index', 'servicios.index'))
+        @include('servicios.formulario')
+    @endif
+    <footer class="{{ $isHome ? 'contact-footer mt-0 overflow-hidden bg-transparent p-0 text-sm text-gray-600' : (request()->routeIs('catalogo.index') ? 'mt-8 border-t-2 border-[#9f2f25] bg-[#101214] px-4 py-8 pb-24 text-sm text-white/65 shadow-[0_-5px_20px_rgba(181,47,37,.25)] lg:pb-8' : 'mt-8 border-t border-[#e8c8c3] bg-white px-4 py-8 text-sm text-gray-600') }}">
         @if($isHome)
-            <div class="home-footer-inner mx-auto">
-                <h2 class="text-center text-4xl font-black uppercase tracking-tight text-[#241817] sm:text-5xl">Contáctanos</h2>
-                <div class="mt-6 grid gap-4 md:grid-cols-3">
-                    <a href="https://wa.me/56976477124" target="_blank" rel="noopener noreferrer" class="group flex min-h-24 items-center gap-4 rounded-lg bg-[#8f241d] px-5 py-4 text-white shadow-lg transition hover:-translate-y-1 hover:bg-[#721d18]" aria-label="Escribirnos por WhatsApp al +56 9 7647 7124">
-                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#8f241d]" aria-hidden="true">
-                            <svg class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6h-.1c-1.7 0-3.4-.5-4.8-1.3l-.3-.2-3.8 1 1-3.7-.2-.3a9.8 9.8 0 1 1 8.2 4.5Zm5.4-7.3c-.3-.1-1.8-.9-2.1-1-.3-.1-.5-.1-.7.2l-.9 1.1c-.2.2-.3.2-.6.1a8 8 0 0 1-4-3.5c-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3 2.8 1.2 2.8.8 3.3.8.5 0 1.8-.7 2-1.4.3-.6.3-1.2.2-1.3Z" /></svg>
-                        </span>
-                        <span><strong class="block text-base">Escríbenos</strong><span class="mt-1 block text-lg font-black">+56 9 7647 7124</span></span>
-                    </a>
-                    <div class="group flex min-h-24 items-center gap-4 rounded-lg border border-[#e8c8c3] bg-white px-5 py-4 text-[#721d18] shadow-lg transition hover:-translate-y-1">
-                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[#f7e8e6] text-[#b52f25]" aria-hidden="true">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/></svg>
-                        </span>
-                        <span><strong class="block text-base">Horarios de atención</strong><span class="mt-1 block text-lg font-black">Lunes a viernes<br>09:00 AM - 05:00 PM</span></span>
+            <section class="home-contact-section relative isolate overflow-hidden px-[var(--content-gutter)] py-10 sm:py-14 lg:py-16" aria-labelledby="contacto-titulo">
+                <div class="home-contact-content grid w-full gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-10 xl:gap-16">
+                    <div class="home-contact-cards grid w-full max-w-[25rem] grid-rows-[auto_repeat(3,1fr)] justify-self-center gap-4">
+                        <h2 id="contacto-titulo" class="mb-3 text-2xl font-black uppercase text-[#f6b941] drop-shadow-[0_2px_6px_rgba(0,0,0,.8)] sm:text-3xl xl:text-4xl">Datos de contacto</h2>
+                        <a href="https://wa.me/56976477124" target="_blank" rel="noopener noreferrer" class="group flex min-h-28 items-center gap-4 rounded-full border border-[#d66b60]/70 bg-gradient-to-r from-[#5a1d1b]/90 to-[#202629]/90 px-4 py-4 text-white shadow-[0_10px_30px_rgba(0,0,0,.4)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-[#f08c80] hover:shadow-[0_16px_36px_rgba(143,36,29,.35)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white" style="border-radius: 9999px" aria-label="Escribirnos por WhatsApp al +56 9 7647 7124">
+                            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#791e1b]/75" aria-hidden="true">
+                                <svg class="h-9 w-9" fill="currentColor" viewBox="0 0 24 24"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6h-.1c-1.7 0-3.4-.5-4.8-1.3l-.3-.2-3.8 1 1-3.7-.2-.3a9.8 9.8 0 1 1 8.2 4.5Zm5.4-7.3c-.3-.1-1.8-.9-2.1-1-.3-.1-.5-.1-.7.2l-.9 1.1c-.2.2-.3.2-.6.1a8 8 0 0 1-4-3.5c-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3 2.8 1.2 2.8.8 3.3.8.5 0 1.8-.7 2-1.4.3-.6.3-1.2.2-1.3Z" /></svg>
+                            </span>
+                            <span><strong class="block text-xl font-medium sm:text-2xl">Escríbenos</strong><span class="mt-1 block text-xl font-medium sm:text-2xl">+56 9 7647 7124</span></span>
+                        </a>
+                        <div class="flex min-h-28 items-center gap-4 rounded-full border border-[#d66b60]/70 bg-gradient-to-r from-[#5a1d1b]/90 to-[#202629]/90 px-4 py-4 text-white shadow-[0_10px_30px_rgba(0,0,0,.4)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-[#f08c80] hover:shadow-[0_16px_36px_rgba(143,36,29,.35)]">
+                            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#791e1b]/75" aria-hidden="true">
+                                <svg class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/></svg>
+                            </span>
+                            <span><strong class="block text-xl font-medium sm:text-2xl">Horarios de atención</strong><span class="mt-1 block text-lg font-medium leading-tight sm:text-xl">Lunes a viernes<br>09:00 AM - 05:00 PM</span></span>
+                        </div>
+                        <div class="flex min-h-28 items-center gap-4 rounded-full border border-[#d66b60]/70 bg-gradient-to-r from-[#5a1d1b]/90 to-[#202629]/90 px-4 py-4 text-white shadow-[0_10px_30px_rgba(0,0,0,.4)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-[#f08c80] hover:shadow-[0_16px_36px_rgba(143,36,29,.35)]">
+                            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#791e1b]/75" aria-hidden="true">
+                                <svg class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6.75h18v10.5H3zM3 7l9 6 9-6"/></svg>
+                            </span>
+                            <span class="min-w-0"><strong class="block text-xl font-medium sm:text-2xl">Correo electrónico</strong><span class="mt-1 block break-all text-lg font-medium sm:text-xl">resmap.la@gmail.com</span></span>
+                        </div>
                     </div>
-                    <div class="group flex min-h-24 items-center gap-4 rounded-lg bg-[#721d18] px-5 py-4 text-white shadow-lg transition hover:-translate-y-1 hover:bg-[#8f241d]">
-                        <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-white text-[#721d18]" aria-hidden="true">
-                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6.75h18v10.5H3zM3 7l9 6 9-6"/></svg>
-                        </span>
-                        <span class="min-w-0"><strong class="block text-base">Correo electrónico</strong><span class="mt-1 block break-all text-lg font-black">resmap.la@gmail.com</span></span>
+
+                    <div class="grid gap-4">
+                        <h3 class="mb-3 text-2xl font-black uppercase text-[#f6b941] drop-shadow-[0_2px_6px_rgba(0,0,0,.8)] sm:text-3xl xl:text-4xl">Dónde encontrarnos</h3>
+                        <address class="flex flex-col rounded-3xl border border-[#d66b60]/70 bg-[#1b2024]/90 p-5 text-left not-italic text-white shadow-[0_14px_36px_rgba(0,0,0,.4)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-[#f08c80] hover:shadow-[0_20px_40px_rgba(143,36,29,.3)] sm:p-7">
+                            <p class="text-lg font-medium leading-snug sm:text-xl">Av. Gabriela Mistral 1255, Bodega 48<br>Los Ángeles, Región del Biobío, Chile</p>
+                            <div class="mt-5 min-h-56 flex-1 overflow-hidden rounded-lg border border-[#e8c8c3] bg-[#f7f3f0] sm:min-h-72">
+                                <iframe title="Ubicación de RESMAP en Los Ángeles, Biobío" src="https://www.google.com/maps?q=-37.4741361,-72.32925&z=17&output=embed" class="h-56 w-full border-0 sm:h-72 lg:h-full lg:min-h-72" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+                            </div>
+                            <a href="https://www.google.com/maps/search/?api=1&query=-37.4741361,-72.32925" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center self-start text-lg font-semibold text-white underline underline-offset-4 transition hover:text-[#ffd5c9] sm:text-xl">Abrir en Google Maps <span class="ml-2" aria-hidden="true">→</span></a>
+                        </address>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="mx-auto mt-10 max-w-5xl text-center">
-                <p class="text-xs font-bold uppercase tracking-[.25em] text-[#9f2f25]">Dónde encontrarnos</p>
-                <h3 class="mt-2 text-3xl font-black text-[#241817] sm:text-4xl">Av. Gabriela Mistral 1255, Bodega 48</h3>
-                <p class="mt-2 text-lg font-semibold text-[#4f403d]">Los Ángeles, Región del Biobío, Chile</p>
-                <div class="mx-auto mt-5 max-w-4xl overflow-hidden rounded-lg border border-[#e8c8c3] bg-[#f7f3f0] shadow-sm">
-                    <iframe title="Ubicación de RESMAP en Los Ángeles, Biobío" src="https://www.google.com/maps?q=-37.4741361,-72.32925&z=17&output=embed" class="h-72 w-full border-0" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+            <section class="home-footer-info px-[var(--content-gutter)] py-8 sm:py-10" aria-label="Información de RESMAP">
+                <div class="home-footer-grid">
+                    <div class="home-footer-brand">
+                        <a href="{{ route('home') }}" class="inline-block" aria-label="Ir al inicio de Resmap">
+                            <img src="{{ asset('images/resmap sin fondo.png') }}" alt="Resmap" class="h-auto object-contain" loading="lazy">
+                        </a>
+                        <p class="text-base text-white/75">Repuestos y soluciones industriales</p>
+                    </div>
+
+                    <nav aria-label="Enlaces rápidos">
+                        <h2 class="home-footer-heading">Enlaces rápidos</h2>
+                        <ul class="home-footer-links text-base">
+                            <li><a href="{{ route('home') }}">Inicio</a></li>
+                            <li><a href="{{ route('catalogo.index') }}">Catálogo</a></li>
+                            <li><a href="{{ route('servicios.index') }}" data-open-servicio>Servicios</a></li>
+                            <li><a href="{{ route('catalogo.index') }}#seleccion-cotizacion" data-open-carrito>Cotización</a></li>
+                            <li><a href="{{ route('login') }}">Acceso interno</a></li>
+                        </ul>
+                    </nav>
+
+                    <div class="home-footer-credit">
+                        <a href="https://admision.virginiogomez.cl/sedes/" target="_blank" rel="noopener noreferrer">
+                            <img src="https://www.virginiogomez.cl/static/admision/Logo_IPVG.png" alt="Instituto Profesional Virginio Gómez" class="h-auto object-contain" loading="lazy">
+                            <span class="text-sm">Sede Los Ángeles</span>
+                        </a>
+                        <h2 class="mt-4 text-base font-semibold">Desarrollado por Patricia Belen Francisca Illanes Contreras - Gabriel Alexis Pinela Muñoz</h2>
+                    </div>
                 </div>
-                <a href="https://www.google.com/maps/search/?api=1&query=-37.4741361,-72.32925" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex items-center font-bold text-[#9f2f25] hover:text-[#721d18]">Abrir en Google Maps <span class="ml-2">→</span></a>
-            </div>
-
-            <section class="-mx-4 mt-10 bg-[#721d18] px-4 py-9 text-center text-white" aria-label="Instituto y desarrollo">
-                <p class="mb-5 font-black text-[#ffd5c9]">Desarrollado por Patricia Belen Francisca Illanes Contreras - Gabriel Alexis Pinela Muñoz</p>
-                <a href="https://admision.virginiogomez.cl/sedes/" target="_blank" rel="noopener noreferrer">
-                    <img src="https://www.virginiogomez.cl/static/admision/Logo_IPVG.png" alt="Instituto Profesional Virginio Gómez" class="mx-auto h-auto w-48 object-contain" loading="lazy">
-                </a>
-                <h2 class="mt-3 font-bold text-white">Instituto Profesional Virginio Gómez · Sede Los Ángeles</h2>
             </section>
         @endif
-        <p class="mt-8 border-t border-[#f0ddda] pt-5 text-center">© RESMAP 2026. Todos Los Derechos Reservados.</p>
+        <p class="{{ $isHome ? 'border-t border-white/10 bg-gradient-to-r from-[#641d1b] via-[#40191a] to-[#20191b] px-4 pt-4 pb-24 text-center text-white/65 lg:pb-4' : (request()->routeIs('catalogo.index') ? 'text-center' : 'mt-8 border-t border-[#f0ddda] pt-5 text-center') }}">© RESMAP 2026. Todos Los Derechos Reservados.</p>
     </footer>
     @include('components.resmap-dialog')
     <script>
@@ -657,6 +984,21 @@
         window.addEventListener('scroll', updateHomeNavigation, { passive: true });
         window.addEventListener('resize', updateHomeNavigation);
         updateHomeNavigation();
+
+        const navigationProgress = document.querySelector('.navigation-progress');
+        if (navigationProgress) {
+            const floatingNavigation = navigationProgress.closest('nav');
+            const updateNavigationProgress = () => {
+                const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+                const progress = scrollableHeight > 0 ? Math.min(1, Math.max(0, window.scrollY / scrollableHeight)) : 0;
+                navigationProgress.style.setProperty('--scroll-progress', progress);
+                floatingNavigation.classList.toggle('is-compact', window.scrollY > 80);
+            };
+
+            window.addEventListener('scroll', updateNavigationProgress, { passive: true });
+            window.addEventListener('resize', updateNavigationProgress);
+            updateNavigationProgress();
+        }
 
         mobileMenuButton?.addEventListener('click', () => {
             const isOpen = staffNavigation.classList.toggle('is-open');

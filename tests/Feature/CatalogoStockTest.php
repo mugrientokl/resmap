@@ -24,6 +24,7 @@ class CatalogoStockTest extends TestCase
                 ->assertDontSee('resmap-menu-publico')
                 ->assertSee(route('catalogo.index'))
                 ->assertSee(route('servicios.index'))
+                ->assertSee('href="'.route('catalogo.index').'#seleccion-cotizacion" data-open-carrito', false)
                 ->assertSee(route('login'));
 
             $this->assertMatchesRegularExpression(
@@ -292,6 +293,32 @@ class CatalogoStockTest extends TestCase
             ->assertSee(route('catalogo.index'), false);
     }
 
+    public function test_catalog_paginates_eight_filtered_products_per_page(): void
+    {
+        for ($number = 1; $number <= 9; $number++) {
+            $productId = $this->createProductWithStock(3);
+            DB::table('productos')->where('id_producto', $productId)->update([
+                'nombre' => "Repuesto pagina {$number}",
+            ]);
+        }
+
+        $firstPage = $this->get(route('catalogo.index', ['nombre' => 'Repuesto pagina']))
+            ->assertOk()
+            ->viewData('productos');
+
+        $this->assertSame(
+            ['Repuesto pagina 1', 'Repuesto pagina 2', 'Repuesto pagina 3', 'Repuesto pagina 4', 'Repuesto pagina 5', 'Repuesto pagina 6', 'Repuesto pagina 7', 'Repuesto pagina 8'],
+            $firstPage->pluck('nombre')->all(),
+        );
+        $this->assertStringContainsString('nombre=Repuesto%20pagina', $firstPage->nextPageUrl());
+
+        $secondPage = $this->get($firstPage->nextPageUrl())
+            ->assertOk()
+            ->viewData('productos');
+
+        $this->assertSame(['Repuesto pagina 9'], $secondPage->pluck('nombre')->all());
+    }
+
     public function test_inactive_product_is_hidden_and_cannot_be_requested(): void
     {
         $productId = $this->createProductWithStock(3);
@@ -425,6 +452,67 @@ class CatalogoStockTest extends TestCase
             ->assertOk()
             ->assertDontSee($maliciousName, false)
             ->assertSee('escaparHTML(item.nombre)', false);
+    }
+
+    public function test_home_quotation_panel_includes_current_stock_for_catalog_products(): void
+    {
+        $availableId = $this->createProductWithStock(3);
+        $inactiveId = $this->createProductWithStock(2);
+        DB::table('productos')->where('id_producto', $inactiveId)->update(['activo' => false]);
+
+        $this->post(route('catalogo.solicitudes.store'), [
+            ...$this->validCustomerData(),
+            'detalles_productos' => [['id_producto' => $availableId, 'cantidad' => 1]],
+        ])->assertSessionHasNoErrors();
+
+        $home = $this->get(route('home'))->assertOk()
+            ->assertSee('id="carrito-modal"', false)
+            ->assertSee('id="solicitud-modal"', false)
+            ->assertSee('onclick="abrirCarrito()"', false)
+            ->assertSee('id="carrito-total-precio"', false);
+
+        $this->assertFalse($home->viewData('productosStock')->contains('id_producto', $inactiveId));
+        $this->assertMatchesRegularExpression(
+            '/\['.$availableId.',2,"?1000(?:\.00)?"?,"unidad"\]/',
+            $home->getContent(),
+        );
+
+        $catalog = $this->get(route('catalogo.index'))->assertOk();
+        $this->assertMatchesRegularExpression(
+            '/\['.$availableId.',2,"?1000(?:\.00)?"?,"unidad"\]/',
+            $catalog->getContent(),
+        );
+    }
+
+    public function test_home_reopens_quotation_form_with_validation_errors(): void
+    {
+        $productId = $this->createProductWithStock(3);
+
+        $this->from(route('home'))->post(route('catalogo.solicitudes.store'), [
+            ...$this->validCustomerData(),
+            'correo' => 'correo-invalido',
+            'detalles_productos' => [['id_producto' => $productId, 'cantidad' => 1]],
+        ])->assertRedirect(route('home'))->assertSessionHasErrors('correo');
+
+        $this->get(route('home'))->assertOk()
+            ->assertSee('value="correo-invalido"', false)
+            ->assertSee("document.getElementById('solicitud-modal').classList.remove('hidden')", false);
+    }
+
+    public function test_quotation_requires_products_on_home_and_catalog(): void
+    {
+        foreach (['home', 'catalogo.index'] as $page) {
+            $this->get(route($page))->assertOk()
+                ->assertSee('id="continuar-cotizacion" type="button" onclick="abrirSolicitud()" disabled', false)
+                ->assertSee('Agrega al menos un producto para continuar con la cotización.');
+        }
+
+        $this->post(route('catalogo.solicitudes.store'), [
+            ...$this->validCustomerData(),
+            'detalles_productos' => [],
+        ])->assertSessionHasErrors('detalles_productos');
+
+        $this->assertDatabaseCount('solicitud_webs', 0);
     }
 
     public function test_zero_stock_products_are_critical_and_visible_in_the_catalog(): void

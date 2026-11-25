@@ -42,6 +42,11 @@ class CatalogoController extends Controller
                     ->limit(3)
                     ->get()
                 : collect(),
+            'productosStock' => Producto::query()
+                ->where('activo', true)
+                ->select('id_producto', 'stock', 'precio', 'unidad')
+                ->withSum('reservasActivas as stock_reservado', 'cantidad')
+                ->get(),
         ]);
     }
 
@@ -55,7 +60,7 @@ class CatalogoController extends Controller
 
         $productosBuscador = Producto::query()
             ->where('activo', true)
-            ->select('id_producto', 'nombre', 'codigo_barra', 'codigo_origen', 'id_categoria', 'stock')
+            ->select('id_producto', 'nombre', 'codigo_barra', 'codigo_origen', 'id_categoria', 'stock', 'precio', 'unidad')
             ->withSum('reservasActivas as stock_reservado', 'cantidad')
             ->orderBy('nombre')
             ->get();
@@ -73,12 +78,17 @@ class CatalogoController extends Controller
                 );
             })
             ->orderBy('nombre')
-            ->paginate(24)
+            ->paginate(8)
             ->withQueryString();
 
         return view(
             'catalogo.index',
-            compact('categorias', 'productos', 'productosBuscador')
+            [
+                'categorias' => $categorias,
+                'productos' => $productos,
+                'productosBuscador' => $productosBuscador,
+                'productosStock' => $productosBuscador,
+            ]
         );
     }
 

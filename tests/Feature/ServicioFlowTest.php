@@ -19,6 +19,31 @@ class ServicioFlowTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_public_pages_offer_the_service_form_without_leaving_the_page(): void
+    {
+        foreach (['home', 'catalogo.index', 'servicios.index'] as $page) {
+            $this->get(route($page))->assertOk()
+                ->assertSee('data-open-servicio', false)
+                ->assertSee('id="servicio-modal"', false)
+                ->assertSee('action="'.route('servicios.store').'"', false)
+                ->assertSee('name="descripcion_servicio"', false);
+        }
+    }
+
+    public function test_service_validation_errors_reopen_the_service_form_on_the_catalogue(): void
+    {
+        $response = $this->followingRedirects()->from(route('catalogo.index'))->post(route('servicios.store'), [
+            '_formulario' => 'servicio',
+            'descripcion_servicio' => 'Revisión preventiva del equipo',
+        ])->assertOk()
+            ->assertSee('Revisa los datos ingresados')
+            ->assertSee('Revisión preventiva del equipo')
+            ->assertDontSee('id="error-toast"', false);
+
+        $this->assertMatchesRegularExpression('/id="servicio-modal" class="[^"]*(?<!hidden)"/', $response->getContent());
+        $this->assertMatchesRegularExpression('/id="solicitud-modal"\s+class="[^"]*hidden/', $response->getContent());
+    }
+
     public function test_service_request_notifies_staff_by_email_and_database(): void
     {
         Notification::fake();

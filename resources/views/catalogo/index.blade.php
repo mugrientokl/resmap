@@ -1,12 +1,58 @@
 @extends('layouts.app')
 
 @section('content')
+<style>
+    .catalogo-card input[type="number"] {
+        background-color: #fff;
+    }
+    .catalogo-filters select {
+        color-scheme: dark;
+    }
+    .catalogo-pagination nav > div {
+        flex-wrap: wrap;
+    }
+    .catalogo-pagination nav > div:nth-child(2) > div:nth-child(2) > span {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .3rem;
+    }
+    .catalogo-pagination nav p {
+        color: #e5e5e5;
+    }
+    .catalogo-pagination nav a,
+    .catalogo-pagination nav [aria-current="page"] > span,
+    .catalogo-pagination nav [aria-disabled="true"] > span,
+    .catalogo-pagination nav > div:first-child > span {
+        margin-left: 0;
+        border-color: #555052;
+        border-radius: .5rem;
+        background-color: #25282b;
+        color: #f5f5f5;
+    }
+    .catalogo-pagination nav a:hover {
+        background-color: #463334;
+        color: #fff;
+    }
+    .catalogo-pagination nav a:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: 2px;
+    }
+    .catalogo-pagination nav [aria-current="page"] > span {
+        border-color: #d04438;
+        background-color: #b52f25;
+        color: #fff;
+    }
+    .catalogo-pagination nav [aria-disabled="true"] > span,
+    .catalogo-pagination nav > div:first-child > span {
+        color: #a7a7a7;
+    }
+</style>
 <main class="mx-auto max-w-7xl py-6 pb-32">
-    <div>
-        <p class="text-sm font-bold uppercase tracking-[.25em] text-[#9f2f25]">
+    <div class="max-w-[48rem] drop-shadow-[0_2px_6px_rgba(0,0,0,.9)]">
+        <p class="text-sm font-bold uppercase tracking-[.2em] text-[#efd09a]">
             Catálogo de repuestos
         </p>
-        <h1 class="mt-2 text-5xl font-black tracking-tight text-[#241817]">
+        <h1 class="mt-2 text-3xl font-black tracking-tight text-white sm:text-4xl xl:text-5xl">
             Encuentra lo que necesitas.
         </h1>
     </div>
@@ -26,7 +72,7 @@
         </div>
     @endif
 
-    @if($errors->any())
+    @if($errors->any() && old('_formulario') !== 'servicio')
         <div id="error-toast"
             class="fixed right-5 top-24 z-60 max-w-sm border-l-4 border-red-700 bg-red-50 p-5 text-red-800 shadow-xl"
             role="alert" data-auto-dismiss>
@@ -36,7 +82,7 @@
     @endif
 
     <form method="GET" action="{{ route('catalogo.index') }}"
-        class="mt-10 grid gap-3 bg-white p-5 shadow-sm md:grid-cols-[1fr_240px_auto_auto]">
+        class="catalogo-filters relative z-10 mt-10 grid gap-2.5 rounded-2xl border border-[#d66b60]/70 bg-gradient-to-r from-[#3c211f]/85 to-[#181f22]/90 p-3.5 shadow-[0_8px_24px_rgba(143,36,29,.25)] backdrop-blur-md {{ request()->filled('nombre') || request()->filled('categoria') ? 'md:grid-cols-[minmax(0,1fr)_200px_auto_auto]' : 'md:grid-cols-[minmax(0,1fr)_200px_auto]' }}">
 
         <div id="catalogo-selector" class="relative min-w-0">
             <label for="catalogo-buscar" class="sr-only">Buscar producto</label>
@@ -45,7 +91,7 @@
                 value="{{ request('nombre') }}"
                 placeholder="Buscar por nombre o palabra"
                 autocomplete="off"
-                class="w-full border border-[#d9aaa3] bg-white p-3 text-[#241817] focus:border-[#b52f25] focus:outline-none">
+                class="w-full border border-white/25 bg-white/5 px-3 py-2 text-white placeholder:text-white/65 focus:border-[#f08c80] focus:outline-2 focus:outline-offset-2 focus:outline-white">
 
             <div id="catalogo-sugerencias" style="display: none;"
                 class="absolute left-0 top-full z-50 mt-1 max-h-40 w-full overflow-y-auto rounded-md border border-[#d9aaa3] bg-white shadow-lg">
@@ -56,7 +102,7 @@
         </div>
 
         <select id="catalogo-categoria" name="categoria" aria-label="Categoría"
-            class="border border-[#d9aaa3] p-3 text-[#241817] focus:border-[#b52f25] focus:outline-none">
+            class="border border-white/25 bg-[#202629] px-3 py-2 text-white focus:border-[#f08c80] focus:outline-2 focus:outline-offset-2 focus:outline-white">
             <option value="">Todas las categorías</option>
 
             @foreach($categorias as $categoria)
@@ -68,29 +114,31 @@
         </select>
 
         <button type="submit"
-            class="bg-[#b52f25] px-6 py-3 font-bold text-white hover:bg-[#8f241d]">
+            class="bg-[#b52f25] px-5 py-2 font-bold text-white hover:bg-[#8f241d]">
             Buscar
         </button>
         @if(request()->filled('nombre') || request()->filled('categoria'))
             <a href="{{ route('catalogo.index') }}"
-                class="inline-flex items-center justify-center border border-[#d9aaa3] px-5 py-3 font-bold text-[#8f241d] hover:bg-[#f7e8e6]">
+                class="inline-flex items-center justify-center border border-white/30 bg-[#202629] px-5 py-2 font-bold text-white hover:bg-[#463334] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
                 Limpiar filtros
             </a>
         @endif
     </form>
 
-    <div class="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
         @forelse($productos as $producto)
-            <article class="flex h-full flex-col bg-white p-5 shadow-sm sm:p-6">
+            <article class="catalogo-card group flex h-full min-w-0 flex-col rounded-[1.75rem] border border-[#d66b60]/70 bg-gradient-to-br from-[#4b1f1d]/90 via-[#25282b]/95 to-[#181f22]/95 p-4 text-white shadow-[0_10px_30px_rgba(0,0,0,.4)] backdrop-blur-md transition duration-300 hover:-translate-y-2 hover:border-[#f08c80] hover:shadow-[0_18px_40px_rgba(143,36,29,.35)]">
                 <div class="flex flex-1 flex-col">
-                    <div class="relative mb-5 aspect-square w-full overflow-hidden">
+                    <div class="relative mb-3 aspect-square w-full overflow-hidden rounded-2xl border border-white/20 md:mx-auto md:max-w-28">
                         @if($producto->imagen)
                             <img src="{{ asset('storage/'.$producto->imagen) }}"
                                 alt="{{ $producto->nombre }}"
-                                class="h-full w-full object-cover">
+                                class="h-full w-full object-contain">
                         @else
-                            <div class="flex h-full w-full items-center justify-center bg-[#f7e8e6] text-sm font-bold uppercase tracking-widest text-[#9f2f25]">
-                                RESMAP
+                            <div class="flex h-full w-full items-center justify-center bg-white/5">
+                                <span class="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#8f241d] text-white shadow-md" aria-hidden="true">
+                                    <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M7 7v10m10-10v10M5 17h14M9 11h6"/></svg>
+                                </span>
                             </div>
                         @endif
                         @if($producto->stock_disponible <= 0)
@@ -100,25 +148,19 @@
                         @endif
                     </div>
 
-                    <p class="text-xs font-bold uppercase tracking-wider text-[#9f2f25]">
+                    <p class="text-xs font-bold uppercase tracking-wider text-[#ffd36f]">
                         {{ $producto->categoria?->nombre_categoria ?? 'Repuesto' }}
                     </p>
 
-                    <h2 class="mt-3 min-h-14 text-lg font-black text-[#241817]">
+                    <h2 class="mt-3 min-h-14 text-lg font-black leading-6 text-white">
                         {{ $producto->nombre }}
                     </h2>
 
-                    @if($producto->stock_disponible <= 0)
-                        <p class="mt-2 text-xs font-bold text-amber-700">
-                            Sin stock disponible. Stock: 0
-                        </p>
-                    @else
-                        <p class="mt-2 min-h-4"></p>
-                    @endif
+                    <p class="mt-2 min-h-4"></p>
                 </div>
 
-                <div class="mt-auto flex items-center justify-between gap-3 pt-5">
-                    <span class="text-xl font-black text-[#8f241d]">
+                <div class="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
+                    <span class="text-xl font-black text-white">
                         $ {{ number_format($producto->precio, 0, ',', '.') }}
 
                         @if($producto->unidad === 'metro')
@@ -142,197 +184,16 @@
                 </div>
             </article>
         @empty
-            <p class="bg-white p-6 text-center text-gray-500 sm:col-span-2 lg:col-span-3">
+            <p class="col-span-full rounded-2xl bg-white p-6 text-center text-gray-500">
                 No se encontraron productos.
             </p>
         @endforelse
     </div>
 
-    <div class="mt-8">{{ $productos->links() }}</div>
+    @if($productos->hasPages())
+        <div class="catalogo-pagination mt-8 rounded-2xl border border-[#d66b60]/70 bg-gradient-to-r from-[#4b1f1d]/90 to-[#181f22]/95 p-4 shadow-[0_8px_24px_rgba(143,36,29,.25)] backdrop-blur-md">{{ $productos->links() }}</div>
+    @endif
 </main>
-
-<div id="barra-carrito"
-    class="fixed inset-x-0 bottom-0 z-40 hidden border-t-4 border-[#b52f25] bg-[#fff7f5] shadow-[0_-8px_24px_rgba(80,24,18,0.18)]">
-    <div class="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:gap-4">
-        <span class="hidden h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#f7e1dc] text-[#9f2f25] sm:flex" aria-hidden="true">
-            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h2l2 11h11l3-8H6m2 12h.01M17 19h.01"/></svg>
-        </span>
-        <div class="min-w-0 flex-1">
-            <p class="text-base font-black leading-snug text-[#8f241d]">Tu selección</p>
-            <div class="flex min-w-0 flex-col items-start gap-1 sm:flex-row sm:items-center sm:gap-3">
-                <div id="resumen-carrito"
-                    class="flex w-full min-w-0 flex-1 flex-col gap-1 sm:w-auto sm:flex-row sm:gap-4"
-                    aria-live="polite">
-                </div>
-
-                <button id="ver-mas-carrito" type="button" onclick="abrirCarrito()"
-                    class="hidden shrink-0 whitespace-nowrap text-left text-xs font-bold text-[#9f2f25] underline sm:text-sm">
-                </button>
-            </div>
-        </div>
-
-        <button id="abrir-carrito-completo" type="button" onclick="abrirCarrito()"
-            class="inline-flex shrink-0 items-center gap-2 rounded-md bg-[#b52f25] px-2 py-3 text-xs font-bold text-white shadow-md transition hover:bg-[#8f241d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d] sm:px-4 sm:text-base">
-            Ir a cotizar
-            <span id="contador-carrito"
-                class="rounded-full bg-white px-2 py-0.5 text-xs text-[#b52f25]">
-                0
-            </span>
-        </button>
-    </div>
-</div>
-
-<div id="carrito-modal"
-    class="fixed inset-0 z-50 hidden bg-black/50 p-4"
-    role="dialog" aria-modal="true" aria-labelledby="carrito-titulo">
-    <div class="ml-auto flex h-full w-full max-w-lg flex-col bg-white text-[#241817] shadow-2xl">
-        <div class="flex items-center justify-between border-b border-[#e8c8c3] p-5">
-            <h2 id="carrito-titulo" class="text-2xl font-black text-[#8f241d]">
-                Selección para cotizar
-            </h2>
-
-            <button type="button" onclick="cerrarCarrito()"
-                class="rounded-md px-2 text-2xl text-[#8f241d] hover:bg-[#f7e8e6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]" aria-label="Cerrar selección">
-                &times;
-            </button>
-        </div>
-
-        <div id="carrito-items" class="flex-1 space-y-3 overflow-y-auto p-5"></div>
-
-        <div id="stock-insuficiente"
-            class="hidden mx-5 mb-4 rounded-lg border border-[#f0c7a6] bg-[#fff7ed] p-4 text-[#632a1e] shadow-sm"
-            role="status" aria-live="polite">
-            <div class="flex items-start gap-3">
-                <span class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#f9e3ce] text-[#8f241d]" aria-hidden="true">
-                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 4.9 2.8 18a2 2 0 0 0 1.7 3h15a2 2 0 0 0 1.7-3L13.7 4.9a2 2 0 0 0-3.4 0Z"/></svg>
-                </span>
-                <div>
-                    <p class="font-black">Revisa la disponibilidad</p>
-                    <p id="stock-mensaje" class="mt-1 text-sm font-medium leading-relaxed"></p>
-                </div>
-            </div>
-        </div>
-
-        <div class="border-t border-[#e8c8c3] p-5">
-            <button type="button" onclick="abrirSolicitud()"
-                class="w-full rounded-md bg-[#b52f25] p-3 font-bold text-white hover:bg-[#8f241d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]">
-                Continuar cotización
-            </button>
-        </div>
-    </div>
-</div>
-
-<div id="solicitud-modal"
-    class="fixed inset-0 z-50 hidden overflow-y-auto bg-black/50 p-4"
-    role="dialog" aria-modal="true" aria-labelledby="solicitud-titulo">
-    <div class="mx-auto mt-8 max-w-2xl bg-white shadow-2xl">
-        <div class="flex items-center justify-between border-b border-[#e8c8c3] p-5">
-            <h2 id="solicitud-titulo" class="text-2xl font-black text-[#8f241d]">
-                Solicitar cotización
-            </h2>
-
-            <button type="button" onclick="cerrarSolicitud()"
-                class="text-2xl text-[#8f241d]" aria-label="Cerrar formulario">
-                &times;
-            </button>
-        </div>
-
-        @if($errors->any())
-            <div class="mx-6 mt-5 border-l-4 border-red-700 bg-red-50 p-4 text-sm text-red-800">
-                <p class="font-black">Revisa los datos ingresados</p>
-                <ul class="mt-1 list-disc pl-5">
-                    @foreach($errors->all() as $error)
-                        <li>{{ $error }}</li>
-                    @endforeach
-                </ul>
-            </div>
-        @endif
-
-        <form method="POST" action="{{ route('catalogo.solicitudes.store') }}"
-            data-region-initial="{{ old('region') }}"
-            data-comuna-initial="{{ old('comuna') }}"
-            class="grid grid-cols-1 items-start gap-4 p-6 sm:grid-cols-2">
-            @csrf
-
-            <div id="detalles_productos" class="contents"></div>
-
-            <fieldset class="sm:col-span-2">
-                <legend class="text-sm font-bold">Tipo de cliente <span class="text-[#b52f25]" aria-hidden="true">*</span></legend>
-                <div class="mt-2 flex flex-wrap gap-4">
-                    <label class="flex items-center gap-2 font-semibold">
-                        <input type="radio" name="tipo_cliente" value="Persona" required @checked(old('tipo_cliente', 'Persona') === 'Persona')>
-                        Persona
-                    </label>
-                    <label class="flex items-center gap-2 font-semibold">
-                        <input type="radio" name="tipo_cliente" value="Empresa" @checked(old('tipo_cliente', 'Persona') === 'Empresa')>
-                        Empresa
-                    </label>
-                </div>
-            </fieldset>
-
-            <div>
-                <input id="rut_solicitud" name="rut" value="{{ old('rut') }}" required
-                    placeholder="12.345.678-5" data-rut maxlength="12"
-                    autocomplete="off"
-                    class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
-                <p class="mt-1 text-xs text-gray-600"
-                    role="status" aria-live="polite"></p>
-            </div>
-
-            <input name="nombre" value="{{ old('nombre') }}" required
-                placeholder="Razón social o nombre"
-                class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
-
-            <div id="giro_solicitud_wrapper" class="hidden">
-                <label class="block text-sm font-bold" for="giro_solicitud">Giro <span class="text-[#b52f25]" aria-hidden="true">*</span>
-                    <input id="giro_solicitud" name="giro" value="{{ old('giro') }}" maxlength="255"
-                        placeholder="Ej.: comercio de repuestos"
-                        class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
-                </label>
-            </div>
-
-            <label class="block text-sm font-bold" for="contacto_solicitud">Atención / contacto <span class="text-[#b52f25]" aria-hidden="true">*</span>
-                <input id="contacto_solicitud" name="contacto" value="{{ old('contacto') }}" required maxlength="255"
-                    placeholder="Nombre de la persona responsable" class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
-            </label>
-            <label class="block text-sm font-bold" for="cargo_solicitud">Cargo o área <span class="font-normal text-gray-500">(opcional)</span>
-                <input id="cargo_solicitud" name="cargo" value="{{ old('cargo') }}" maxlength="255"
-                    class="mt-1 w-full border border-[#d9aaa3] p-3 font-normal text-[#241817]">
-            </label>
-
-            <input name="correo" type="email" value="{{ old('correo') }}" required pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl"
-                placeholder="Correo"
-                class="w-full border border-[#d9aaa3] p-3 text-[#241817]">
-
-            <div class="w-full">
-                <label for="telefono" class="sr-only">Teléfono chileno</label>
-                <div class="flex">
-                    <span class="flex items-center border border-r-0 border-[#d9aaa3] bg-[#f7e8e6] px-3 font-bold text-[#8f241d]">
-                        +56
-                    </span>
-                    <input id="telefono" name="telefono"
-                        value="{{ old('telefono') }}" required
-                        pattern="[2-9][0-9]{8}" maxlength="9" inputmode="numeric"
-                        placeholder="912345678"
-                        class="min-w-0 flex-1 border border-[#d9aaa3] p-3 text-[#241817]">
-                </div>
-            </div>
-
-            <input name="direccion" value="{{ old('direccion') }}"
-                placeholder="Dirección"
-                class="w-full border border-[#d9aaa3] p-3 text-[#241817] sm:col-span-2">
-
-            <p id="aviso-whatsapp-solicitud" class="text-sm text-gray-600 sm:col-span-2">Enviaremos la cotización por WhatsApp al número de teléfono indicado.</p>
-            <button type="submit"
-                class="bg-[#b52f25] p-3 font-bold text-white hover:bg-[#8f241d] sm:col-span-2">
-                Solicitar cotización
-            </button>
-        </form>
-    </div>
-</div>
-
-<script src="{{ asset('js/rut.js') }}"></script>
-<script src="{{ asset('js/chile-location.js') }}"></script>
 
 <script>
 (() => {
@@ -472,430 +333,7 @@
     });
 })();
 
-const carritoStorageKey = 'resmap-carrito';
-
-function leerCarrito() {
-    try {
-        const datos = JSON.parse(
-            window.localStorage.getItem(carritoStorageKey) || '{}'
-        );
-
-        return datos && typeof datos === 'object' && !Array.isArray(datos)
-            ? datos
-            : {};
-    } catch {
-        return {};
-    }
-}
-
-const seleccion = leerCarrito();
-const stockDisponible = new Map(
-    JSON.parse(document.getElementById('catalogo-datos').textContent)
-        .map(([, , , id, stock]) => [String(id), Number(stock)])
-);
-
-Object.entries(seleccion).forEach(([id, item]) => {
-    item.stock = stockDisponible.get(String(id)) ?? 0;
-});
-
-function guardarCarrito() {
-    window.localStorage.setItem(
-        carritoStorageKey,
-        JSON.stringify(seleccion)
-    );
-}
-
-guardarCarrito();
-
-function escaparHTML(valor) {
-    const elemento = document.createElement('span');
-    elemento.textContent = String(valor);
-
-    return elemento.innerHTML
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
-
-function mostrarErrorStock(mensaje) {
-    abrirCarrito();
-    const elemento = document.getElementById('stock-insuficiente');
-    document.getElementById('stock-mensaje').textContent = mensaje;
-    elemento.classList.remove('hidden');
-}
-
-function limpiarErrorStock() {
-    const elemento = document.getElementById('stock-insuficiente');
-    document.getElementById('stock-mensaje').textContent = '';
-    elemento.classList.add('hidden');
-}
-
-function agregar(id, nombre, stock) {
-    stock = Number(stock);
-
-    if (stock <= 0) {
-        mostrarErrorStock(`Sin stock disponible para ${nombre}.`);
-        return;
-    }
-
-    seleccion[id] = seleccion[id] || {
-        id_producto: id,
-        cantidad: 0,
-        nombre,
-        stock
-    };
-
-    seleccion[id].stock = stock;
-
-    if (seleccion[id].cantidad >= Math.min(stock, 99)) {
-        mostrarErrorStock(
-            stock <= 99 ? `Stock insuficiente para ${nombre}: disponibles ${stock}.` : `El límite por producto es 99 unidades.`
-        );
-        return;
-    }
-
-    seleccion[id].cantidad += 1;
-    limpiarErrorStock();
-    guardarCarrito();
-    renderCarrito();
-}
-
-function cambiarCantidad(id, cambio) {
-    const item = seleccion[id];
-    if (!item) return;
-
-    if (cambio > 0 && item.cantidad >= Math.min(Number(item.stock), 99)) {
-        mostrarErrorStock(
-            Number(item.stock) <= 99 ? `Stock insuficiente para ${item.nombre}: disponibles ${item.stock}.` : `El límite por producto es 99 unidades.`
-        );
-        return;
-    }
-
-    item.cantidad += cambio;
-
-    if (item.cantidad <= 0) delete seleccion[id];
-
-    limpiarErrorStock();
-    guardarCarrito();
-    renderCarrito();
-}
-
-function establecerCantidad(id, valor) {
-    const item = seleccion[id];
-    if (!item) return;
-
-    const cantidadSolicitada = Number.parseInt(valor, 10) || 1;
-    const stock = Number(item.stock);
-
-    if (stock <= 0) {
-        abrirCarrito();
-        return;
-    }
-
-    item.cantidad = Math.max(1, Math.min(stock, 99, cantidadSolicitada));
-    guardarCarrito();
-    renderCarrito();
-
-    if (cantidadSolicitada > stock) {
-        mostrarErrorStock(
-            `Stock insuficiente para ${item.nombre}: disponibles ${stock}.`
-        );
-    } else if (cantidadSolicitada > 99) {
-        mostrarErrorStock('El límite por producto es 99 unidades.');
-    }
-}
-
-function renderCarrito() {
-    document.querySelectorAll('[id^="selector-"]').forEach(selector => {
-        const id = Number(selector.id.replace('selector-', ''));
-
-        if (seleccion[id]) {
-            seleccion[id].stock = Number(selector.dataset.stock || 0);
-        }
-    });
-
-    const items = Object.values(seleccion);
-    const productoSinStock = items.find(
-        item => item.cantidad > Number(item.stock)
-    );
-
-    limpiarErrorStock();
-
-    if (productoSinStock) {
-        const mensaje = document.getElementById('stock-insuficiente');
-        document.getElementById('stock-mensaje').textContent = Number(productoSinStock.stock) === 0
-            ? `${productoSinStock.nombre} ya no tiene stock. Elimínalo con el ícono del basurero para continuar.`
-            : `De ${productoSinStock.nombre} quedan ${productoSinStock.stock} ${Number(productoSinStock.stock) === 1 ? 'unidad disponible' : 'unidades disponibles'}. Ajusta la cantidad para continuar.`;
-        mensaje.classList.remove('hidden');
-    }
-
-    document.getElementById('contador-carrito').textContent =
-        items.reduce((total, item) => total + item.cantidad, 0);
-
-    document.getElementById('barra-carrito')
-        .classList.toggle('hidden', items.length === 0);
-
-    document.getElementById('resumen-carrito').replaceChildren(
-        ...items.slice(0, 2).map(item => {
-            const resumen = document.createElement('span');
-            resumen.className =
-                'truncate text-base font-semibold leading-snug text-[#241817]';
-            resumen.textContent = `${item.cantidad} × ${item.nombre}`;
-            return resumen;
-        })
-    );
-
-    const verMas = document.getElementById('ver-mas-carrito');
-    verMas.classList.toggle('hidden', items.length <= 2);
-    verMas.textContent = items.length > 2
-        ? `Ver más (${items.length - 2})`
-        : '';
-
-    document.getElementById('carrito-items').innerHTML = items.length
-        ? items.map(item => {
-            const id = Number(item.id_producto);
-            const stock = Number(item.stock);
-            const cantidad = Number(item.cantidad);
-
-            return `
-                <div class="flex items-center gap-3 border-b border-[#e8c8c3] pb-3">
-                    <span class="min-w-0 flex-1 break-words font-semibold text-[#241817]">
-                        ${escaparHTML(item.nombre)}
-                    </span>
-                    <div class="flex shrink-0 items-center gap-2">
-                        <button type="button"
-                            onclick="cambiarCantidad(${id}, -1)"
-                            class="h-8 w-8 rounded-full bg-[#f7e8e6] font-bold text-[#8f241d] hover:bg-white">−</button>
-                        <input type="number" min="1" max="${Math.max(1, Math.min(stock, 99))}"
-                            value="${cantidad}" aria-label="Cantidad"
-                            onchange="establecerCantidad(${id}, this.value)"
-                            class="h-8 w-12 border border-[#d9aaa3] bg-white text-center font-bold text-[#8f241d]">
-                        <button type="button"
-                            onclick="cambiarCantidad(${id}, 1)"
-                            class="h-8 w-8 rounded-full bg-[#f7e8e6] font-bold text-[#8f241d] hover:bg-white">+</button>
-                        <button type="button"
-                            onclick="cambiarCantidad(${id}, -${cantidad})"
-                            aria-label="Quitar ${escaparHTML(item.nombre)} de la selección"
-                            title="Quitar de la selección"
-                            class="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#8f241d] hover:bg-[#f7e8e6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]">
-                            <svg aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
-                        </button>
-                    </div>
-                </div>
-            `;
-        }).join('')
-        : '<p class="py-8 text-center text-gray-500">Aún no has seleccionado repuestos.</p>';
-
-    document.querySelectorAll('[id^="selector-"]').forEach(selector => {
-        const id = Number(selector.id.replace('selector-', ''));
-        const item = seleccion[id];
-        const stock = Number(selector.dataset.stock || 0);
-
-        selector.innerHTML = item && stock > 0
-            ? `
-                <div class="flex items-center gap-2 rounded-md border border-[#e8c8c3] p-1">
-                    <button type="button"
-                        onclick="cambiarCantidad(${id}, -1)"
-                        class="h-8 w-8 rounded bg-[#f7e8e6] font-bold text-[#8f241d]">−</button>
-                    <input type="number" min="1" max="${Math.min(stock, 99)}"
-                        value="${Number(item.cantidad)}" aria-label="Cantidad"
-                        onchange="establecerCantidad(${id}, this.value)"
-                        class="h-8 w-12 border border-[#d9aaa3] text-center font-bold text-[#8f241d]">
-                    <button type="button"
-                        onclick="cambiarCantidad(${id}, 1)"
-                        class="h-8 w-8 rounded bg-[#b52f25] font-bold text-white">+</button>
-                </div>
-            `
-            : `
-                <button type="button" data-agregar-producto
-                    data-producto-id="${id}"
-                    data-producto-nombre="${escaparHTML(selector.dataset.nombre || '')}"
-                    data-producto-stock="${stock}"
-                    ${stock <= 0 ? 'disabled' : ''}
-                    class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white enabled:hover:bg-[#8f241d] disabled:cursor-not-allowed disabled:opacity-50">
-                    ${stock <= 0 ? 'Sin stock' : 'Agregar'}
-                </button>
-            `;
-    });
-
-    document.getElementById('detalles_productos').innerHTML =
-        items.map(item => {
-            const id = Number(item.id_producto);
-            const cantidad = Number(item.cantidad);
-
-            return `
-                <input type="hidden"
-                    name="detalles_productos[${id}][id_producto]" value="${id}">
-                <input type="hidden"
-                    name="detalles_productos[${id}][cantidad]" value="${cantidad}">
-            `;
-        }).join('');
-}
-
-document.addEventListener('click', event => {
-    const boton = event.target.closest('[data-agregar-producto]');
-
-    if (boton && !boton.disabled) {
-        agregar(
-            Number(boton.dataset.productoId),
-            boton.dataset.productoNombre,
-            boton.dataset.productoStock || 0
-        );
-    }
-});
-
-function abrirCarrito() {
-    document.getElementById('carrito-modal').classList.remove('hidden');
-    renderCarrito();
-}
-
-function cerrarCarrito() {
-    document.getElementById('carrito-modal').classList.add('hidden');
-}
-
-function abrirSolicitud() {
-    if (!Object.keys(seleccion).length) return;
-
-    const faltante = Object.values(seleccion).find(
-        item => item.cantidad > Number(item.stock)
-    );
-
-    if (faltante) {
-        abrirCarrito();
-        return;
-    }
-
-    cerrarCarrito();
-    document.getElementById('solicitud-modal').classList.remove('hidden');
-}
-
-function cerrarSolicitud() {
-    document.getElementById('solicitud-modal').classList.add('hidden');
-}
-
-renderCarrito();
-inicializarFormularioCatalogo();
-
-const solicitudForm = document.querySelector('#solicitud-modal form');
-
-if (solicitudForm) {
-    const obligatorioLabel = (id, texto) => {
-        const label = document.createElement('label');
-        label.htmlFor = id;
-        label.className = 'mb-1 block text-sm font-bold text-[#241817]';
-        label.textContent = texto + ' ';
-
-        const asterisco = document.createElement('span');
-        asterisco.className = 'text-[#b52f25]';
-        asterisco.setAttribute('aria-hidden', 'true');
-        asterisco.textContent = '*';
-        label.append(asterisco);
-
-        return label;
-    };
-
-    const rut = solicitudForm.querySelector('input[name="rut"]');
-    rut.id = 'rut_solicitud';
-    const rutLabel = obligatorioLabel(rut.id, 'RUN');
-    rut.before(rutLabel);
-
-    const nombre = solicitudForm.querySelector('input[name="nombre"]');
-    nombre.id = 'nombre_solicitud';
-
-    const nombreWrapper = document.createElement('div');
-    nombre.before(nombreWrapper);
-    nombreWrapper.append(
-        obligatorioLabel(nombre.id, 'Nombre o razón social'),
-        nombre
-    );
-
-    const tiposCliente = solicitudForm.querySelectorAll('input[name="tipo_cliente"]');
-    const giroWrapper = solicitudForm.querySelector('#giro_solicitud_wrapper');
-    const giro = solicitudForm.querySelector('#giro_solicitud');
-    const actualizarTipoCliente = () => {
-        const esEmpresa = solicitudForm.querySelector('input[name="tipo_cliente"]:checked')?.value === 'Empresa';
-        rutLabel.firstChild.textContent = esEmpresa ? 'RUT ' : 'RUN ';
-        giroWrapper?.classList.toggle('hidden', !esEmpresa);
-        if (giro) giro.required = esEmpresa;
-    };
-    tiposCliente.forEach(tipoCliente => tipoCliente.addEventListener('change', actualizarTipoCliente));
-    actualizarTipoCliente();
-
-    const correo = solicitudForm.querySelector('input[name="correo"]');
-    correo.id = 'correo_solicitud';
-
-    const correoWrapper = document.createElement('div');
-    correo.before(correoWrapper);
-    correoWrapper.append(
-        obligatorioLabel(correo.id, 'Correo electrónico'),
-        correo
-    );
-
-    const telefonoLabel = solicitudForm.querySelector('label[for="telefono"]');
-    telefonoLabel.className = 'mb-1 block text-sm font-bold text-[#241817]';
-    telefonoLabel.textContent = 'Teléfono *';
-
-    [
-        ['region_solicitud', 'Región'],
-        ['comuna_solicitud', 'Comuna']
-    ].forEach(([id, texto]) => {
-        const campo = solicitudForm.querySelector(`#${id}`);
-
-        if (campo) {
-            campo.before(obligatorioLabel(id, texto));
-        }
-    });
-
-    const leyenda = document.createElement('p');
-    leyenda.className = 'text-xs text-gray-500 sm:col-span-2';
-    leyenda.textContent = '* Campo obligatorio';
-    solicitudForm.querySelector('#detalles_productos').after(leyenda);
-}
-
-solicitudForm?.addEventListener('submit', event => {
-    const faltantes = Object.values(seleccion).filter(
-        item => item.cantidad > Number(item.stock)
-    );
-
-    if (!faltantes.length) return;
-
-    event.preventDefault();
-
-    const detalle = faltantes.map(item =>
-        `${item.nombre}: solicitas ${item.cantidad}, quedan ${item.stock}`
-    ).join('. ');
-
-    cerrarSolicitud();
-    mostrarErrorStock(
-        `Stock insuficiente: ${detalle}. Ajusta las cantidades para continuar.`
-    );
-});
-
-const urlParams = new URLSearchParams(window.location.search);
-
-if (urlParams.get('open_cotizacion') === 'true' || urlParams.get('open_cart') === 'true') {
-    abrirCarrito();
-    urlParams.delete('open_cotizacion');
-    urlParams.delete('open_cart');
-
-    const consulta = urlParams.toString();
-
-    window.history.replaceState(
-        {},
-        document.title,
-        window.location.pathname + (consulta ? '?' + consulta : '')
-    );
-}
-
-const confirmacionEnviada = document.getElementById('success-toast');
-
-if (confirmacionEnviada) {
-    window.localStorage.removeItem(carritoStorageKey);
-    Object.keys(seleccion).forEach(id => delete seleccion[id]);
-    renderCarrito();
-}
-
-@if($errors->any())
-    document.getElementById('solicitud-modal').classList.remove('hidden');
-@endif
 </script>
+
+@include('catalogo.seleccion')
 @endsection
