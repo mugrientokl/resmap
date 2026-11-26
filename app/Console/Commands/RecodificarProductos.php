@@ -181,7 +181,7 @@ class RecodificarProductos extends Command
             $id = (int) $producto->id_producto;
             $prefijo = $prefijos[$id];
             foreach ([$producto->codigo_barra, $producto->codigo_origen] as $codigo) {
-                if (! is_string($codigo) || ! preg_match('/^'.$prefijo.'(\d{3,})$/D', $codigo, $coincidencias)) {
+                if (! is_string($codigo) || ! preg_match('/^'.$prefijo.'(\d{3})$/D', $codigo, $coincidencias)) {
                     continue;
                 }
                 $numeroTexto = ltrim($coincidencias[1], '0');
@@ -207,8 +207,8 @@ class RecodificarProductos extends Command
             $prefijo = $prefijos[$id];
             do {
                 $numero = ($maximos[$prefijo] ?? 0) + 1;
-                if ($numero >= PHP_INT_MAX) {
-                    throw new RuntimeException("Se agotó el rango de consecutivos para el prefijo {$prefijo}.");
+                if ($numero > 999) {
+                    throw new RuntimeException("Se agotaron los códigos disponibles para el prefijo {$prefijo}.");
                 }
                 $maximos[$prefijo] = $numero;
                 $codigo = $prefijo.sprintf('%03d', $numero);

@@ -166,8 +166,8 @@
 
 <style>
     .dashboard-container {
-        --dashboard-red: #8f241d;
-        --dashboard-accent: #c41e3a;
+        --dashboard-red: #b52f25;
+        --dashboard-accent: #b52f25;
         --dashboard-muted: #000;
         box-sizing: border-box;
         width: 100%;
@@ -409,12 +409,21 @@
         height: 48px;
         border-radius: 12px;
         font-size: 1.2rem;
+        border: 1px solid rgba(143, 36, 29, .12);
+        background: rgba(255, 255, 255, .72);
+        color: #8f241d;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, .9);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
     }
 
-    .icon-sales { background: #fdecea; color: #c41e3a; }
-    .icon-revenue { background: #e8f5ec; color: #1f7a3d; }
-    .icon-clients { background: #eaf1fb; color: #2a5db0; }
-    .icon-today { background: #fff4e0; color: #b7791f; }
+    .icon-sales,
+    .icon-revenue,
+    .icon-clients,
+    .icon-today {
+        background: rgba(255, 255, 255, .72);
+        color: #8f241d;
+    }
 
     .stat-content { min-width: 0; }
 
@@ -508,8 +517,8 @@
         const contenedor = document.getElementById('dashboard-live');
         let graficos = [];
         let solicitud = null;
-        const rojo = '#C41E3A';
-        const rojoClaro = '#E8A3AE';
+        const rojo = '#B52F25';
+        const rojoClaro = '#D66B60';
         const formatoDinero = valor => '$' + Number(valor).toLocaleString('es-CL');
         const escalaDinero = { beginAtZero: true, ticks: { color: '#000', callback: formatoDinero } };
         const etiquetasBarras = {

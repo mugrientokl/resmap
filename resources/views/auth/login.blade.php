@@ -9,7 +9,7 @@
         height: 3px;
         margin: .6rem auto 0;
         border-radius: 9999px;
-        background: #d52b31;
+        background: #b52f25;
     }
 </style>
 </head>
@@ -52,7 +52,7 @@
                         </button>
                     </div>
                 </div>
-                <button class="w-full border border-[#f08078]/50 bg-gradient-to-r from-[#9d0c0c] via-[#d52b31] to-[#9d0c0c] p-3 font-bold text-white shadow-[0_8px_24px_rgba(181,47,37,.35)] transition hover:brightness-110 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" style="border-radius: 9999px">Ingresar</button>
+                <button class="w-full border border-[#b52f25] bg-[#b52f25] p-3 font-bold text-white shadow-[0_8px_22px_rgba(181,47,37,.18)] transition hover:border-[#c7382f] hover:bg-[#c7382f] hover:shadow-[0_10px_28px_rgba(181,47,37,.32)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#b52f25]" style="border-radius: 9999px">Ingresar</button>
             </form>
             <a href="{{ route('password.request') }}" class="mt-5 block text-center text-sm font-bold text-[#8f241d] hover:text-[#721d18] hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8f241d]">¿Olvidaste tu contraseña?</a>
     </main>

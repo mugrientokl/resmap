@@ -24,8 +24,22 @@ class CatalogoStockTest extends TestCase
                 ->assertDontSee('resmap-menu-publico')
                 ->assertSee(route('catalogo.index'))
                 ->assertSee(route('servicios.index'))
-                ->assertSee('href="'.route('catalogo.index').'#seleccion-cotizacion" data-open-carrito', false)
                 ->assertSee(route('login'));
+
+            $menuInicio = strpos($response->getContent(), 'id="public-menu"');
+            $menuFin = $menuInicio !== false
+                ? strpos($response->getContent(), '</div>', $menuInicio)
+                : false;
+            $publicMenu = $menuInicio !== false && $menuFin !== false
+                ? substr($response->getContent(), $menuInicio, $menuFin - $menuInicio)
+                : '';
+            $this->assertStringNotContainsString('seleccion-cotizacion', $publicMenu);
+            $this->assertStringNotContainsString(
+                '<li><a href="'.route('catalogo.index').'#seleccion-cotizacion"',
+                $response->getContent(),
+            );
+            $response->assertSee('id="barra-whatsapp"', false);
+            $response->assertSee('https://wa.me/56976477124', false);
 
             $this->assertMatchesRegularExpression(
                 '/<a href="'.preg_quote(route($page), '/').'"[^>]*aria-current="page"/',

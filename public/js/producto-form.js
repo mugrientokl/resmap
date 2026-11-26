@@ -26,17 +26,7 @@ function validateProductForm(form) {
     } else if (nombresProductos.some(nombre => normalizarNombreProducto(nombre) === normalizarNombreProducto(productName))) {
         mensaje = 'Ya existe un repuesto con ese nombre.';
     } else if (form.dataset.codigoOriginal && productCode !== String(form.dataset.codigoOriginal).trim().toUpperCase()) {
-        const prefijo = productName.normalize('NFD')
-            .replace(/\p{M}/gu, '')
-            .replace(/[^A-Za-z]/g, '')
-            .toUpperCase()
-            .slice(0, 3);
-
-        if (!/^[A-Z]{3}\d{3,}$/.test(productCode)) {
-            mensaje = 'El código debe tener tres letras seguidas de al menos tres números.';
-        } else if (!productCode.startsWith(prefijo)) {
-            mensaje = 'El código debe comenzar con las tres primeras letras del nombre.';
-        }
+        mensaje = 'El código del repuesto se genera automáticamente y no se puede modificar.';
     }
 
     errorMessage.textContent = mensaje;

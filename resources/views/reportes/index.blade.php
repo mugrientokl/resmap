@@ -62,10 +62,12 @@
 <style>
     .report-filters {
         overflow: hidden;
-        border: 1px solid #eee1de;
+        border: 1px solid rgba(214, 107, 96, .28);
         border-radius: 16px;
-        background: #fff;
-        box-shadow: 0 8px 26px rgba(62, 32, 29, .06);
+        background: linear-gradient(135deg, rgba(255, 255, 255, .82), rgba(255, 250, 248, .64));
+        box-shadow: 0 18px 45px rgba(100, 40, 35, .12), inset 0 1px 0 rgba(255,255,255,.9);
+        -webkit-backdrop-filter: blur(18px) saturate(125%);
+        backdrop-filter: blur(18px) saturate(125%);
     }
     .report-filter-panel > summary { list-style: none; }
     .report-filter-panel > summary::-webkit-details-marker { display: none; }
@@ -79,7 +81,7 @@
         color: #30211f;
         font-size: 1rem;
         font-weight: 800;
-        background: linear-gradient(110deg, #fff8f6, #fff 70%);
+        background: linear-gradient(110deg, rgba(255, 255, 255, .72), rgba(255, 250, 248, .56));
     }
     .report-filter-chevron { width: 20px; height: 20px; margin-left: auto; transition: transform .15s ease; }
     .report-filter-panel[open] .report-filter-chevron { transform: rotate(180deg); }
@@ -108,7 +110,12 @@
     .report-filters-heading p, .report-section-heading p { margin: 3px 0 0; color: #786f6d; font-size: .8rem; }
     .report-reset { color: #9f2f25; font-size: .8rem; font-weight: 700; text-decoration: none; white-space: nowrap; }
     .report-reset:hover { text-decoration: underline; }
-    .report-filter-section { padding: 20px 24px; }
+    .report-filter-section {
+        padding: 20px 24px;
+        background: linear-gradient(135deg, rgba(255, 255, 255, .46), rgba(255, 250, 248, .34));
+        -webkit-backdrop-filter: blur(14px) saturate(125%);
+        backdrop-filter: blur(14px) saturate(125%);
+    }
     .report-filter-section-details { border-top: 1px solid #f3edeb; }
     .report-section-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
     .report-section-heading h3 { margin: 0; color: #382b29; font-size: .9rem; font-weight: 800; }
@@ -133,9 +140,11 @@
         min-width: 0;
         min-height: 44px;
         padding: 9px 12px;
-        border: 1px solid #e3dcda;
-        background: #fff;
-        color: #382b29;
+        border: 1px solid rgba(214, 107, 96, .38);
+        background: rgba(255, 255, 255, .58);
+        color: #111827;
+        -webkit-backdrop-filter: blur(14px) saturate(125%);
+        backdrop-filter: blur(14px) saturate(125%);
         font-size: .875rem;
         font-weight: 400;
         transition: border-color .15s, box-shadow .15s;

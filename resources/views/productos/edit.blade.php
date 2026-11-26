@@ -20,7 +20,7 @@
 
         <div>
             <label class="block text-sm font-medium text-gray-700">Código de Barra</label>
-            <input type="text" name="codigo_barra" value="{{ old('codigo_barra', $producto->codigo_barra) }}" required maxlength="255" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
+            <input type="text" name="codigo_barra" value="{{ $producto->codigo_barra }}" readonly aria-readonly="true" class="mt-1 block w-full rounded-md border-gray-300 bg-gray-100 p-2 text-gray-600">
         </div>
 
         <div>
@@ -86,24 +86,17 @@
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-                <label for="modo_precio" class="block text-sm font-medium text-gray-700">Modo de precio</label>
-                <select id="modo_precio" name="modo_precio" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
-                    <option value="manual" @selected(old('modo_precio', $producto->modo_precio ?? 'manual') === 'manual')>Manual</option>
-                    <option value="automatico" @selected(old('modo_precio', $producto->modo_precio) === 'automatico')>Automático por costo y margen</option>
-                </select>
-            </div>
-            <div>
                 <label for="margen_objetivo" class="block text-sm font-medium text-gray-700">Margen objetivo sobre precio neto (%)</label>
-                <input id="margen_objetivo" type="number" step="0.01" name="margen_objetivo" value="{{ old('margen_objetivo', $producto->margen_objetivo ?? 30) }}" min="0" max="999.99" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                <input id="margen_objetivo" type="number" step="0.01" name="margen_objetivo" value="{{ old('margen_objetivo', $producto->margen_objetivo ?? 30) }}" min="0" max="999.99" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
             </div>
             <div>
                 <label for="costo_neto_unitario" class="block text-sm font-medium text-gray-700">Costo neto promedio</label>
                 <input id="costo_neto_unitario" type="number" step="0.01" name="costo_neto_unitario" value="{{ old('costo_neto_unitario', $producto->costo_promedio_neto) }}" min="0" max="99999999.99" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
             </div>
             <div>
-                <label for="precio_venta" class="block text-sm font-medium text-gray-700">Precio final de venta con IVA</label>
-                <input id="precio_venta" type="number" step="0.01" name="precio" value="{{ old('precio', $producto->precio) }}" min="0" max="99999999.99" class="mt-1 block w-full rounded-md border border-gray-300 p-2">
-                <p id="precio_recomendado" class="mt-1 hidden text-xs text-gray-600"></p>
+                <label for="precio_venta" class="block text-sm font-medium text-gray-700">Precio final de venta (con IVA)</label>
+                <input id="precio_venta" type="number" step="0.01" name="precio" value="{{ old('precio', $producto->precio) }}" min="0" max="99999999.99" required class="mt-1 block w-full rounded-md border border-gray-300 p-2">
+                <p id="precio_recomendado" class="mt-1 text-xs text-gray-600" aria-live="polite"></p>
             </div>
             <div>
                 <label for="stock" class="block text-sm font-medium text-gray-700">Stock</label>
@@ -123,34 +116,22 @@
 </div>
 
 <script>
-    const modoPrecio = document.getElementById('modo_precio');
     const costoPromedio = document.getElementById('costo_neto_unitario');
     const margenObjetivo = document.getElementById('margen_objetivo');
     const precioVenta = document.getElementById('precio_venta');
     const precioRecomendado = document.getElementById('precio_recomendado');
 
     function actualizarPrecioProducto() {
-        const automatico = modoPrecio.value === 'automatico';
-        costoPromedio.required = automatico;
-        precioVenta.readOnly = automatico;
-        precioVenta.required = !automatico;
-        precioRecomendado.classList.toggle('hidden', !automatico);
-
-        if (automatico) {
-            const costo = Number(costoPromedio.value || 0);
-            const margen = Number(margenObjetivo.value || 0);
-            if (costo > 0) {
-                const recomendado = Math.round(costo * (1 + margen / 100) * 1.19 * 100) / 100;
-                precioVenta.value = recomendado.toFixed(2);
-                precioRecomendado.textContent = `Precio recomendado: $${recomendado.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} con IVA`;
-            } else {
-                precioVenta.value = '';
-                precioRecomendado.textContent = 'Ingresa el costo neto promedio para calcular el precio.';
-            }
+        const costo = Number(costoPromedio.value || 0);
+        const margen = Number(margenObjetivo.value || 0);
+        if (costo > 0) {
+            const recomendado = Math.round(costo * (1 + margen / 100) * 1.19 * 100) / 100;
+            precioRecomendado.textContent = `Recomendación con IVA referencial (19%): $${recomendado.toLocaleString('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}. El precio final es editable.`;
+        } else {
+            precioRecomendado.textContent = 'Ingresa un costo neto para calcular una recomendación; el precio final se define manualmente.';
         }
     }
 
-    modoPrecio.addEventListener('change', actualizarPrecioProducto);
     costoPromedio.addEventListener('input', actualizarPrecioProducto);
     margenObjetivo.addEventListener('input', actualizarPrecioProducto);
     actualizarPrecioProducto();

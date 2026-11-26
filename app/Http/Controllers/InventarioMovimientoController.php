@@ -117,7 +117,7 @@ class InventarioMovimientoController extends Controller
             ->get([
                 'productos.id_producto', 'productos.nombre', 'productos.codigo_barra', 'productos.codigo_origen',
                 'productos.stock', 'productos.id_categoria', 'categorias.nombre_categoria',
-                'productos.precio', 'productos.costo_promedio_neto', 'productos.margen_objetivo', 'productos.modo_precio',
+                'productos.precio', 'productos.costo_promedio_neto', 'productos.margen_objetivo',
             ])
             ->map(function (object $producto) use ($ultimasAdquisiciones): array {
                 $categoria = $producto->nombre_categoria ?? 'Sin Categoría';
@@ -130,7 +130,6 @@ class InventarioMovimientoController extends Controller
                     'precio' => (float) $producto->precio,
                     'costo_promedio_neto' => $producto->costo_promedio_neto !== null ? (float) $producto->costo_promedio_neto : null,
                     'margen_objetivo' => (float) $producto->margen_objetivo,
-                    'modo_precio' => $producto->modo_precio,
                     'busqueda' => trim($producto->nombre.' '.$categoria.' '.$producto->codigo_barra.' '.($producto->codigo_origen ?? '')),
                     'etiqueta' => $producto->nombre.' | Cat: '.$categoria.' | Stock: '.$producto->stock,
                     'ultima_adquisicion' => $adquisicion ? [
@@ -291,7 +290,7 @@ class InventarioMovimientoController extends Controller
                         throw new \RuntimeException('El ajuste dejaría menos stock físico que las unidades reservadas para cotizaciones vigentes.');
                     }
 
-                    $datosProducto = ['stock' => $stockNuevo];
+                    $datosProducto = ['stock' => $stockNuevo, 'modo_precio' => 'manual'];
                     if ($esCompra && isset($linea['precio_entrada']) && $cantidad > 0) {
                         $costoUnitarioNeto = (float) $linea['precio_entrada'];
                         $costoPromedio = Producto::calcularCostoPromedioPonderado(

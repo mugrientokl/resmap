@@ -6,19 +6,19 @@ use App\Models\Producto;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class ProductoIdentificadoresTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_new_product_calculates_and_persists_automatic_sale_price(): void
+    public function test_new_product_keeps_the_manual_price_and_persists_its_recommendation_inputs(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
         $categoria = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Prueba']);
 
         $this->actingAs($admin)->post(route('productos.store'), [
-            'codigo_barra' => 'FIL777',
             'nombre' => 'Filtro automático',
             'precio' => '999',
             'stock' => 5,
@@ -26,16 +26,16 @@ class ProductoIdentificadoresTest extends TestCase
             'id_categoria' => $categoria,
             'unidad' => 'unidad',
             'activo' => '1',
-            'modo_precio' => 'automatico',
             'costo_neto_unitario' => '1000',
             'margen_objetivo' => '30',
         ])->assertSessionHasNoErrors();
 
         $producto = Producto::where('nombre', 'Filtro automático')->firstOrFail();
-        $this->assertSame(1547.0, (float) $producto->precio);
+        $this->assertSame(999.0, (float) $producto->precio);
         $this->assertSame(1000.0, (float) $producto->costo_promedio_neto);
         $this->assertSame(30.0, (float) $producto->margen_objetivo);
-        $this->assertSame('automatico', $producto->modo_precio);
+        $this->assertSame('manual', $producto->modo_precio);
+        $this->assertSame('FIL001', $producto->codigo_barra);
         $this->assertDatabaseHas('inventario_movimientos', [
             'id_producto' => $producto->id_producto,
             'motivo' => 'Stock inicial',
@@ -77,13 +77,41 @@ class ProductoIdentificadoresTest extends TestCase
 
         $this->post(route('productos.store'), [...$datos, 'nombre' => '  filtro nuevo  '])->assertSessionHasErrors('nombre');
         $this->post(route('productos.store'), [...$datos, 'nombre' => 'Otro filtro', 'codigo_barra' => $producto->codigo_barra])
-            ->assertSessionHasErrors('codigo_barra');
+            ->assertSessionHasErrors(['codigo_barra' => 'El código del repuesto se genera automáticamente.']);
         $this->put(route('productos.update', $producto->id_producto), [...$datos, 'codigo_barra' => 'OTRO'])->assertSessionHasErrors('codigo_barra');
         $this->put(route('productos.update', $producto->id_producto), [...$datos, 'codigo_barra' => $producto->codigo_barra])
             ->assertSessionHasNoErrors();
     }
 
-    public function test_manual_codes_follow_the_name_prefix_and_reject_duplicates(): void
+    public function test_product_model_rejects_code_changes_and_forms_do_not_offer_editable_codes(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $categoria = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Prueba']);
+        $producto = Producto::crearConCodigo([
+            'nombre' => 'Filtro nuevo',
+            'precio' => 100,
+            'stock' => 1,
+            'stock_critico' => 1,
+            'id_categoria' => $categoria,
+        ]);
+
+        $this->actingAs($admin)->get(route('productos.create'))
+            ->assertOk()
+            ->assertSee('Se asignará automáticamente')
+            ->assertDontSee('name="codigo_barra"', false)
+            ->assertDontSee('name="modo_precio"', false);
+        $this->get(route('productos.edit', $producto->id_producto))
+            ->assertOk()
+            ->assertSee('name="codigo_barra"', false)
+            ->assertSee('readonly', false)
+            ->assertDontSee('name="modo_precio"', false);
+
+        $producto->codigo_barra = 'FIL002';
+        $this->expectException(ValidationException::class);
+        $producto->save();
+    }
+
+    public function test_manual_codes_are_rejected_and_server_generates_the_identifier(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
         $categoria = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Prueba']);
@@ -100,30 +128,23 @@ class ProductoIdentificadoresTest extends TestCase
 
         $this->actingAs($admin)
             ->post(route('productos.store'), $datos)
-            ->assertSessionHasNoErrors();
+            ->assertSessionHasErrors('codigo_barra');
+        $this->assertDatabaseMissing('productos', ['nombre' => 'Filtro hidráulico']);
+
+        unset($datos['codigo_barra']);
+        $this->post(route('productos.store'), $datos)->assertSessionHasNoErrors();
         $this->assertDatabaseHas('productos', [
             'nombre' => 'Filtro hidráulico',
-            'codigo_barra' => 'FIL245',
-            'codigo_origen' => 'FIL245',
+            'codigo_barra' => 'FIL001',
+            'codigo_origen' => 'FIL001',
         ]);
 
         $this->post(route('productos.store'), [
             ...$datos,
             'nombre' => 'Filtro especial',
-            'codigo_barra' => 'fil245',
-        ])->assertSessionHasErrors(['codigo_barra' => 'Ya existe un repuesto con ese código.']);
-
-        $this->post(route('productos.store'), [
-            ...$datos,
-            'nombre' => 'Martillo',
             'codigo_barra' => 'FIL001',
-        ])->assertSessionHasErrors(['codigo_barra' => 'El código debe comenzar con las tres primeras letras del nombre.']);
+        ])->assertSessionHasErrors(['codigo_barra' => 'El código del repuesto se genera automáticamente.']);
 
-        $this->post(route('productos.store'), [
-            ...$datos,
-            'nombre' => 'Martillo',
-            'codigo_barra' => 'MAR1',
-        ])->assertSessionHasErrors('codigo_barra');
     }
 
     public function test_names_are_unique_ignoring_unicode_case_on_create_and_update(): void
@@ -152,15 +173,42 @@ class ProductoIdentificadoresTest extends TestCase
             ...$datos, 'nombre' => 'Código distinto', 'codigo_barra' => 'MARXYZ999', 'codigo_origen' => 'OTRO',
         ]);
         DB::table('productos')->insert([
-            ...$datos, 'nombre' => 'Código alto', 'codigo_barra' => 'mar999', 'codigo_origen' => null,
+            ...$datos, 'nombre' => 'Código alto', 'codigo_barra' => 'mar009', 'codigo_origen' => null,
         ]);
 
         $this->actingAs($admin)->post(route('productos.store'), $datos)->assertSessionHasNoErrors();
         $this->post(route('productos.store'), [...$datos, 'nombre' => 'Marca'])->assertSessionHasNoErrors();
-        $this->assertDatabaseHas('productos', ['nombre' => 'Martillo', 'codigo_barra' => 'MAR1000', 'codigo_origen' => 'MAR1000']);
-        $this->assertDatabaseHas('productos', ['nombre' => 'Marca', 'codigo_barra' => 'MAR1001']);
+        $this->assertDatabaseHas('productos', ['nombre' => 'Martillo', 'codigo_barra' => 'MAR011', 'codigo_origen' => 'MAR011']);
+        $this->assertDatabaseHas('productos', ['nombre' => 'Marca', 'codigo_barra' => 'MAR012']);
         $this->assertDatabaseHas('productos', ['id_producto' => $legacy, 'codigo_barra' => 'MAR002', 'codigo_origen' => 'mar010']);
         $this->post(route('productos.store'), [...$datos, 'nombre' => 'A2'])->assertSessionHasErrors('nombre');
+    }
+
+    public function test_code_generation_stops_when_the_three_digit_sequence_is_exhausted(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $categoria = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Prueba']);
+        DB::table('productos')->insert([
+            'codigo_barra' => 'FIL999',
+            'codigo_origen' => 'FIL999',
+            'nombre' => 'Filtro anterior',
+            'precio' => 100,
+            'stock' => 1,
+            'stock_critico' => 1,
+            'id_categoria' => $categoria,
+        ]);
+
+        $this->actingAs($admin)->post(route('productos.store'), [
+            'nombre' => 'Filtro nuevo',
+            'precio' => 100,
+            'stock' => 1,
+            'stock_critico' => 1,
+            'id_categoria' => $categoria,
+            'unidad' => 'unidad',
+            'activo' => '1',
+        ])->assertSessionHasErrors([
+            'codigo_barra' => 'Se agotaron los códigos disponibles para el prefijo FIL.',
+        ]);
     }
 
     public function test_duplicate_names_ignore_accents_and_extra_spaces_even_for_legacy_rows(): void

@@ -36,7 +36,48 @@ class Producto extends Model
 
     protected static function booted(): void
     {
+        static::creating(function (self $producto): void {
+            if (filled($producto->codigo_barra) || filled($producto->codigo_origen)) {
+                return;
+            }
+
+            $prefijo = self::prefijoCodigo((string) $producto->nombre);
+            if (strlen($prefijo) !== 3) {
+                throw ValidationException::withMessages([
+                    'nombre' => 'El nombre del repuesto debe contener al menos tres letras.',
+                ]);
+            }
+
+            $ultimoNumero = 0;
+            $codigos = self::query()
+                ->whereRaw('LOWER(codigo_barra) LIKE ?', [strtolower($prefijo).'%'])
+                ->orWhereRaw('LOWER(codigo_origen) LIKE ?', [strtolower($prefijo).'%'])
+                ->get(['codigo_barra', 'codigo_origen']);
+
+            foreach ($codigos as $existente) {
+                foreach ([$existente->codigo_barra, $existente->codigo_origen] as $codigoExistente) {
+                    $ultimoNumero = max($ultimoNumero, self::consecutivoCodigo($codigoExistente, $prefijo));
+                }
+            }
+
+            if ($ultimoNumero >= 999) {
+                throw ValidationException::withMessages([
+                    'codigo_barra' => "Se agotaron los códigos disponibles para el prefijo {$prefijo}.",
+                ]);
+            }
+
+            $codigo = $prefijo.sprintf('%03d', $ultimoNumero + 1);
+            $producto->setAttribute('codigo_barra', $codigo);
+            $producto->setAttribute('codigo_origen', $codigo);
+        });
+
         static::saving(function (self $producto): void {
+            if ($producto->exists && ($producto->isDirty('codigo_barra') || $producto->isDirty('codigo_origen'))) {
+                throw ValidationException::withMessages([
+                    'codigo_barra' => 'El código del repuesto se genera automáticamente y no se puede modificar.',
+                ]);
+            }
+
             if ($producto->isDirty('nombre')) {
                 $producto->setAttribute('nombre', self::normalizarNombre((string) $producto->getAttribute('nombre')));
                 $producto->setAttribute('nombre_normalizado', self::claveNombre((string) $producto->getAttribute('nombre')));
@@ -107,8 +148,6 @@ class Producto extends Model
     protected $primaryKey = 'id_producto';
 
     protected $fillable = [
-        'codigo_barra',
-        'codigo_origen',
         'nombre',
         'descripcion',
         'imagen',
@@ -151,38 +190,13 @@ class Producto extends Model
         return $productoExiste || $recodificacionExiste;
     }
 
-    public static function crearConCodigo(array $datos, ?string $codigoManual = null): self
+    public static function crearConCodigo(array $datos): self
     {
         $prefijo = self::prefijoCodigo($datos['nombre']);
         if (\strlen($prefijo) !== 3) {
             throw ValidationException::withMessages([
                 'nombre' => 'El nombre del repuesto debe contener al menos tres letras.',
             ]);
-        }
-
-        if ($codigoManual !== null) {
-            $codigoManual = strtoupper(trim($codigoManual));
-            if (! preg_match('/^[A-Z]{3}\d{3,}$/', $codigoManual)
-                || ! str_starts_with($codigoManual, $prefijo)) {
-                throw ValidationException::withMessages([
-                    'codigo_barra' => 'El código debe comenzar con las tres primeras letras del nombre y continuar con números.',
-                ]);
-            }
-
-            return DB::transaction(function () use ($datos, $codigoManual): self {
-                if (self::codigoExiste($codigoManual) || self::nombreExiste($datos['nombre'])) {
-                    throw ValidationException::withMessages([
-                        'codigo_barra' => self::codigoExiste($codigoManual)
-                            ? 'Ya existe un repuesto con ese código.'
-                            : 'Ya existe un repuesto con ese nombre.',
-                    ]);
-                }
-
-                $datos['codigo_barra'] = $codigoManual;
-                $datos['codigo_origen'] = $codigoManual;
-
-                return self::create($datos);
-            });
         }
 
         for ($intento = 0; $intento < 10; $intento++) {
@@ -213,11 +227,19 @@ class Producto extends Model
                         }
                     }
 
-                    $codigo = $prefijo.\sprintf('%03d', $ultimoNumero + 1);
-                    $datos['codigo_barra'] = $codigo;
-                    $datos['codigo_origen'] = $codigo;
+                    if ($ultimoNumero >= 999) {
+                        throw ValidationException::withMessages([
+                            'codigo_barra' => "Se agotaron los códigos disponibles para el prefijo {$prefijo}.",
+                        ]);
+                    }
 
-                    return self::create($datos);
+                    $codigo = $prefijo.\sprintf('%03d', $ultimoNumero + 1);
+                    $producto = new self($datos);
+                    $producto->setAttribute('codigo_barra', $codigo);
+                    $producto->setAttribute('codigo_origen', $codigo);
+                    $producto->save();
+
+                    return $producto;
                 });
             } catch (UniqueConstraintViolationException $exception) {
                 if ($codigo === null || self::nombreExiste($datos['nombre']) || ! self::query()
@@ -236,19 +258,11 @@ class Producto extends Model
 
     private static function consecutivoCodigo(?string $codigo, string $prefijo): int
     {
-        if ($codigo === null || ! preg_match('/^'.preg_quote($prefijo, '/').'(\d+)$/i', $codigo, $coincidencias)) {
+        if ($codigo === null || ! preg_match('/^'.preg_quote($prefijo, '/').'(\d{3})$/i', $codigo, $coincidencias)) {
             return 0;
         }
 
-        $numero = ltrim($coincidencias[1], '0');
-        $limite = (string) PHP_INT_MAX;
-        if (\strlen($numero) > \strlen($limite) || \strlen($numero) === \strlen($limite) && strcmp($numero, $limite) >= 0) {
-            throw ValidationException::withMessages([
-                'codigo_barra' => 'El consecutivo de este prefijo excede el límite admitido.',
-            ]);
-        }
-
-        return (int) $numero;
+        return (int) $coincidencias[1];
     }
 
     protected function stockDisponible(): Attribute

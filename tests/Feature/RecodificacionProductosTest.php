@@ -149,23 +149,20 @@ class RecodificacionProductosTest extends TestCase
         $this->assertDatabaseHas('productos', ['id_producto' => $second, 'codigo_barra' => 'RESMAP-2']);
     }
 
-    public function test_conversion_continues_above_999_and_does_not_reuse_an_old_code_for_another_product(): void
+    public function test_conversion_does_not_generate_codes_with_more_than_three_digits(): void
     {
         $category = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Prueba']);
         $first = $this->producto($category, 'Martillo', 'RESMAP-1');
         $preserved = $this->producto($category, 'Martillo largo', 'MAR999');
         $other = $this->producto($category, 'Pistola', 'MAR1000');
         $this->maintenance(true);
-        $this->artisan('app:recodificar-productos', ['--aplicar' => true])->assertSuccessful();
-        $this->assertDatabaseHas('productos', ['id_producto' => $first, 'codigo_barra' => 'MAR1001']);
+        $this->artisan('app:recodificar-productos', ['--aplicar' => true])
+            ->expectsOutputToContain('Se agotaron los códigos disponibles para el prefijo MAR.')
+            ->assertFailed();
+        $this->assertDatabaseCount('producto_recodificaciones', 0);
+        $this->assertDatabaseHas('productos', ['id_producto' => $first, 'codigo_barra' => 'RESMAP-1']);
         $this->assertDatabaseHas('productos', ['id_producto' => $preserved, 'codigo_barra' => 'MAR999']);
-        $this->assertDatabaseHas('productos', ['id_producto' => $other, 'codigo_barra' => 'PIS001']);
-
-        $nuevo = Producto::crearConCodigo([
-            'nombre' => 'Marca nueva', 'precio' => 10, 'stock' => 1,
-            'stock_critico' => 1, 'id_categoria' => $category,
-        ]);
-        $this->assertSame('MAR1002', $nuevo->codigo_barra);
+        $this->assertDatabaseHas('productos', ['id_producto' => $other, 'codigo_barra' => 'MAR1000']);
     }
 
     public function test_new_products_do_not_reuse_a_historical_code_from_another_prefix(): void
@@ -175,11 +172,15 @@ class RecodificacionProductosTest extends TestCase
         $this->maintenance(true);
         $this->artisan('app:recodificar-productos', ['--aplicar' => true])->assertSuccessful();
 
-        $nuevo = Producto::crearConCodigo([
+        $this->maintenance(false);
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $this->actingAs($admin)->post(route('productos.store'), [
             'nombre' => 'Martillo', 'precio' => 10, 'stock' => 1,
-            'stock_critico' => 1, 'id_categoria' => $category,
+            'stock_critico' => 1, 'id_categoria' => $category, 'unidad' => 'unidad', 'activo' => '1',
+        ])->assertSessionHasErrors([
+            'codigo_barra' => 'Se agotaron los códigos disponibles para el prefijo MAR.',
         ]);
-        $this->assertSame('MAR1000', $nuevo->codigo_barra);
+        $this->assertDatabaseMissing('productos', ['nombre' => 'Martillo']);
     }
 
     private function producto(int $category, string $nombre, string $codigo): int

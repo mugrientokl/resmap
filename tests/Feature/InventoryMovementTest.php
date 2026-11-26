@@ -28,6 +28,7 @@ class InventoryMovementTest extends TestCase
             ->assertSee('Registrar Movimiento')
             ->assertSee('role="dialog"', false)
             ->assertSee('id="movement-detail-modal"', false)
+            ->assertSee('id="movement-price-confirmation-modal"', false)
             ->assertSee('Costo neto unitario de adquisición')
             ->assertSee('id="movement-products-data"', false)
             ->assertSee('"id":'.$productId, false)
@@ -337,6 +338,28 @@ class InventoryMovementTest extends TestCase
         $this->getJson(route('inventario.movimientos.show', $movement))
             ->assertOk()->assertJsonPath('precio_entrada', 0)->assertJsonPath('precio_unitario_adquisicion', 0)
             ->assertJsonPath('precio_venta_recomendado', 0);
+    }
+
+    public function test_acquisition_keeps_the_current_price_until_the_recommended_change_is_confirmed(): void
+    {
+        [$admin, $productId] = $this->createInventoryFixture(3);
+        DB::table('productos')->where('id_producto', $productId)->update(['modo_precio' => 'automatico']);
+        $proveedor = Proveedor::factory()->create();
+
+        $this->actingAs($admin)->post(route('inventario.movimientos.store'), [
+            'tipo' => 'ingreso',
+            'motivo' => 'Compra / Adquisición',
+            'fecha_evento' => '2026-10-15',
+            'proveedor_id' => $proveedor->id,
+            'productos' => [['id_producto' => $productId, 'cantidad' => 2, 'precio_entrada' => 1000]],
+        ])->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('productos', [
+            'id_producto' => $productId,
+            'precio' => 1190,
+            'modo_precio' => 'manual',
+            'costo_promedio_neto' => 400,
+        ]);
     }
 
     public function test_admin_can_create_and_edit_suppliers_with_initial_examples_available(): void

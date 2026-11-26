@@ -214,10 +214,7 @@
                             <input id="movement-product-{{ $index }}-price" type="number" name="productos[{{ $index }}][precio_entrada]" value="{{ $linea['precio_entrada'] ?? '' }}" min="0" max="99999999.99" step="0.01" class="movement-price w-full rounded-md border border-gray-300 p-2 text-sm">
                             <p class="movement-cost-preview mt-1 text-xs text-gray-600"></p>
                             <p class="movement-last-purchase mt-1 text-xs text-gray-600" aria-live="polite"></p>
-                            <label class="mt-2 flex items-center gap-2 text-xs font-medium text-gray-700">
-                                <input type="checkbox" name="productos[{{ $index }}][aplicar_precio_venta]" value="1" class="movement-apply-price rounded border-gray-300">
-                                Actualizar el precio de venta con el resultado recomendado
-                            </label>
+                            <input type="hidden" name="productos[{{ $index }}][aplicar_precio_venta]" value="0" class="movement-apply-price">
                         </div>
                         <button type="button" class="remove-movement-line justify-self-start text-sm font-medium text-red-700 underline">Quitar producto</button>
                     </div>
@@ -231,6 +228,20 @@
                 <button type="submit" class="rounded-md bg-[#b52f25] px-4 py-2 text-sm font-medium text-white hover:bg-[#8f241d]">Registrar Movimiento</button>
             </div>
         </form>
+    </div>
+</div>
+<div id="movement-price-confirmation-modal" class="fixed inset-0 z-[70] hidden overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="movement-price-confirmation-title">
+    <div class="mx-auto my-6 w-full max-w-xl rounded-lg bg-white shadow-2xl">
+        <div class="border-b border-amber-200 px-6 py-4">
+            <h3 id="movement-price-confirmation-title" class="text-lg font-bold text-gray-800">¿Actualizar los precios de venta?</h3>
+            <p class="mt-2 text-sm text-gray-600">La adquisición cambia el costo promedio y la recomendación de estos productos:</p>
+        </div>
+        <ul id="movement-price-confirmation-products" class="max-h-60 space-y-2 overflow-y-auto px-6 py-4 text-sm text-gray-700"></ul>
+        <div class="flex flex-wrap justify-end gap-2 border-t bg-gray-50 px-6 py-4">
+            <button type="button" id="keep-movement-prices" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Dejar precios actuales</button>
+            <button type="button" id="apply-movement-prices" class="rounded-md bg-[#b52f25] px-4 py-2 text-sm font-medium text-white hover:bg-[#8f241d]">Actualizar precios ahora</button>
+            <button type="button" id="cancel-movement-price-confirmation" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Cancelar movimiento</button>
+        </div>
     </div>
 </div>
 <div id="movement-provider-modal" class="fixed inset-0 z-60 hidden overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="movement-provider-modal-title">
@@ -502,7 +513,14 @@
         const providerSubmit = providerForm.querySelector('button[type="submit"]');
         const movementLines = document.getElementById('movement-lines');
         const addMovementLineButton = document.getElementById('add-movement-line');
+        const priceConfirmationModal = document.getElementById('movement-price-confirmation-modal');
+        const priceConfirmationProducts = document.getElementById('movement-price-confirmation-products');
+        const applyMovementPricesButton = document.getElementById('apply-movement-prices');
+        const keepMovementPricesButton = document.getElementById('keep-movement-prices');
+        const cancelPriceConfirmationButton = document.getElementById('cancel-movement-price-confirmation');
         let nextLineIndex = Math.max(...Array.from(movementLines.querySelectorAll('.movement-line'), (line) => Number(line.dataset.index)), -1) + 1;
+        let pendingPriceChangeLines = [];
+        let priceDecisionCompleted = false;
         const openModalButton = document.getElementById('open-movement-modal');
         const closeModalButtons = [
             document.getElementById('close-movement-modal'),
@@ -511,6 +529,7 @@
         let previousFocus = null;
 
         const updateMovementLines = () => {
+            priceDecisionCompleted = false;
             const lines = Array.from(movementLines.querySelectorAll('.movement-line'));
             const isPurchase = movementReason.value === 'Compra / Adquisición';
             lines.forEach((line, index) => {
@@ -550,17 +569,14 @@
                 }
                 const catalogItem = productCatalog.find((item) => String(item.id) === product.value);
                 const applyPrice = line.querySelector('.movement-apply-price');
-                if (catalogItem && applyPrice.dataset.productId !== product.value) {
-                    applyPrice.dataset.productId = product.value;
-                    applyPrice.checked = catalogItem.modo_precio === 'automatico';
-                }
+                applyPrice.disabled = !selected || !isPurchase;
                 const costPreview = line.querySelector('.movement-cost-preview');
                 if (selected && catalogItem && isPurchase) {
                     const quantity = Number(line.querySelector('.movement-quantity').value || 0);
                     const unitCost = Number(price.value || 0);
                     const previousCost = catalogItem.costo_promedio_neto;
-                    const newAverage = quantity > 0
-                        ? ((catalogItem.stock * (previousCost || 0)) + (quantity * unitCost)) / (catalogItem.stock + quantity)
+                    const newAverage = quantity > 0 && catalogItem.stock + quantity > 0
+                        ? Math.round((((catalogItem.stock * (previousCost || 0)) + (quantity * unitCost)) / (catalogItem.stock + quantity)) * 100) / 100
                         : 0;
                     const margin = Number(catalogItem.margen_objetivo || 30);
                     const recommended = newAverage > 0
@@ -568,8 +584,8 @@
                         : 0;
                     const money = (amount) => `$${new Intl.NumberFormat('es-CL', { maximumFractionDigits: 2 }).format(amount)}`;
                     costPreview.textContent = quantity > 0 && unitCost > 0
-                        ? `Costo total: ${money(quantity * unitCost)} · Costo promedio nuevo: ${money(newAverage)} · Precio recomendado: ${money(recommended)} con IVA`
-                        : `Costo promedio actual: ${previousCost !== null ? money(previousCost) : 'sin registrar'} · Precio actual: ${money(catalogItem.precio)} con IVA`;
+                        ? `Costo total: ${money(quantity * unitCost)} · Costo promedio nuevo: ${money(newAverage)} · Precio recomendado con IVA referencial: ${money(recommended)}`
+                        : `Costo promedio actual: ${previousCost !== null ? money(previousCost) : 'sin registrar'} · Precio actual: ${money(catalogItem.precio)}`;
                 } else {
                     costPreview.textContent = '';
                 }
@@ -599,6 +615,7 @@
                 input.checked = false;
                 input.setCustomValidity('');
             });
+            line.querySelector('.movement-apply-price').value = '0';
             line.querySelector('select').value = '';
             line.querySelector('[role="listbox"]').classList.add('hidden');
             line.querySelector('[role="combobox"]').setAttribute('aria-expanded', 'false');
@@ -645,6 +662,51 @@
             });
             updateProviderField();
         };
+
+        const calculateRecommendedPrice = (line) => {
+            const productId = line.querySelector('input[type="hidden"]').value;
+            const product = productCatalog.find((item) => String(item.id) === productId);
+            const quantity = Number(line.querySelector('.movement-quantity').value || 0);
+            const unitCost = Number(line.querySelector('.movement-price').value || 0);
+            if (!product || quantity <= 0) {
+                return null;
+            }
+
+            const newAverage = Math.round((
+                (product.stock * (product.costo_promedio_neto || 0) + quantity * unitCost)
+                / (product.stock + quantity)
+            ) * 100) / 100;
+            const margin = Number(product.margen_objetivo || 30);
+            const recommended = Math.round(newAverage * (1 + margin / 100) * 1.19 * 100) / 100;
+            if (Math.round(recommended * 100) === Math.round(Number(product.precio) * 100)) {
+                return null;
+            }
+
+            return { line, product, recommended };
+        };
+
+        const resolvePriceChanges = (applyRecommendedPrices) => {
+            pendingPriceChangeLines.forEach(({ line }) => {
+                line.querySelector('.movement-apply-price').value = applyRecommendedPrices ? '1' : '0';
+            });
+            pendingPriceChangeLines = [];
+            priceDecisionCompleted = true;
+            priceConfirmationModal.classList.add('hidden');
+            movementForm.requestSubmit();
+        };
+
+        applyMovementPricesButton.addEventListener('click', () => resolvePriceChanges(true));
+        keepMovementPricesButton.addEventListener('click', () => resolvePriceChanges(false));
+        cancelPriceConfirmationButton.addEventListener('click', () => {
+            pendingPriceChangeLines = [];
+            priceConfirmationModal.classList.add('hidden');
+        });
+        priceConfirmationModal.addEventListener('click', (event) => {
+            if (event.target === priceConfirmationModal) {
+                pendingPriceChangeLines = [];
+                priceConfirmationModal.classList.add('hidden');
+            }
+        });
 
         const openMovementModal = () => {
             if (!movementModal) {
@@ -719,7 +781,28 @@
             updateReasons();
         });
         movementReason?.addEventListener('change', updateProviderField);
-        movementForm?.addEventListener('submit', () => {
+        movementForm?.addEventListener('submit', (event) => {
+            if (movementReason.value === 'Compra / Adquisición' && !priceDecisionCompleted) {
+                const priceChanges = Array.from(movementLines.querySelectorAll('.movement-line'))
+                    .map(calculateRecommendedPrice)
+                    .filter(Boolean);
+
+                if (priceChanges.length > 0) {
+                    event.preventDefault();
+                    pendingPriceChangeLines = priceChanges;
+                    priceConfirmationProducts.replaceChildren();
+                    const money = (amount) => `$${new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)}`;
+                    priceChanges.forEach(({ product, recommended }) => {
+                        const item = document.createElement('li');
+                        item.textContent = `${product.etiqueta}: ${money(product.precio)} → ${money(recommended)}`;
+                        priceConfirmationProducts.appendChild(item);
+                    });
+                    priceConfirmationModal.classList.remove('hidden');
+                    applyMovementPricesButton.focus();
+                    return;
+                }
+            }
+
             const summary = Array.from(movementLines.querySelectorAll('.movement-line')).filter((line) => line.querySelector('input[type="hidden"]').value).map((line) => {
                 const productId = line.querySelector('input[type="hidden"]').value;
                 const product = productCatalog.find((item) => String(item.id) === productId);
@@ -735,6 +818,11 @@
             }
         });
         document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape' && !priceConfirmationModal.classList.contains('hidden')) {
+                pendingPriceChangeLines = [];
+                priceConfirmationModal.classList.add('hidden');
+                return;
+            }
             if (event.key === 'Escape' && !providerModal.classList.contains('hidden')) {
                 closeProviderModal();
                 return;

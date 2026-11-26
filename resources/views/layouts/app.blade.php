@@ -129,10 +129,10 @@
         .nav-icon { display: none; }
 
         #home-navigation { transition: background-color .3s ease, box-shadow .3s ease; }
-        #home-navigation.is-scrolled { background-color: #8f241d; box-shadow: 0 4px 16px rgba(36, 24, 23, .2); }
+        #home-navigation.is-scrolled { background-color: #b52f25; box-shadow: 0 4px 16px rgba(36, 24, 23, .2); }
 
         body.navegacion-superior #main-navigation {
-            background: #8f241d;
+            background: #b52f25;
             box-shadow: 0 5px 18px rgba(55, 16, 13, .2);
         }
         body.navegacion-superior > nav > div {
@@ -229,7 +229,7 @@
                 flex-direction: column;
                 gap: .25rem;
                 padding: .75rem 1rem 1rem;
-                background: #75231f;
+                background: #b52f25;
                 box-shadow: 0 8px 18px rgba(36, 24, 23, .2);
             }
             body.navegacion-superior #main-menu.hidden { display: none; }
@@ -263,8 +263,12 @@
                 width: 5.25rem;
                 overflow-x: hidden;
                 overflow-y: auto;
-                background-color: #8f241d;
-                box-shadow: 4px 0 16px rgba(36, 24, 23, .2);
+                border-right: 1px solid rgba(214, 107, 96, .24);
+                background: linear-gradient(180deg, rgba(255, 255, 255, .92), rgba(255, 250, 248, .78));
+                color: #5a302b;
+                box-shadow: 8px 0 28px rgba(100, 40, 35, .14);
+                -webkit-backdrop-filter: blur(22px) saturate(125%);
+                backdrop-filter: blur(22px) saturate(125%);
                 transition: width .22s ease, box-shadow .22s ease;
             }
             body.navegacion-izquierda > nav > div {
@@ -305,7 +309,7 @@
                 padding: .6rem .75rem;
                 border: 1px solid transparent;
                 border-radius: .65rem;
-                color: #fff7f5;
+                color: #493733;
                 font-size: 1.0625rem;
                 font-weight: 600;
                 line-height: 1.35;
@@ -317,7 +321,7 @@
                 width: 1.35rem;
                 height: 1.35rem;
                 flex: none;
-                color: #ffd5c9;
+                color: #a84a40;
             }
             body.navegacion-izquierda .nav-link > span:not(.nav-badge),
             body.navegacion-izquierda #profile-menu-button > span:nth-child(2) {
@@ -331,20 +335,30 @@
                 white-space: normal;
             }
             body.navegacion-izquierda .nav-link:hover {
-                border-color: rgba(255, 255, 255, .16);
-                background-color: rgba(255, 255, 255, .1);
-                color: #fff;
+                border-color: rgba(214, 107, 96, .28);
+                background-color: rgba(255, 255, 255, .72);
+                color: #721d18;
             }
             body.navegacion-izquierda .nav-link[aria-current="page"] {
-                border-color: #f5d6cf;
-                background-color: #fff4f0;
-                color: #721d18;
-                box-shadow: 0 3px 10px rgba(49, 12, 9, .16);
+                border-color: #a52e25;
+                background-color: #b52f25;
+                color: #fff;
+                box-shadow: 0 6px 16px rgba(143, 36, 29, .24);
             }
-            body.navegacion-izquierda .nav-link[aria-current="page"] .nav-icon { color: #9f2f25; }
+            body.navegacion-izquierda .nav-link[aria-current="page"] .nav-icon { color: #fff; }
+            body.navegacion-izquierda .nav-link[aria-current="page"]:hover,
+            body.navegacion-izquierda .nav-link[aria-current="page"]:focus-visible {
+                border-color: rgba(181, 47, 37, .42);
+                background-color: rgba(255, 255, 255, .92);
+                color: #b52f25;
+            }
+            body.navegacion-izquierda .nav-link[aria-current="page"]:hover .nav-icon,
+            body.navegacion-izquierda .nav-link[aria-current="page"]:focus-visible .nav-icon {
+                color: #b52f25;
+            }
             body.navegacion-izquierda .nav-link:focus-visible,
             body.navegacion-izquierda #profile-menu-button:focus-visible {
-                outline: 3px solid #ffd5c9;
+                outline: 3px solid #d9aaa3;
                 outline-offset: 2px;
             }
             body.navegacion-izquierda .nav-badge {
@@ -357,18 +371,19 @@
             body.navegacion-izquierda .profile-section {
                 margin-bottom: .75rem;
                 padding-bottom: .75rem;
-                border-bottom: 1px solid rgba(255, 255, 255, .25);
+                border-bottom: 1px solid rgba(214, 107, 96, .22);
             }
             body.navegacion-izquierda #profile-menu-button {
                 min-height: 3.25rem;
                 justify-content: flex-start;
                 padding: .6rem .75rem;
-                border: 1px solid rgba(255, 255, 255, .18);
+                border: 1px solid rgba(214, 107, 96, .22);
                 border-radius: .65rem;
-                background-color: rgba(255, 255, 255, .07);
+                background-color: rgba(255, 255, 255, .58);
+                color: #493733;
                 font-size: 1rem;
             }
-            body.navegacion-izquierda #profile-menu-button:hover { background-color: rgba(255, 255, 255, .14); }
+            body.navegacion-izquierda #profile-menu-button:hover { background-color: rgba(255, 255, 255, .82); }
             body.navegacion-izquierda #profile-menu-button > svg { margin-left: auto; flex: none; }
             body.navegacion-izquierda #profile-menu {
                 position: static;
@@ -416,7 +431,7 @@
                 top: .75rem;
                 left: .75rem;
                 z-index: 50;
-                background: #8f241d;
+                background: #b52f25;
                 box-shadow: 0 2px 8px rgba(36, 24, 23, .25);
             }
         }
@@ -482,7 +497,7 @@
                 align-items: stretch;
                 flex-direction: column;
                 padding: .75rem 1rem 1rem;
-                background: #75231f;
+                background: #b52f25;
                 box-shadow: 0 8px 18px rgba(36, 24, 23, .2);
             }
             body.public-navigation.navegacion-superior #public-menu.is-open { display: flex; }
@@ -570,7 +585,7 @@
         body.floating-public-navigation #public-menu .nav-link[aria-current="page"],
         body.floating-public-navigation #public-menu .nav-link[aria-current="page"]:hover {
             border: 1px solid rgba(255, 164, 151, .55);
-            background: #8f241d;
+            background: #b52f25;
             color: #fff;
             box-shadow: 0 4px 12px rgba(0, 0, 0, .28);
         }
@@ -644,10 +659,11 @@
             overflow: hidden;
             border: 1px solid rgba(214, 107, 96, .7);
             border-radius: 1.5rem;
-            background: linear-gradient(135deg, rgba(255, 255, 255, .98), rgba(255, 239, 236, .96));
+            background: linear-gradient(135deg, rgba(255, 255, 255, .82), rgba(255, 239, 236, .68));
             color: #241817;
-            box-shadow: 0 20px 60px rgba(100, 40, 35, .25);
-            backdrop-filter: blur(12px);
+            box-shadow: 0 24px 70px rgba(100, 40, 35, .28), inset 0 1px 0 rgba(255, 255, 255, .9);
+            -webkit-backdrop-filter: blur(22px) saturate(130%);
+            backdrop-filter: blur(22px) saturate(130%);
         }
         .solicitud-modal .solicitud-header { border-color: #e8c8c3; }
         .solicitud-modal .solicitud-title { color: #8f241d; }
@@ -717,6 +733,70 @@
             outline: 2px solid #8f241d;
             outline-offset: 2px;
         }
+        #barra-whatsapp {
+            position: fixed;
+            z-index: 40;
+            right: 1.75rem;
+            bottom: calc(5.75rem + var(--whatsapp-limite, 0px));
+        }
+        #barra-whatsapp a {
+            display: inline-flex;
+            min-height: 3rem;
+            align-items: center;
+            gap: .65rem;
+            border: 1px solid rgba(255, 255, 255, .6);
+            border-radius: 9999px;
+            background: #25d366;
+            padding: .75rem 1.15rem;
+            color: #fff;
+            font-size: .875rem;
+            font-weight: 800;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, .28);
+            transition: background .2s ease, transform .2s ease, box-shadow .2s ease;
+        }
+        #barra-whatsapp a:hover {
+            transform: translateY(-2px);
+            background: #1ebe5b;
+            box-shadow: 0 12px 28px rgba(37, 211, 102, .26);
+        }
+        #barra-whatsapp svg { width: 1.35rem; height: 1.35rem; flex: none; }
+        #barra-whatsapp.en-contacto {
+            bottom: calc(5.75rem + var(--whatsapp-limite, 0px));
+        }
+        #barra-whatsapp.en-contacto a {
+            width: 3.25rem;
+            height: 3.25rem;
+            justify-content: center;
+            padding: 0;
+        }
+        #barra-whatsapp.en-contacto .whatsapp-boton-texto {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+        }
+        @media (max-width: 639px) {
+            #barra-whatsapp { right: 1.25rem; bottom: calc(5.25rem + var(--whatsapp-limite, 0px)); }
+            #barra-whatsapp.en-contacto { bottom: calc(5.25rem + var(--whatsapp-limite, 0px)); }
+            #barra-whatsapp a {
+                width: 3.25rem;
+                height: 3.25rem;
+                justify-content: center;
+                padding: 0;
+            }
+            #barra-whatsapp .whatsapp-boton-texto {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                margin: -1px;
+                overflow: hidden;
+                clip: rect(0, 0, 0, 0);
+                white-space: nowrap;
+            }
+        }
         @media (prefers-reduced-motion: reduce) {
             #servicio-modal form :is(input, select, textarea) { transition: none; }
         }
@@ -728,7 +808,7 @@
             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
     @endif
-    <nav id="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" class="fixed inset-x-0 top-0 z-40 text-white {{ $isHome ? 'bg-transparent' : 'bg-[#8f241d] shadow-lg' }}">
+    <nav id="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" class="fixed inset-x-0 top-0 z-40 text-white {{ $isHome ? 'bg-transparent' : 'bg-[#b52f25] shadow-lg' }}">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
             <a href="{{ route('home') }}" class="brand-link flex items-center" aria-label="Ir al inicio de Resmap">
                 <img src="{{ asset('images/resmap-logo-renovado.png') }}" alt="Resmap" class="brand-logo h-12 w-auto max-w-45 object-contain">
@@ -792,7 +872,6 @@
                     <a href="{{ route('home') }}" class="nav-link" @if($isHome) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="m3 10 9-7 9 7M5 9v11h14V9m-9 11v-6h4v6"/></svg><span>Inicio</span></a>
                     <a href="{{ route('catalogo.index') }}" class="nav-link" @if(request()->routeIs('catalogo.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h6a2 2 0 0 1 2 2v13a2 2 0 0 0-2-2H4V5Zm16 0h-6a2 2 0 0 0-2 2v13a2 2 0 0 1 2-2h6V5Z"/></svg><span>Catálogo</span></a>
                     <a href="{{ route('servicios.index') }}" data-open-servicio class="nav-link" @if(request()->routeIs('servicios.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14.5 6.5a5 5 0 0 0-6.3 6.3l-5 5a2 2 0 0 0 2.8 2.8l5-5a5 5 0 0 0 6.3-6.3l-3.1 3.1-2.6-2.6 2.9-3.3Z"/></svg><span>Servicios</span></a>
-                    <a href="{{ route('catalogo.index') }}#seleccion-cotizacion" data-open-carrito class="nav-link"><span>Cotización</span></a>
                     <a href="{{ route('login') }}" class="nav-link"><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M14 4h5v16h-5M10 8l4 4-4 4m4-4H3"/></svg><span>Acceso interno</span></a>
                 </div>
             @endif
@@ -828,6 +907,16 @@
     </main>
     @if(request()->routeIs('home', 'catalogo.index', 'servicios.index'))
         @include('servicios.formulario')
+    @endif
+    @if(!$isStaff)
+        <div id="barra-whatsapp" aria-label="Contacto directo por WhatsApp">
+            <a href="https://wa.me/56976477124" target="_blank" rel="noopener noreferrer" aria-label="Escríbenos por WhatsApp al +56 9 7647 7124">
+                <svg fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M12.04 2A9.91 9.91 0 0 0 2.1 11.94c0 1.75.46 3.46 1.33 4.96L2 22l5.23-1.37a10 10 0 0 0 4.81 1.22A9.91 9.91 0 0 0 21.98 12 9.91 9.91 0 0 0 12.04 2Zm0 18.1a8.2 8.2 0 0 1-4.18-1.15l-.3-.18-3.1.81.83-3.02-.2-.31a8.12 8.12 0 1 1 6.95 3.85Zm4.46-6.1c-.24-.12-1.43-.7-1.65-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.01-.37.1-.49.11-.11.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.19-.47-.39-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.32.98 2.48c.12.16 1.69 2.58 4.1 3.62.57.24 1.02.39 1.37.5.58.18 1.1.16 1.52.1.46-.07 1.43-.58 1.63-1.15.2-.57.2-1.06.14-1.16-.06-.1-.22-.16-.46-.28Z"/>
+                </svg>
+                <span class="whatsapp-boton-texto">Escríbenos por WhatsApp</span>
+            </a>
+        </div>
     @endif
     <footer class="{{ $isHome ? 'contact-footer mt-0 overflow-hidden bg-transparent p-0 text-sm text-gray-600' : (request()->routeIs('catalogo.index') ? 'mt-8 border-t border-[#e8c8c3] bg-white/90 px-4 py-8 pb-24 text-sm text-gray-600 lg:pb-8' : 'mt-8 border-t border-[#e8c8c3] bg-white px-4 py-8 text-sm text-gray-600') }}">
         @if($isHome)
@@ -883,7 +972,6 @@
                             <li><a href="{{ route('home') }}">Inicio</a></li>
                             <li><a href="{{ route('catalogo.index') }}">Catálogo</a></li>
                             <li><a href="{{ route('servicios.index') }}" data-open-servicio>Servicios</a></li>
-                            <li><a href="{{ route('catalogo.index') }}#seleccion-cotizacion" data-open-carrito>Cotización</a></li>
                             <li><a href="{{ route('login') }}">Acceso interno</a></li>
                         </ul>
                     </nav>
@@ -910,6 +998,23 @@
         const heroBanner = document.querySelector('.hero-bleed');
         const publicMenu = document.getElementById('public-menu');
         const publicMenuToggle = document.getElementById('public-menu-toggle');
+        const barraWhatsapp = document.getElementById('barra-whatsapp');
+        const actualizarPosicionWhatsapp = () => {
+            if (!barraWhatsapp) return;
+            const limite = document.querySelector('.home-footer-info') || document.querySelector('body > footer');
+            if (!limite) return;
+            const seccionContacto = document.querySelector('.contact-footer > section');
+            const enContacto = seccionContacto
+                ? seccionContacto.getBoundingClientRect().top < window.innerHeight
+                : false;
+            const desplazamiento = Math.max(0, window.innerHeight - limite.getBoundingClientRect().top);
+            barraWhatsapp.style.setProperty('--whatsapp-limite', `${desplazamiento}px`);
+            barraWhatsapp.classList.toggle('en-contacto', enContacto);
+        };
+        window.addEventListener('scroll', actualizarPosicionWhatsapp, { passive: true });
+        window.addEventListener('resize', actualizarPosicionWhatsapp);
+        window.addEventListener('load', actualizarPosicionWhatsapp);
+        actualizarPosicionWhatsapp();
         if (publicMenuToggle && publicMenu) {
             publicMenuToggle.hidden = false;
 

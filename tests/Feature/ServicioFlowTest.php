@@ -25,6 +25,10 @@ class ServicioFlowTest extends TestCase
             $this->get(route($page))->assertOk()
                 ->assertSee('data-open-servicio', false)
                 ->assertSee('id="servicio-modal"', false)
+                ->assertSee('id="servicio-seleccion-modal"', false)
+                ->assertSee('Mantención', false)
+                ->assertSee('Reparación', false)
+                ->assertSee('Soldadura', false)
                 ->assertSee('action="'.route('servicios.store').'"', false)
                 ->assertSee('name="descripcion_servicio"', false);
         }
