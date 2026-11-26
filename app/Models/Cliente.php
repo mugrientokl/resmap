@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Support\Rut;
+use App\Support\TextoPersona;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -50,6 +51,21 @@ class Cliente extends Model
         return Attribute::make(
             get: fn (): ?string => Rut::formatear($this->attributes['rut'] ?? null),
         );
+    }
+
+    protected function nombre(): Attribute
+    {
+        return Attribute::make(set: fn (?string $valor): ?string => TextoPersona::normalizar($valor));
+    }
+
+    protected function contacto(): Attribute
+    {
+        return Attribute::make(set: fn (?string $valor): ?string => TextoPersona::normalizar($valor));
+    }
+
+    protected function razonSocial(): Attribute
+    {
+        return Attribute::make(set: fn (?string $valor): ?string => TextoPersona::normalizar($valor));
     }
 
     /**

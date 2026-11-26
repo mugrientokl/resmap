@@ -30,19 +30,19 @@
         <p class="mt-1 text-sm text-gray-500">{{ $cliente->rut_formateado }} · Recibida el {{ $solicitud->fecha?->format('d/m/Y H:i') }}</p>
 
         <div class="mt-6 grid gap-4 md:grid-cols-[1.4fr_1fr]">
-            <div class="border-l-4 {{ $datos['cerrada'] ? 'border-gray-400 bg-gray-50' : 'border-amber-500 bg-amber-50' }} p-4">
+            <div class="rounded-lg border-l-4 {{ $datos['cerrada'] ? 'border-gray-400 bg-gray-50' : 'border-amber-500 bg-amber-50' }} p-4">
                 <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Estado actual</p>
                 <p class="mt-1 text-lg font-black text-[#241817]">{{ $espera['titulo'] }}</p>
                 <p class="mt-1 text-sm text-gray-700">{{ $espera['detalle'] }}</p>
             </div>
-            <div class="border-l-4 {{ $esperaCliente ? 'border-sky-500 bg-sky-50' : 'border-[#b52f25] bg-[#fff1ef]' }} p-4">
+            <div class="rounded-lg border-l-4 {{ $esperaCliente ? 'border-sky-500 bg-sky-50' : 'border-[#b52f25] bg-[#fff1ef]' }} p-4">
                 <p class="text-xs font-bold uppercase tracking-wider text-gray-500">Esperando a</p>
                 <p class="mt-1 text-lg font-black text-[#241817]">{{ $espera['responsable'] }}</p>
             </div>
         </div>
     </header>
 
-    <section class="mt-6 bg-white p-6 shadow-sm md:p-8" aria-label="Etapas del proceso">
+    <section class="mt-6 rounded-xl bg-white p-6 shadow-sm md:p-8" aria-label="Etapas del proceso">
         <h2 class="text-lg font-black">Etapas del proceso</h2>
         <ol class="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-2">
             @foreach($datos['etapas'] as $indice => $etapa)
@@ -60,7 +60,7 @@
         </ol>
     </section>
 
-    <section class="mt-6 bg-white p-6 shadow-sm md:p-8" aria-label="Línea de tiempo">
+    <section class="mt-6 rounded-xl bg-white p-6 shadow-sm md:p-8" aria-label="Línea de tiempo">
         <h2 class="text-lg font-black">Línea de tiempo</h2>
         <ol class="relative mt-6 ml-3 border-l-2 border-[#ead8d5]">
             @foreach($datos['eventos'] as $evento)

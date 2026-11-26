@@ -10,19 +10,17 @@
     @media (min-width: 640px) {
         #barra-carrito { bottom: calc(1.75rem + var(--carrito-limite, 0px)); right: 1.75rem; }
     }
-    @media (max-width: 1023px) {
-        #barra-carrito.en-contacto #abrir-carrito-completo { padding: .5rem; gap: .25rem; }
-        #barra-carrito.en-contacto .carrito-boton-texto {
-            position: absolute;
-            width: 1px;
-            height: 1px;
-            padding: 0;
-            margin: -1px;
-            overflow: hidden;
-            clip: rect(0, 0, 0, 0);
-            white-space: nowrap;
-            border: 0;
-        }
+    #barra-carrito.en-contacto #abrir-carrito-completo { padding: .5rem; gap: .25rem; }
+    #barra-carrito.en-contacto .carrito-boton-texto {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
     }
     #carrito-modal .carrito-cantidad { border-radius: .4rem; appearance: textfield; -moz-appearance: textfield; }
     #carrito-modal .carrito-cantidad::-webkit-inner-spin-button,
@@ -44,14 +42,14 @@
 <div id="carrito-modal"
     class="fixed inset-0 z-50 hidden bg-black/60"
     role="dialog" aria-modal="true" aria-labelledby="carrito-titulo">
-    <div class="ml-auto flex h-full w-full max-w-[26rem] flex-col bg-[#162024] bg-cover bg-center text-white shadow-2xl" style="background-image: linear-gradient(rgba(16, 25, 28, .9), rgba(16, 25, 28, .95)), url('{{ asset('images/contacto-fondo.jpeg') }}');">
-        <div class="flex items-center justify-between gap-3 border-b border-white/10 p-5">
-            <h2 id="carrito-titulo" class="text-2xl font-black text-[#ffd36f]">
+    <div class="resmap-glass ml-auto flex h-full w-full max-w-[26rem] flex-col text-[#241817] shadow-2xl">
+        <div class="flex items-center justify-between gap-3 border-b border-[#e8c8c3] p-5">
+            <h2 id="carrito-titulo" class="text-2xl font-black text-[#8f241d]">
                 Productos seleccionados
             </h2>
 
             <button type="button" onclick="cerrarCarrito()"
-                class="carrito-redondeado flex h-10 w-10 shrink-0 items-center justify-center bg-white/15 text-2xl text-white hover:bg-white/25 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="Cerrar selección">
+                class="carrito-redondeado flex h-10 w-10 shrink-0 items-center justify-center bg-[#f7e8e6] text-2xl text-[#8f241d] hover:bg-[#f0d1cc] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]" aria-label="Cerrar selección">
                 &times;
             </button>
         </div>
@@ -59,9 +57,9 @@
         <div class="flex-1 overflow-y-auto p-5">
             <div id="carrito-items" class="space-y-3"></div>
             <div id="carrito-vacio" class="hidden py-8 text-center">
-                <p class="text-white/75">Aún no has seleccionado repuestos.</p>
+                <p class="text-[#65504c]">Aún no has seleccionado repuestos.</p>
                 <a id="carrito-ir-catalogo" href="{{ route('catalogo.index') }}"
-                    class="carrito-redondeado mt-5 inline-flex min-h-12 items-center justify-center bg-[#f6b941] px-6 py-3 font-bold text-[#17211f] transition hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                    class="carrito-redondeado mt-5 inline-flex min-h-12 items-center justify-center bg-[#b52f25] px-6 py-3 font-bold text-white transition hover:bg-[#8f241d] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]">
                     Agregar productos
                 </a>
             </div>
@@ -81,12 +79,12 @@
             </div>
         </div>
 
-        <div class="border-t border-white/10 p-5">
+        <div class="border-t border-[#e8c8c3] p-5">
             <div class="mb-4 flex items-end justify-between gap-4 text-sm">
-                <div><p class="text-white/75">Total de repuestos:</p><p id="carrito-total-cantidad" class="mt-1 font-black" aria-live="polite"></p></div>
-                <div class="text-right"><p class="text-white/75">Total estimado:</p><p id="carrito-total-precio" class="mt-1 font-black" aria-live="polite"></p></div>
+                <div><p class="text-[#65504c]">Total de repuestos:</p><p id="carrito-total-cantidad" class="mt-1 font-black" aria-live="polite"></p></div>
+                <div class="text-right"><p class="text-[#65504c]">Total estimado:</p><p id="carrito-total-precio" class="mt-1 font-black" aria-live="polite"></p></div>
             </div>
-            <p id="carrito-vacio-aviso" class="mb-3 text-sm font-semibold text-[#ffd5c9]" role="status">Agrega al menos un producto para continuar con la cotización.</p>
+            <p id="carrito-vacio-aviso" class="mb-3 text-sm font-semibold text-[#8f241d]" role="status">Agrega al menos un producto para continuar con la cotización.</p>
             <button id="continuar-cotizacion" type="button" onclick="abrirSolicitud()" disabled
                 aria-describedby="carrito-vacio-aviso"
                 class="carrito-redondeado w-full bg-[#d92c24] p-3 font-bold text-white shadow-lg enabled:hover:bg-[#b52f25] disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
@@ -112,7 +110,7 @@
         </div>
 
         @if($errors->any() && old('_formulario') !== 'servicio')
-            <div class="mx-6 mt-5 border-l-4 border-red-700 bg-red-50 p-4 text-sm text-red-800">
+            <div class="mx-6 mt-5 rounded-lg border-l-4 border-red-700 bg-red-50 p-4 text-sm text-red-800">
                 <p class="font-black">Revisa los datos ingresados</p>
                 <ul class="mt-1 list-disc pl-5">
                     @foreach($errors->all() as $error)
@@ -405,13 +403,13 @@ function renderCarrito() {
                 : 'Precio no disponible';
 
             return `
-                <div class="flex items-center gap-3 rounded-xl border border-[#d9aaa3]/25 bg-white/10 p-3 shadow-lg">
-                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#8f241d]/60 text-[#ffd5c9]" aria-hidden="true">
+                <div class="flex items-center gap-3 rounded-xl border border-[#d9aaa3] bg-white/80 p-3 shadow-sm">
+                    <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#8f241d] text-white" aria-hidden="true">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M7 7v10m10-10v10M5 17h14M9 11h6"/></svg>
                     </span>
                     <div class="min-w-0 flex-1">
-                        <p class="break-words text-sm font-bold leading-tight text-white">${escaparHTML(item.nombre)}</p>
-                        <p class="mt-1 text-sm text-white/75">${precio}</p>
+                        <p class="break-words text-sm font-bold leading-tight text-[#241817]">${escaparHTML(item.nombre)}</p>
+                        <p class="mt-1 text-sm text-[#65504c]">${precio}</p>
                     </div>
                     <div class="flex shrink-0 items-center gap-1">
                         <div class="flex items-center overflow-hidden rounded-full bg-[#d92c24]">
@@ -430,7 +428,7 @@ function renderCarrito() {
                             onclick="cambiarCantidad(${id}, -${cantidad})"
                             aria-label="Quitar ${escaparHTML(item.nombre)} de la selección"
                             title="Quitar de la selección"
-                            class="inline-flex h-8 w-8 items-center justify-center text-[#ffd5c9] hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white">
+                            class="inline-flex h-8 w-8 items-center justify-center text-[#8f241d] hover:bg-[#f7e8e6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]">
                             <svg aria-hidden="true" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>
                         </button>
                     </div>

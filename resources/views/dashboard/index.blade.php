@@ -13,19 +13,21 @@
     @endif
     <div class="dashboard-header">
         <div class="header-content">
-            <p class="dashboard-eyebrow">Centro de operaciones</p>
-            <h1>Resumen general</h1>
+            <h1>Dashboard</h1>
             <p class="subtitle">Bienvenido, {{ auth()->user()->name }}. Aquí tienes el estado de tu negocio.</p>
         </div>
         <div class="header-actions">
-            <a
-                id="dashboard-export-pdf"
-                href="{{ route('dashboard.exportar.pdf', $parametrosPeriodo) }}"
-                class="btn-pdf"
-            >
-                <i class="fas fa-file-pdf" aria-hidden="true"></i>
-                Descargar PDF
-            </a>
+            <div class="pdf-action">
+                <p>Descargar PDF con el resumen general de los períodos filtrados.</p>
+                <a
+                    id="dashboard-export-pdf"
+                    href="{{ route('dashboard.exportar.pdf', $parametrosPeriodo) }}"
+                    class="btn-pdf"
+                >
+                    <i class="fas fa-file-pdf" aria-hidden="true"></i>
+                    Descargar PDF
+                </a>
+            </div>
             <div class="header-date">
                 <i class="fas fa-calendar-alt" aria-hidden="true"></i>
                 <span id="current-date"></span>
@@ -33,24 +35,12 @@
         </div>
     </div>
 
-    @if($cantidadStockCritico > 0)
-    <div class="alert-card">
-        <div class="alert-icon"><i class="fas fa-exclamation-triangle"></i></div>
-        <div class="alert-content">
-            <h3>Stock crítico actual</h3>
-            <p>{{ number_format($cantidadStockCritico, 0, ',', '.') }} {{ $cantidadStockCritico === 1 ? 'producto con stock bajo' : 'productos con stock bajo' }}</p>
-            @if(auth()->user()->tienePermiso('productos.ver'))
-                <a href="{{ route('productos.index', ['stock' => 'critico']) }}" class="btn-alert">Ver stock crítico</a>
-            @endif
-        </div>
-    </div>
-    @endif
-
     <div id="dashboard-live" aria-live="polite">
     @php
         $datosPanel = ['anio' => $seleccion['anio'], 'mes' => $seleccion['mes'], 'dia' => $seleccion['dia'], 'ventasMensuales' => $ventasMensuales, 'ventasSemanales' => $ventasSemanales, 'productos' => $productosMasVendidos, 'pdf' => route('dashboard.exportar.pdf', $parametrosPeriodo)];
     @endphp
     <script type="application/json" id="dashboard-data">@json($datosPanel)</script>
+    <div class="period-row">
     <form method="GET" action="{{ route('dashboard') }}" class="period-bar" id="dashboard-period-form">
         <div class="period-current">
             <span class="chart-kicker">Período de los indicadores</span>
@@ -81,6 +71,19 @@
         @endif
         <noscript><button type="submit" class="btn-clear-day">Aplicar filtros</button></noscript>
     </form>
+    @if($cantidadStockCritico > 0)
+    <div class="alert-card stock-alert">
+        <div class="alert-icon"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i></div>
+        <div class="alert-content">
+            <h3>Stock crítico actual</h3>
+            <p>{{ number_format($cantidadStockCritico, 0, ',', '.') }} {{ $cantidadStockCritico === 1 ? 'producto con stock bajo' : 'productos con stock bajo' }}</p>
+            @if(auth()->user()->tienePermiso('productos.ver'))
+                <a href="{{ route('productos.index', ['stock' => 'critico']) }}" class="btn-alert">Ver stock crítico</a>
+            @endif
+        </div>
+    </div>
+    @endif
+    </div>
 
     @if($resumen['total']['cantidad'] === 0)
         <p class="chart-empty">No hay ventas completadas para el período seleccionado.</p>
@@ -96,9 +99,18 @@
         </div>
 
         <div class="stat-card">
+            <div class="stat-icon icon-clients"><i class="fas fa-file-invoice-dollar"></i></div>
+            <div class="stat-content">
+                <h3>Ventas por cotización</h3>
+                <p class="stat-value">{{ number_format($resumen['cotizaciones']['cantidad'], 0, ',', '.') }}</p>
+                <small>{{ $dinero($resumen['cotizaciones']['monto']) }} originados en cotizaciones</small>
+            </div>
+        </div>
+
+        <div class="stat-card">
             <div class="stat-icon icon-sales"><i class="fas fa-receipt"></i></div>
             <div class="stat-content">
-                <h3>Cantidad de ventas</h3>
+                <h3>Cantidad de ventas totales</h3>
                 <p class="stat-value">{{ number_format($resumen['total']['cantidad'], 0, ',', '.') }}</p>
                 <small>{{ $seleccion['descripcion'] }}</small>
             </div>
@@ -112,40 +124,6 @@
                 <small>{{ $dinero($resumen['pos']['monto']) }} vendidos en el punto de venta</small>
             </div>
         </div>
-
-        <div class="stat-card">
-            <div class="stat-icon icon-clients"><i class="fas fa-file-invoice-dollar"></i></div>
-            <div class="stat-content">
-                <h3>Ventas por cotización</h3>
-                <p class="stat-value">{{ number_format($resumen['cotizaciones']['cantidad'], 0, ',', '.') }}</p>
-                <small>{{ $dinero($resumen['cotizaciones']['monto']) }} originados en cotizaciones</small>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon icon-pending"><i class="fas fa-hourglass-half"></i></div>
-            <div class="stat-content">
-                <h3>Cotizaciones no completadas</h3>
-                <p class="stat-value">{{ number_format($cotizacionesNoCompletadas, 0, ',', '.') }}</p>
-                <small>Cotizaciones abiertas o pendientes en el período</small>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon {{ $rentabilidad['utilidadBruta'] !== null && $rentabilidad['utilidadBruta'] >= 0 ? 'icon-profit' : 'icon-loss' }}"><i class="fas {{ $rentabilidad['utilidadBruta'] !== null && $rentabilidad['utilidadBruta'] >= 0 ? 'fa-arrow-trend-up' : 'fa-arrow-trend-down' }}"></i></div>
-            <div class="stat-content">
-                <h3>Utilidad bruta</h3>
-                @if($rentabilidad['utilidadBruta'] !== null)
-                    <p class="stat-value {{ $rentabilidad['utilidadBruta'] >= 0 ? 'text-green-700' : 'text-red-700' }}">{{ $dinero($rentabilidad['utilidadBruta']) }}</p>
-                    @if($rentabilidad['margenBruto'] !== null)
-                        <small>Margen bruto: {{ number_format($rentabilidad['margenBruto'], 2, ',', '.') }}% sobre ventas netas</small>
-                    @endif
-                @else
-                    <p class="stat-value text-gray-500">Sin datos completos</p>
-                    <small>Faltan {{ $rentabilidad['detallesSinCosto'] }} costos de adquisición registrados</small>
-                @endif
-            </div>
-        </div>
     </div>
 
     <div class="charts-container">
@@ -154,7 +132,7 @@
             <div class="chart-card-heading">
                 <span class="chart-kicker">{{ $seleccion['anio'] }}</span>
                 <h3>Ventas por mes</h3>
-                <p>Monto vendido en cada mes. Haz clic en una barra para filtrar todo el dashboard por ese mes.</p>
+                <p>Las barras muestran el monto vendido y las etiquetas, la cantidad de ventas. Haz clic en una barra para filtrar por ese mes.</p>
             </div>
             <canvas id="ventasMensualesChart" aria-label="Ventas por mes"></canvas>
         </div>
@@ -164,7 +142,7 @@
             <div class="chart-card-heading">
                 <span class="chart-kicker">{{ ucfirst($seleccion['etiqueta']) }}</span>
                 <h3>Ventas por semana</h3>
-                <p>Monto vendido agrupado por semanas del mes seleccionado.</p>
+                <p>Las barras muestran el monto vendido y las etiquetas, la cantidad de ventas por semana.</p>
             </div>
             <canvas id="ventasDiariasChart" aria-label="Ventas por semana"></canvas>
         </div>
@@ -190,14 +168,14 @@
     .dashboard-container {
         --dashboard-red: #8f241d;
         --dashboard-accent: #c41e3a;
-        --dashboard-muted: #72727d;
+        --dashboard-muted: #000;
         box-sizing: border-box;
         width: 100%;
         max-width: 1600px;
         min-width: 0;
         margin: 0 auto;
         padding: clamp(16px, 2.4vw, 36px);
-        background: #f5f6f8;
+        background: transparent;
         min-height: 100vh;
     }
 
@@ -217,7 +195,6 @@
         box-sizing: border-box;
     }
 
-    .dashboard-eyebrow,
     .chart-kicker {
         display: block;
         margin: 0 0 6px;
@@ -230,7 +207,7 @@
 
     .dashboard-header h1 {
         margin: 0;
-        color: #241817;
+        color: #000;
         font-size: clamp(1.6rem, 3vw, 2.2rem);
     }
 
@@ -244,6 +221,13 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 14px;
+    }
+
+    .pdf-action p {
+        max-width: 260px;
+        margin: 0 0 8px;
+        color: #000;
+        font-size: 0.8rem;
     }
 
     .btn-pdf {
@@ -292,20 +276,39 @@
 
     .alert-content h3 {
         margin: 0 0 3px;
-        color: #856404;
+        color: #000;
     }
 
     .alert-content p {
         margin: 0 0 8px;
-        color: #856404;
+        color: #000;
     }
+
+    .period-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .stock-alert {
+        flex: 0 1 270px;
+        gap: 12px;
+        margin: 0;
+        padding: 12px 16px;
+    }
+
+    .stock-alert .alert-icon { font-size: 1.25rem; }
+    .stock-alert h3 { font-size: 0.9rem; }
+    .stock-alert p { font-size: 0.8rem; }
 
     .btn-alert {
         display: inline-block;
         padding: 7px 14px;
         border-radius: 6px;
         background: #ffc107;
-        color: #333;
+        color: #000;
         font-weight: 600;
         text-decoration: none;
     }
@@ -316,10 +319,12 @@
 
     .period-bar {
         display: flex;
+        flex: 1 1 550px;
+        min-width: 0;
         align-items: center;
         flex-wrap: wrap;
         gap: 12px 20px;
-        margin-bottom: 20px;
+        margin: 0;
         padding: 16px 20px;
         border: 1px solid #ececf0;
         border-radius: 14px;
@@ -334,7 +339,7 @@
 
     .period-current strong {
         display: block;
-        color: #241817;
+        color: #000;
         font-size: 1.25rem;
     }
 
@@ -346,7 +351,7 @@
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        color: #4b5563;
+        color: #000;
         font-size: 0.875rem;
         font-weight: 600;
     }
@@ -357,7 +362,7 @@
         border: 1px solid #d9aaa3;
         border-radius: 8px;
         background: #fff;
-        color: var(--dashboard-red);
+        color: #000;
         font: inherit;
         cursor: pointer;
     }
@@ -378,7 +383,7 @@
 
     .stats-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: clamp(12px, 1.4vw, 20px);
         margin-bottom: 24px;
     }
@@ -410,9 +415,6 @@
     .icon-revenue { background: #e8f5ec; color: #1f7a3d; }
     .icon-clients { background: #eaf1fb; color: #2a5db0; }
     .icon-today { background: #fff4e0; color: #b7791f; }
-    .icon-pending { background: #f3eafd; color: #7352a3; }
-    .icon-profit { background: #e8f5ec; color: #1f7a3d; }
-    .icon-loss { background: #fdecea; color: #b52f25; }
 
     .stat-content { min-width: 0; }
 
@@ -427,7 +429,7 @@
 
     .stat-value {
         margin: 0;
-        color: #241817;
+        color: #000;
         font-size: clamp(1.3rem, 2vw, 1.8rem);
         font-weight: 800;
         overflow-wrap: anywhere;
@@ -462,7 +464,7 @@
 
     .chart-card-heading h3 {
         margin: 0;
-        color: #302523;
+        color: #000;
         font-size: clamp(1rem, 1.5vw, 1.2rem);
         font-weight: 800;
     }
@@ -485,12 +487,9 @@
         text-align: center;
     }
 
-    @media (max-width: 1100px) {
-        .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    }
-
     @media (max-width: 800px) {
         .charts-container { grid-template-columns: minmax(0, 1fr); }
+        .stock-alert { flex: 1 1 100%; }
     }
 
     @media (max-width: 520px) {
@@ -512,7 +511,29 @@
         const rojo = '#C41E3A';
         const rojoClaro = '#E8A3AE';
         const formatoDinero = valor => '$' + Number(valor).toLocaleString('es-CL');
-        const escalaDinero = { beginAtZero: true, ticks: { callback: formatoDinero } };
+        const escalaDinero = { beginAtZero: true, ticks: { color: '#000', callback: formatoDinero } };
+        const etiquetasBarras = {
+            id: 'etiquetasBarras',
+            afterDatasetsDraw(grafico, argumentos, opciones) {
+                const { ctx } = grafico;
+                ctx.save();
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 12px sans-serif';
+                grafico.getDatasetMeta(0).data.forEach((barra, indice) => {
+                    const texto = Number(opciones.valores[indice]).toLocaleString('es-CL');
+                    if (grafico.options.indexAxis === 'y') {
+                        ctx.textAlign = 'left';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillText(texto, Math.min(barra.x + 6, grafico.width - ctx.measureText(texto).width - 2), barra.y);
+                    } else {
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'bottom';
+                        ctx.fillText(texto, barra.x, barra.y - 5);
+                    }
+                });
+                ctx.restore();
+            }
+        };
 
         async function irA(parametros, historial = true) {
             const url = urlDashboard + '?' + new URLSearchParams(parametros).toString();
@@ -552,6 +573,7 @@
             const lienzo = document.getElementById(id);
             return new Chart(lienzo, {
                 type: 'bar',
+                plugins: [etiquetasBarras],
                 data: {
                     labels: datos.map(d => d.etiquetaCorta ?? d.etiqueta),
                     datasets: [{
@@ -565,16 +587,18 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    layout: { padding: { top: 20 } },
                     interaction: { mode: 'index', axis: 'x', intersect: false },
                     plugins: {
                         legend: { display: false },
+                        etiquetasBarras: { valores: datos.map(d => d.cantidad) },
                         tooltip: {
                             callbacks: {
                                 label: contexto => formatoDinero(contexto.parsed.y) + ' · ' + tooltipExtra(datos[contexto.dataIndex])
                             }
                         }
                     },
-                    scales: { y: escalaDinero },
+                    scales: { x: { ticks: { color: '#000' } }, y: escalaDinero },
                     onClick: (evento, elementos) => {
                         if (elementos.length) {
                             alHacerClic(datos[elementos[0].index]);
@@ -614,6 +638,7 @@
         if (lienzoProductos) {
             graficos.push(new Chart(lienzoProductos, {
                 type: 'bar',
+                plugins: [etiquetasBarras],
                 data: {
                     labels: productos.map(p => p.etiqueta.length > 30 ? p.etiqueta.slice(0, 27) + '...' : p.etiqueta),
                     datasets: [{
@@ -628,8 +653,21 @@
                     indexAxis: 'y',
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { x: { beginAtZero: true, ticks: { precision: 0 } } }
+                    layout: { padding: { right: 48 } },
+                    plugins: {
+                        legend: { display: false },
+                        etiquetasBarras: { valores: productos.map(p => p.total_vendido) },
+                        tooltip: {
+                            callbacks: {
+                                title: elementos => productos[elementos[0].dataIndex].etiqueta,
+                                afterLabel: contexto => 'Stock actual: ' + Number(productos[contexto.dataIndex].stock).toLocaleString('es-CL'),
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { precision: 0, color: '#000' } },
+                        y: { ticks: { color: '#000' } },
+                    }
                 }
             }));
         }

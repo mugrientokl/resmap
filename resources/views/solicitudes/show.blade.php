@@ -45,18 +45,18 @@
         @endunless
     </div>
     @if($otrosErrores->isNotEmpty())
-        <div class="mt-5 border-l-4 border-red-600 bg-red-50 p-4 text-sm text-red-800" role="alert">
+        <div class="mt-5 rounded-lg border-l-4 border-red-600 bg-red-50 p-4 text-sm text-red-800" role="alert">
             <p class="font-bold">No se pudo completar la acción:</p>
             <ul class="mt-1 list-disc pl-5">@foreach($otrosErrores as $error)<li>{{ $error }}</li>@endforeach</ul>
         </div>
     @endif
     <div class="mt-6 grid items-start gap-6 lg:grid-cols-[minmax(260px,0.72fr)_minmax(0,1.6fr)]">
-        <section class="bg-white shadow-sm">
+        <section class="rounded-xl bg-white shadow-sm">
             <header class="border-b border-[#ead8d5] bg-[#fffaf9] p-6">
                 <p class="text-xs font-black uppercase tracking-wider text-[#b52f25]">{{ $esServicio ? 'Servicio' : 'Cotización' }} #{{ $solicitud->id_solicitud }}</p>
                 <h1 class="mt-2 text-3xl font-black">Detalle {{ $esServicio ? 'del servicio' : 'de la cotización' }}</h1>
                 <p class="mt-2 text-sm text-gray-500">Recibida el {{ $solicitud->fecha?->format('d/m/Y H:i') }}</p>
-                <div class="mt-5 border-l-4 border-amber-500 bg-amber-50 p-4">
+                <div class="mt-5 rounded-lg border-l-4 border-amber-500 bg-amber-50 p-4">
                     <p class="font-black">{{ $solicitud->estado_comercial['titulo'] }}</p>
                     <p class="mt-1 text-sm">{{ $solicitud->estado_comercial['detalle'] }}</p>
                 </div>
@@ -105,7 +105,7 @@
                 @endif
             </dl>
         </section>
-        <section class="min-w-0 bg-white p-6 shadow-sm">
+        <section class="min-w-0 rounded-xl bg-white p-6 shadow-sm">
             @if($esServicio)
                 <h2 class="text-xl font-black">{{ $solicitud->tipo_servicio }}</h2>
                 <p class="mt-5 whitespace-pre-line border-l-4 border-[#b52f25] bg-[#f7e8e6] p-4">{{ $solicitud->descripcion_servicio }}</p>
@@ -244,7 +244,7 @@
                                 <div class="relative min-w-40 flex-1">
                                     <input type="search" data-buscar-producto required autocomplete="off" placeholder="Escribe el nombre o código del repuesto" aria-label="Buscar repuesto" aria-autocomplete="list" aria-expanded="false" class="w-full border p-2">
                                     <input type="hidden" name="items[__INDEX__][id_producto]" data-producto-id>
-                                    <div data-opciones class="absolute z-10 hidden max-h-56 w-full overflow-y-auto border bg-white shadow-lg"></div>
+                                    <div data-opciones class="absolute z-10 hidden max-h-56 w-full overflow-y-auto rounded-lg border bg-white shadow-lg"></div>
                                 </div>
                                 <div class="relative">
                                     <input type="number" name="items[__INDEX__][cantidad]" value="1" min="1" max="99999" required data-cantidad class="w-24 border p-2" aria-label="Cantidad">

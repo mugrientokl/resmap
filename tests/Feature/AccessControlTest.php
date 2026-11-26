@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\NuevaCotizacionPendiente;
 use App\Notifications\ProductoStockCritico;
+use App\Services\RegistroActividad;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -437,5 +438,86 @@ class AccessControlTest extends TestCase
         $this->actingAs($admin)
             ->deleteJson(route('usuarios.destroy', $admin))
             ->assertForbidden();
+    }
+
+    public function test_administrator_can_permanently_delete_an_archived_seller_without_history(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $seller->delete();
+
+        $this->actingAs($admin)->get(route('usuarios.index', ['archivados' => 1]))
+            ->assertSee(route('usuarios.eliminar-definitivamente', $seller->id), false);
+
+        $this->deleteJson(route('usuarios.eliminar-definitivamente', $seller->id))->assertOk();
+
+        $this->assertDatabaseMissing('users', ['id' => $seller->id]);
+    }
+
+    public function test_permanent_deletion_revokes_sessions_and_password_reset_tokens(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        DB::table(config('session.table'))->insert([
+            'id' => 'seller-deleted-session',
+            'user_id' => $seller->id,
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'test',
+            'payload' => '',
+            'last_activity' => now()->timestamp,
+        ]);
+        Password::createToken($seller);
+
+        $this->actingAs($admin)
+            ->deleteJson(route('usuarios.eliminar-definitivamente', $seller->id))
+            ->assertOk();
+
+        $this->assertDatabaseMissing('users', ['id' => $seller->id]);
+        $this->assertDatabaseMissing(config('session.table'), ['id' => 'seller-deleted-session']);
+        $this->assertDatabaseMissing(config('auth.passwords.users.table'), ['email' => $seller->email]);
+    }
+
+    public function test_permanent_deletion_requires_an_administrator_and_cannot_delete_administrators(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+
+        $this->actingAs($seller)
+            ->deleteJson(route('usuarios.eliminar-definitivamente', $seller->id))
+            ->assertForbidden();
+        $this->actingAs($admin)
+            ->deleteJson(route('usuarios.eliminar-definitivamente', $admin->id))
+            ->assertForbidden();
+        $this->assertDatabaseHas('users', ['id' => $seller->id]);
+    }
+
+    public function test_permanent_deletion_rejects_a_seller_with_sales_or_audit_history(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $sellerWithSales = User::factory()->create(['rol' => 'Vendedor']);
+        $sellerWithAudit = User::factory()->create(['rol' => 'Vendedor']);
+        $sale = Venta::create([
+            'fecha' => now(),
+            'tipo_documento' => 'Boleta Electrónica',
+            'neto' => 1000,
+            'iva' => 190,
+            'total' => 1190,
+            'medio_pago' => 'Efectivo',
+            'user_id' => $sellerWithSales->id,
+        ]);
+        $this->actingAs($sellerWithAudit);
+        $audit = app(RegistroActividad::class)->evento('sistema', 'prueba', 'Evento de prueba');
+
+        $this->actingAs($admin);
+        foreach ([$sellerWithSales, $sellerWithAudit] as $seller) {
+            $this->deleteJson(route('usuarios.eliminar-definitivamente', $seller->id))
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors('usuario');
+            $this->assertDatabaseHas('users', ['id' => $seller->id]);
+        }
+
+        $this->assertDatabaseHas('ventas', ['id_venta' => $sale->id_venta, 'user_id' => $sellerWithSales->id]);
+        $this->assertDatabaseHas('auditorias', ['id_auditoria' => $audit->id_auditoria, 'user_id' => $sellerWithAudit->id]);
+        $this->artisan('actividad:verificar')->assertSuccessful();
     }
 }

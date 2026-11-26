@@ -41,7 +41,7 @@
             @php($esPendiente = $solicitud->tipo_solicitud === 'servicio'
                 ? ! in_array($solicitud->estado, ['Entregado y completado', 'Rechazado'], true)
                 : ! in_array($solicitud->estado_comercial['estado'], ['cerrada', 'completada'], true))
-            <article class="border-l-4 {{ $esPendiente ? 'border-amber-500 bg-amber-50' : 'border-green-500 bg-white' }} p-6 shadow-sm">
+            <article class="rounded-xl border-l-4 {{ $esPendiente ? 'border-amber-500 bg-amber-50' : 'border-green-500 bg-white' }} p-6 shadow-sm">
                 <div class="flex flex-col justify-between gap-4 md:flex-row md:items-start">
                     <div>
                         <div class="flex flex-wrap items-center gap-3">
@@ -68,7 +68,7 @@
                 </p>
             </article>
         @empty
-            <div class="bg-white p-8 text-center text-gray-500">No hay cotizaciones o servicios recibidos para estos filtros.</div>
+            <div class="rounded-xl bg-white p-8 text-center text-gray-500">No hay cotizaciones o servicios recibidos para estos filtros.</div>
         @endforelse
     </div>
     <div class="mt-6">{{ $solicitudes->links() }}</div>

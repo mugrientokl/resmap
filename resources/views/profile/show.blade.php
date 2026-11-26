@@ -10,7 +10,7 @@
         <p class="mt-2 text-gray-600">{{ auth()->user()->name }} · {{ auth()->user()->rol }}</p>
     </header>
 
-    <section class="mt-7 border border-[#e8c8c3] bg-white p-5 shadow-sm sm:p-7" aria-labelledby="name-settings-title">
+    <section class="mt-7 rounded-xl border border-[#e8c8c3] bg-white p-5 shadow-sm sm:p-7" aria-labelledby="name-settings-title">
         <h2 id="name-settings-title" class="text-xl font-black">Cambiar nombre de usuario</h2>
         <form method="POST" action="{{ route('perfil.nombre.update') }}" class="mt-5 space-y-4">
             @csrf
@@ -34,7 +34,7 @@
         </form>
     </section>
 
-    <section class="mt-7 border border-[#e8c8c3] bg-white p-5 shadow-sm sm:p-7" aria-labelledby="password-settings-title">
+    <section class="mt-7 rounded-xl border border-[#e8c8c3] bg-white p-5 shadow-sm sm:p-7" aria-labelledby="password-settings-title">
         <h2 id="password-settings-title" class="text-xl font-black">Cambiar contraseña</h2>
         <form method="POST" action="{{ route('perfil.contrasena.update') }}" class="mt-5 space-y-4">
             @csrf

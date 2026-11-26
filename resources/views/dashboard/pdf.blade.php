@@ -70,7 +70,7 @@
                 <div class="muted">Ventas completadas</div>
             </td>
             <td>
-                <div class="label">Cantidad de ventas</div>
+                <div class="label">Cantidad de ventas totales</div>
                 <div class="value">{{ number_format($resumen['total']['cantidad'], 0, ',', '.') }}</div>
                 <div class="muted">Ventas completadas</div>
             </td>

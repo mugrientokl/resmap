@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Proveedor;
 use App\Rules\CorreoConDominio;
 use App\Support\TelefonoChileno;
+use App\Support\TextoPersona;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -49,6 +50,10 @@ class ProveedorController extends Controller
         if (is_string($telefono)) {
             $request->merge(['telefono' => TelefonoChileno::normalizar($telefono)]);
         }
+        $request->merge([
+            'nombre' => TextoPersona::normalizar($request->input('nombre')),
+            'contacto' => TextoPersona::normalizar($request->input('contacto')),
+        ]);
 
         return $request->validate([
             'nombre' => ['required', 'string', 'max:255', Rule::unique('proveedores', 'nombre')->ignore($proveedor?->id)],

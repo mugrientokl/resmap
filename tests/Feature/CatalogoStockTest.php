@@ -75,7 +75,13 @@ class CatalogoStockTest extends TestCase
             ->assertRedirect(route('catalogo.index'))
             ->assertSessionHasErrors('correo');
 
-        foreach ($datos as $campo => $valor) {
+        $datosNormalizados = [
+            ...$datos,
+            'nombre' => 'Cliente De Prueba',
+            'contacto' => 'Contacto De Prueba',
+        ];
+
+        foreach ($datosNormalizados as $campo => $valor) {
             $response->assertSessionHasInput($campo, $valor);
         }
 
@@ -84,9 +90,9 @@ class CatalogoStockTest extends TestCase
             ->assertSee('value="Empresa" checked', false)
             ->assertDontSee('value="Persona" checked', false)
             ->assertSee('name="rut" value="12345678-5"', false)
-            ->assertSee('name="nombre" value="Cliente de prueba"', false)
+            ->assertSee('name="nombre" value="Cliente De Prueba"', false)
             ->assertSee('name="giro" value="Venta de repuestos"', false)
-            ->assertSee('name="contacto" value="Contacto de prueba"', false)
+            ->assertSee('name="contacto" value="Contacto De Prueba"', false)
             ->assertSee('name="cargo" value="Compras"', false)
             ->assertSee('name="correo" type="email" value="correo-invalido"', false)
             ->assertSee('value="912345678" required', false)
@@ -293,12 +299,12 @@ class CatalogoStockTest extends TestCase
             ->assertSee(route('catalogo.index'), false);
     }
 
-    public function test_catalog_paginates_eight_filtered_products_per_page(): void
+    public function test_catalog_paginates_twenty_four_filtered_products_per_page(): void
     {
-        for ($number = 1; $number <= 9; $number++) {
+        for ($number = 1; $number <= 25; $number++) {
             $productId = $this->createProductWithStock(3);
             DB::table('productos')->where('id_producto', $productId)->update([
-                'nombre' => "Repuesto pagina {$number}",
+                'nombre' => 'Repuesto pagina '.str_pad((string) $number, 2, '0', STR_PAD_LEFT),
             ]);
         }
 
@@ -307,7 +313,7 @@ class CatalogoStockTest extends TestCase
             ->viewData('productos');
 
         $this->assertSame(
-            ['Repuesto pagina 1', 'Repuesto pagina 2', 'Repuesto pagina 3', 'Repuesto pagina 4', 'Repuesto pagina 5', 'Repuesto pagina 6', 'Repuesto pagina 7', 'Repuesto pagina 8'],
+            array_map(fn (int $number): string => 'Repuesto pagina '.str_pad((string) $number, 2, '0', STR_PAD_LEFT), range(1, 24)),
             $firstPage->pluck('nombre')->all(),
         );
         $this->assertStringContainsString('nombre=Repuesto%20pagina', $firstPage->nextPageUrl());
@@ -316,7 +322,7 @@ class CatalogoStockTest extends TestCase
             ->assertOk()
             ->viewData('productos');
 
-        $this->assertSame(['Repuesto pagina 9'], $secondPage->pluck('nombre')->all());
+        $this->assertSame(['Repuesto pagina 25'], $secondPage->pluck('nombre')->all());
     }
 
     public function test_inactive_product_is_hidden_and_cannot_be_requested(): void

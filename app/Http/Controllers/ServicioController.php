@@ -9,6 +9,7 @@ use App\Rules\CorreoConDominio;
 use App\Rules\RutChileno;
 use App\Services\ActualizarDatosCliente;
 use App\Support\Rut;
+use App\Support\TextoPersona;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -28,7 +29,11 @@ class ServicioController extends Controller
 
     public function store(Request $request, ActualizarDatosCliente $actualizarCliente)
     {
-        $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
+        $request->merge([
+            'rut' => Rut::normalizar((string) $request->input('rut')),
+            'nombre' => TextoPersona::normalizar($request->input('nombre')),
+            'contacto' => TextoPersona::normalizar($request->input('contacto')),
+        ]);
 
         $data = $request->validate([
             'tipo_cliente' => ['nullable', 'in:Persona,Empresa'],

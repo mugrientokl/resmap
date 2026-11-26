@@ -7,17 +7,19 @@ use App\Notifications\OrdenCompraRecibida;
 use App\Notifications\ProductoStockCritico;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\SolicitudWebRecibida;
+use App\Support\TextoPersona;
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['username', 'name', 'email', 'password', 'rol'])]
+#[Fillable(['username', 'name', 'apellido_paterno', 'apellido_materno', 'run', 'email', 'telefono', 'password', 'rol'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements CanResetPasswordContract
 {
@@ -27,6 +29,26 @@ class User extends Authenticatable implements CanResetPasswordContract
         'activo' => true,
         'rol' => 'Vendedor',
     ];
+
+    protected function name(): Attribute
+    {
+        return Attribute::make(set: fn (?string $valor): ?string => TextoPersona::normalizar($valor));
+    }
+
+    protected function apellidoPaterno(): Attribute
+    {
+        return Attribute::make(set: fn (?string $valor): ?string => TextoPersona::normalizar($valor));
+    }
+
+    protected function apellidoMaterno(): Attribute
+    {
+        return Attribute::make(set: fn (?string $valor): ?string => TextoPersona::normalizar($valor));
+    }
+
+    protected function username(): Attribute
+    {
+        return Attribute::make(set: fn (?string $valor): ?string => $valor === null ? null : mb_strtolower(trim($valor), 'UTF-8'));
+    }
 
     protected function casts(): array
     {

@@ -1,14 +1,14 @@
 <!doctype html>
 <html lang="es">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Recuperar contraseña | RESMAP</title>@vite('resources/css/app.css')<link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"><script defer src="{{ asset('js/notifications.js') }}"></script></head>
-<body class="flex min-h-screen items-center justify-center bg-[#8f241d] px-6 text-[#241817]">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Recuperar contraseña | RESMAP</title>@vite('resources/css/app.css')<link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"><link rel="stylesheet" href="{{ asset('css/fondo-sistema.css') }}"><script defer src="{{ asset('js/notifications.js') }}"></script></head>
+<body class="resmap-background flex min-h-screen items-center justify-center px-6 text-[#241817]">
 <main class="w-full max-w-md bg-white p-8 shadow-2xl sm:p-12">
     <a href="{{ route('login') }}" class="text-sm font-bold text-[#9f2f25]">← Volver al acceso</a>
     <h1 class="mt-10 text-3xl font-black">Recuperar contraseña</h1>
     <p class="mt-2 text-gray-500">Enviaremos un enlace al correo registrado.</p>
-    @if (session('status'))<div class="mt-6 border-l-4 border-[#b52f25] bg-[#fff7f5] p-4 text-sm text-[#721d18]" role="status" data-auto-dismiss>{{ session('status') }}</div>@endif
+    @if (session('status'))<div class="mt-6 rounded-lg border-l-4 border-[#b52f25] bg-[#fff7f5] p-4 text-sm text-[#721d18]" role="status" data-auto-dismiss>{{ session('status') }}</div>@endif
     @if ($errors->any())
-        <div class="mt-6 border-l-4 border-red-500 bg-red-50 p-4 text-sm text-red-800" role="alert" aria-live="assertive">
+        <div class="mt-6 rounded-lg border-l-4 border-red-500 bg-red-50 p-4 text-sm text-red-800" role="alert" aria-live="assertive">
             @foreach($errors->all() as $error)
                 <p>{{ $error }}</p>
             @endforeach

@@ -9,7 +9,7 @@
     </div>
 
     @if ($errors->has('confirmation'))
-        <div class="border-l-4 border-red-600 bg-red-50 p-4 font-semibold text-red-800" role="alert">
+        <div class="rounded-lg border-l-4 border-red-600 bg-red-50 p-4 font-semibold text-red-800" role="alert">
             {{ $errors->first('confirmation') }}
         </div>
     @endif
@@ -69,7 +69,7 @@
 
         <div class="mt-5 space-y-4 text-sm text-gray-700">
             <p>Estás por restaurar <strong id="backup-restore-filename" class="break-all font-mono"></strong>.</p>
-            <div class="border-l-4 border-red-600 bg-red-50 p-4 text-red-900">
+            <div class="rounded-lg border-l-4 border-red-600 bg-red-50 p-4 text-red-900">
                 <p class="font-black">Advertencia 1 de 2</p>
                 <p class="mt-1">Se reemplazarán la base de datos actual y los archivos subidos. Los cambios realizados después de este backup se perderán.</p>
             </div>
@@ -77,7 +77,7 @@
         </div>
 
         <div id="backup-restore-final-step" class="mt-5 hidden">
-            <div class="border-l-4 border-amber-500 bg-amber-50 p-4 text-sm text-amber-950">
+            <div class="rounded-lg border-l-4 border-amber-500 bg-amber-50 p-4 text-sm text-amber-950">
                 <p class="font-black">Advertencia 2 de 2</p>
                 <p class="mt-1">Confirma que seleccionaste el archivo correcto. Esta acción no se puede deshacer desde esta pantalla.</p>
             </div>

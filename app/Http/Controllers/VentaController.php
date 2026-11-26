@@ -15,6 +15,7 @@ use App\Rules\RutChileno;
 use App\Services\ResumenInternoVentaPdf;
 use App\Support\Rut;
 use App\Support\TelefonoChileno;
+use App\Support\TextoPersona;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -32,6 +33,11 @@ class VentaController extends Controller
         if (is_string($request->input('telefono_cliente'))) {
             $request->merge(['telefono_cliente' => TelefonoChileno::normalizar($request->input('telefono_cliente'))]);
         }
+        $request->merge([
+            'nombre_cliente' => TextoPersona::normalizar($request->input('nombre_cliente')),
+            'contacto' => TextoPersona::normalizar($request->input('contacto')),
+            'razon_social_cliente' => TextoPersona::normalizar($request->input('razon_social_cliente')),
+        ]);
 
         $datos = $request->validate([
             'tipo_documento' => 'required|string|in:Boleta Electrónica,Factura Electrónica',

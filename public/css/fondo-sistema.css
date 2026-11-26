@@ -1,0 +1,59 @@
+body.resmap-background {
+    background-color: #f7f3f0;
+    background-image: linear-gradient(rgba(255, 255, 255, .18), rgba(255, 255, 255, .18)), url('../images/fondo-claro.png');
+    background-attachment: fixed;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+.resmap-glass,
+body.navegacion-izquierda > main :is(
+    div.bg-white.shadow-sm,
+    div.bg-white.shadow-md,
+    section.bg-white.shadow-sm,
+    section.bg-white.shadow-md,
+    form.bg-white.shadow-sm,
+    form.bg-white.shadow-md,
+    .dashboard-header,
+    .period-bar,
+    .stat-card,
+    .chart-card,
+    .pos-panel,
+    .report-filters
+) {
+    background: linear-gradient(135deg, rgba(255, 255, 255, .94), rgba(255, 239, 236, .86));
+    border-color: rgba(192, 106, 96, .4);
+    box-shadow: 0 10px 30px rgba(100, 40, 35, .12), inset 0 0 0 1px rgba(192, 106, 96, .18);
+}
+
+.resmap-glass,
+body.navegacion-izquierda > main :is(
+    div.bg-white.shadow-sm,
+    div.bg-white.shadow-md,
+    section.bg-white.shadow-sm,
+    section.bg-white.shadow-md,
+    form.bg-white.shadow-sm,
+    form.bg-white.shadow-md,
+    .dashboard-header,
+    .period-bar,
+    .stat-card,
+    .chart-card,
+    .pos-panel,
+    .report-filters
+):not(:has(.fixed, [role="dialog"])) {
+    backdrop-filter: blur(12px);
+}
+
+body.navegacion-izquierda > main table thead {
+    background: rgba(247, 224, 220, .88);
+    color: #721d18;
+}
+
+body.navegacion-izquierda > main table thead th {
+    color: #721d18;
+}
+
+body.navegacion-izquierda > main table tbody.bg-white {
+    background: transparent;
+}

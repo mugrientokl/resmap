@@ -431,4 +431,8 @@ Route::middleware([
     Route::post('/usuarios/{user}/restaurar', [UserController::class, 'restaurar'])
         ->middleware(['auth', 'role:Administrador'])
         ->name('usuarios.restaurar');
+
+    Route::delete('/usuarios/{user}/eliminar-definitivamente', [UserController::class, 'eliminarDefinitivamente'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('usuarios.eliminar-definitivamente');
 });

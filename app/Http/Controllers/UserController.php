@@ -4,7 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\User;
 use App\Rules\CorreoConDominio;
+use App\Rules\RutChileno;
 use App\Services\RegistroActividad;
+use App\Support\Rut;
+use App\Support\TelefonoChileno;
+use App\Support\TextoPersona;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -15,6 +19,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class UserController extends Controller
@@ -37,22 +42,46 @@ class UserController extends Controller
 
     public function store(Request $request): Response|JsonResponse
     {
+        $correo = $request->input('correo', $request->input('email'));
+        $telefono = $request->input('telefono', $request->input('telefono_fijo'));
+        $run = $request->input('run', $request->input('rut'));
+
+        $request->merge([
+            'correo' => $correo,
+            'telefono' => TelefonoChileno::normalizar(is_string($telefono) ? $telefono : null),
+            'run' => is_string($run) ? Rut::normalizar($run) : null,
+            'nombre' => TextoPersona::normalizar($request->input('nombre')),
+            'apellido_paterno' => TextoPersona::normalizar($request->input('apellido_paterno')),
+            'apellido_materno' => TextoPersona::normalizar($request->input('apellido_materno')),
+        ]);
+
         $validated = $request->validate([
-            'username' => ['required', 'string', 'max:50', 'regex:/^[A-Za-z0-9._-]+$/', 'unique:users,username'],
-            'name' => 'required|string|max:255',
-            'email' => ['required', 'email', new CorreoConDominio, 'unique:users,email'],
+            'nombre' => ['required', 'string', 'max:255'],
+            'apellido_paterno' => ['required', 'string', 'max:255'],
+            'apellido_materno' => ['required', 'string', 'max:255'],
+            'run' => ['required', 'string', 'max:20', new RutChileno, 'unique:users,run'],
+            'correo' => ['required', 'email', new CorreoConDominio, 'max:255', 'unique:users,email'],
+            'telefono' => ['required', 'string', 'regex:/^\+56[2-9][0-9]{8}$/'],
             'rol' => 'required|in:Administrador,Vendedor',
             'permisos_configurados' => ['sometimes', 'boolean'],
             'permisos' => ['sometimes', 'array'],
             'permisos.*' => ['string', 'distinct', Rule::in(array_keys(config('permisos.opciones')))],
         ]);
 
+        $nombre = trim($validated['nombre']);
+        $apellidoPaterno = trim($validated['apellido_paterno']);
+        $apellidoMaterno = trim($validated['apellido_materno']);
         $contrasenaInicial = Str::random(32);
-        $user = DB::transaction(function () use ($validated, $contrasenaInicial): User {
+        $user = DB::transaction(function () use ($validated, $nombre, $apellidoPaterno, $apellidoMaterno, $contrasenaInicial): User {
+            $username = $this->generarUsername($nombre, $apellidoMaterno);
             $user = User::create([
-                'username' => $validated['username'],
-                'name' => $validated['name'],
-                'email' => $validated['email'],
+                'username' => $username,
+                'name' => trim($nombre.' '.$apellidoPaterno.' '.$apellidoMaterno),
+                'apellido_paterno' => $apellidoPaterno,
+                'apellido_materno' => $apellidoMaterno,
+                'run' => $validated['run'],
+                'email' => $validated['correo'],
+                'telefono' => $validated['telefono'],
                 'rol' => $validated['rol'],
                 'password' => $contrasenaInicial,
             ]);
@@ -73,6 +102,50 @@ class UserController extends Controller
             'initial_password' => $contrasenaInicial,
             'user' => $user,
         ], 201);
+    }
+
+    private function generarUsername(string $nombre, string $apellidoMaterno): string
+    {
+        $nombreSlug = Str::of(Str::ascii(mb_strtolower($nombre, 'UTF-8')))
+            ->lower()
+            ->trim()
+            ->replaceMatches('/[^a-z0-9]+/', '.')
+            ->trim('.')
+            ->value();
+        $apellidoSlug = Str::of(Str::ascii(mb_strtolower($apellidoMaterno, 'UTF-8')))
+            ->lower()
+            ->trim()
+            ->replaceMatches('/[^a-z0-9]+/', '.')
+            ->trim('.')
+            ->value();
+        $base = trim($nombreSlug.'.'.$apellidoSlug, '.');
+
+        $ocupados = User::withTrashed()
+            ->where('username', 'like', $base.'%')
+            ->lockForUpdate()
+            ->pluck('username');
+        $mayorSufijo = 1;
+        $baseExiste = false;
+
+        foreach ($ocupados as $ocupado) {
+            if (! is_string($ocupado)) {
+                continue;
+            }
+            if ($ocupado === $base) {
+                $baseExiste = true;
+
+                continue;
+            }
+            if (preg_match('/^'.preg_quote($base, '/').'(?:([0-9]+))$/', $ocupado, $coincidencia)) {
+                $mayorSufijo = max($mayorSufijo, (int) ($coincidencia[1] ?: 1));
+            }
+        }
+
+        if (! $baseExiste && $mayorSufijo === 1) {
+            return $base;
+        }
+
+        return $base.(++$mayorSufijo);
     }
 
     public function actualizarPermisos(Request $request, User $user): RedirectResponse|JsonResponse
@@ -191,6 +264,48 @@ class UserController extends Controller
         );
 
         $message = 'La cuenta fue restaurada y quedó habilitada.';
+
+        if (! $request->expectsJson()) {
+            return redirect()->route('usuarios.index')->with('success', $message);
+        }
+
+        return response()->json(['message' => $message]);
+    }
+
+    public function eliminarDefinitivamente(Request $request, int $user): RedirectResponse|JsonResponse
+    {
+        DB::transaction(function () use ($user): void {
+            $usuario = User::withTrashed()->whereKey($user)->lockForUpdate()->firstOrFail();
+            abort_unless($usuario->rol === 'Vendedor', 403);
+
+            $referencias = [
+                'ventas' => ['user_id', 'credito_autorizado_por'],
+                'inventario_movimientos' => ['user_id'],
+                'auditorias' => ['user_id'],
+                'cotizaciones' => ['creada_por'],
+                'cotizacion_versiones' => ['revisada_por', 'respuesta_registrada_por'],
+                'ordenes_compra' => ['autorizada_por'],
+                'eventos_facturacion' => ['user_id'],
+                'eventos_reserva' => ['user_id'],
+            ];
+
+            foreach ($referencias as $tabla => $columnas) {
+                foreach ($columnas as $columna) {
+                    if (DB::table($tabla)->where($columna, $usuario->id)->exists()) {
+                        throw ValidationException::withMessages([
+                            'usuario' => 'No se puede eliminar la cuenta porque tiene registros asociados. Puedes archivarla para conservar su historial.',
+                        ]);
+                    }
+                }
+            }
+
+            DB::table(config('session.table'))->where('user_id', $usuario->id)->delete();
+            DB::table(config('auth.passwords.users.table'))->where('email', $usuario->email)->delete();
+            $usuario->notifications()->delete();
+            $usuario->forceDelete();
+        });
+
+        $message = 'La cuenta fue eliminada definitivamente.';
 
         if (! $request->expectsJson()) {
             return redirect()->route('usuarios.index')->with('success', $message);

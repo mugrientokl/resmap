@@ -29,6 +29,7 @@ use App\Services\VentaCotizacionService;
 use App\Services\WhatsAppCloudApi;
 use App\Support\Rut;
 use App\Support\TelefonoChileno;
+use App\Support\TextoPersona;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
@@ -354,6 +355,11 @@ class CotizacionController extends Controller
             && $venta->stock_descontado_at !== null, 403);
         $actividades = config('services.cotizaciones.actividades_emisor');
         $request->merge(['rut' => Rut::normalizar((string) $request->input('rut'))]);
+        $request->merge([
+            'nombre' => TextoPersona::normalizar($request->input('nombre')),
+            'contacto' => TextoPersona::normalizar($request->input('contacto')),
+            'razon_social' => TextoPersona::normalizar($request->input('razon_social')),
+        ]);
         $datos = $request->validate([
             'tipo_documento' => ['required', 'string', 'in:Boleta Electrónica,Factura Electrónica'],
             'medio_pago' => ['nullable', 'string', 'in:Efectivo,Transferencia,Tarjeta,Crédito'],

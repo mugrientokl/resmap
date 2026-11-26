@@ -36,15 +36,28 @@
             </div>
             <form id="create-user-form" method="POST" action="{{ route('usuarios.store') }}" class="mt-6 grid gap-4 md:grid-cols-2" data-confirm-message="¿Confirmas crear esta cuenta de usuario con los datos ingresados?" data-confirm-title="Crear usuario" data-confirm-text="Crear cuenta">
                 @csrf
-                <label for="nuevo-username" class="block text-sm font-bold text-gray-700">Usuario
-                    <input id="nuevo-username" name="username" value="{{ old('username') }}" required placeholder="Ej. vendedor1" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
+                <label for="nuevo-nombre" class="block text-sm font-bold text-gray-700">Nombre
+                    <input id="nuevo-nombre" name="nombre" value="{{ old('nombre') }}" required maxlength="255" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
                 </label>
-                <label for="nuevo-name" class="block text-sm font-bold text-gray-700">Nombre completo
-                    <input id="nuevo-name" name="name" value="{{ old('name') }}" required placeholder="Nombre y apellido" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
+                <label for="nuevo-apellido-materno" class="block text-sm font-bold text-gray-700">Apellido materno
+                    <input id="nuevo-apellido-materno" name="apellido_materno" value="{{ old('apellido_materno') }}" required maxlength="255" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
+                </label>
+                <label for="nuevo-apellido-paterno" class="block text-sm font-bold text-gray-700">Apellido paterno
+                    <input id="nuevo-apellido-paterno" name="apellido_paterno" value="{{ old('apellido_paterno') }}" required maxlength="255" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
+                </label>
+                <label for="nuevo-run" class="block text-sm font-bold text-gray-700">RUN
+                    <input id="nuevo-run" name="run" value="{{ old('run') }}" required maxlength="20" placeholder="12.345.678-5" data-rut class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
                 </label>
                 <label for="nuevo-email" class="block text-sm font-bold text-gray-700">Correo electrónico
-                    <input id="nuevo-email" type="email" name="email" value="{{ old('email') }}" required pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl" placeholder="correo@ejemplo.com" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
+                    <input id="nuevo-email" type="email" name="correo" value="{{ old('correo', old('email')) }}" required maxlength="255" pattern="{{ \App\Rules\CorreoConDominio::PATRON }}" title="Ingresa un correo con dominio completo, por ejemplo nombre@ejemplo.cl" placeholder="correo@ejemplo.com" class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
                 </label>
+                <div>
+                    <label for="nuevo-telefono" class="block text-sm font-bold text-gray-700">Teléfono fijo chileno</label>
+                    <div class="mt-2 flex">
+                        <select id="nuevo-telefono-prefijo" aria-label="Código de país"></select>
+                        <input id="nuevo-telefono" name="telefono" type="tel" value="{{ old('telefono', old('telefono_fijo')) }}" required pattern="[2-9][0-9]{8}" maxlength="9" inputmode="numeric" placeholder="212345678" class="min-w-0 flex-1 rounded-r-md border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
+                    </div>
+                </div>
                 <label for="nuevo-rol" class="block text-sm font-bold text-gray-700">Rol
                     <select id="nuevo-rol" name="rol" required class="mt-2 w-full rounded-lg border border-gray-300 p-3 font-normal focus:border-[#b52f25] focus:outline-none focus:ring-2 focus:ring-[#f7e8e6]">
                         <option value="Vendedor" @selected(old('rol', 'Vendedor') === 'Vendedor')>Vendedor</option>
@@ -91,6 +104,8 @@
                     <th class="px-6 py-3">Nombre</th>
                     <th class="px-6 py-3">Usuario</th>
                     <th class="px-6 py-3">Correo</th>
+                    <th class="px-6 py-3">RUN</th>
+                    <th class="px-6 py-3">Teléfono</th>
                     <th class="px-6 py-3">Rol</th>
                     <th class="px-6 py-3">Estado</th>
                     <th class="px-6 py-3">Acciones</th>
@@ -102,6 +117,8 @@
                         <td class="px-6 py-3">{{ $usuario->name }}</td>
                         <td class="px-6 py-3">{{ $usuario->username }}</td>
                         <td class="px-6 py-3">{{ $usuario->email }}</td>
+                        <td class="px-6 py-3">{{ \App\Support\Rut::formatear($usuario->run) }}</td>
+                        <td class="px-6 py-3">{{ $usuario->telefono }}</td>
                         <td class="px-6 py-3 font-bold">{{ $usuario->rol }}</td>
                         <td class="px-6 py-3">
                             <span class="{{ $usuario->trashed() ? 'text-gray-700' : ($usuario->activo ? 'text-green-700' : 'text-red-700') }}">
@@ -113,6 +130,11 @@
                                 <form method="POST" action="{{ route('usuarios.restaurar', $usuario->id) }}" data-confirm-message="La cuenta volverá a estar habilitada y podrá iniciar sesión. ¿Deseas continuar?" data-confirm-title="Restaurar cuenta" data-confirm-text="Restaurar cuenta">
                                     @csrf
                                     <button class="rounded border border-green-300 px-3 py-1 font-bold text-green-700">Restaurar cuenta</button>
+                                </form>
+                                <form method="POST" action="{{ route('usuarios.eliminar-definitivamente', $usuario->id) }}" data-confirm-message="La cuenta se eliminará permanentemente si no tiene registros asociados. Esta acción no se puede deshacer. ¿Continuar?" data-confirm-title="Eliminar cuenta" data-confirm-text="Eliminar definitivamente">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button class="mt-2 rounded border border-red-300 px-3 py-1 font-bold text-red-700">Eliminar definitivamente</button>
                                 </form>
                             @elseif($usuario->rol === 'Vendedor')
                                 <div class="flex flex-wrap gap-2">
@@ -149,6 +171,11 @@
                                         @method('DELETE')
                                         <button class="rounded border border-gray-400 px-3 py-1 font-bold text-gray-700">Archivar cuenta</button>
                                     </form>
+                                    <form method="POST" action="{{ route('usuarios.eliminar-definitivamente', $usuario->id) }}" data-confirm-message="La cuenta se eliminará permanentemente si no tiene registros asociados. Esta acción no se puede deshacer. ¿Continuar?" data-confirm-title="Eliminar cuenta" data-confirm-text="Eliminar definitivamente">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button class="rounded border border-red-300 px-3 py-1 font-bold text-red-700">Eliminar definitivamente</button>
+                                    </form>
                                 </div>
                             @else
                                 <span class="text-gray-500">Cuenta administrativa</span>
@@ -160,7 +187,11 @@
         </table>
     </section>
 </div>
+<script src="{{ asset('js/rut.js') }}"></script>
+<script src="{{ asset('js/chile-location.js') }}"></script>
 <script>
+    inicializarSelectorTelefono('nuevo-telefono-prefijo', 'nuevo-telefono');
+    document.getElementById('nuevo-telefono').value = window.telefonoNacionalChile(document.getElementById('nuevo-telefono').value);
     const toggleCreateUser = document.getElementById('toggle-create-user');
     const closeCreateUser = document.getElementById('close-create-user');
     const createUserPanel = document.getElementById('create-user-panel');
@@ -168,7 +199,7 @@
         if (!createUserPanel || !toggleCreateUser) return;
         createUserPanel.hidden = !open;
         toggleCreateUser.setAttribute('aria-expanded', String(open));
-        if (open) document.getElementById('nuevo-username')?.focus();
+        if (open) document.getElementById('nuevo-nombre')?.focus();
     };
     toggleCreateUser?.addEventListener('click', () => setCreateUserPanel(createUserPanel.hidden));
     closeCreateUser?.addEventListener('click', () => setCreateUserPanel(false));

@@ -67,14 +67,18 @@ class DashboardTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('Monto vendido')
-            ->assertSee('Cantidad de ventas')
+            ->assertSee('Cantidad de ventas totales')
             ->assertSee('Ventas en POS')
             ->assertSee('Ventas por cotización')
             ->assertSee('$2.380')
             ->assertSee('Período de los indicadores')
             ->assertSee((string) now()->year)
-            ->assertSee('Utilidad bruta')
-            ->assertSee('Sin datos completos')
+            ->assertSeeInOrder(['Monto vendido', 'Ventas por cotización', 'Cantidad de ventas totales', 'Ventas en POS'])
+            ->assertSee('Descargar PDF con el resumen general de los períodos filtrados.')
+            ->assertDontSee('Centro de operaciones')
+            ->assertDontSee('Cotizaciones no completadas')
+            ->assertDontSee('Utilidad bruta')
+            ->assertDontSee('class="alert-card stock-alert"', false)
             ->assertDontSee('Porcentaje de ganancia')
             ->assertDontSee('Accesos rápidos')
             ->assertDontSee('Monto vendido hoy')
@@ -84,7 +88,7 @@ class DashboardTest extends TestCase
             ->assertSee('ventasMensualesChart', false);
     }
 
-    public function test_dashboard_replaces_unreliable_percentage_with_gross_profit_when_cost_is_complete(): void
+    public function test_dashboard_keeps_profit_data_without_showing_the_removed_card(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
         $producto = $this->producto('DASH-COSTO-001', 'Producto con costo');
@@ -106,10 +110,9 @@ class DashboardTest extends TestCase
         $this->actingAs($admin)
             ->get(route('dashboard'))
             ->assertOk()
-            ->assertSee('Utilidad bruta')
-            ->assertSee('$500')
-            ->assertSee('Margen bruto: 50,00%')
-            ->assertDontSee('Porcentaje de ganancia');
+            ->assertViewHas('rentabilidad', fn (array $r): bool => $r['utilidadBruta'] === 500.0 && $r['margenBruto'] === 50.0)
+            ->assertDontSee('Utilidad bruta')
+            ->assertDontSee('Margen bruto:');
     }
 
     public function test_selecting_a_month_filters_cards_charts_and_top_products(): void
@@ -137,7 +140,7 @@ class DashboardTest extends TestCase
             ->assertViewHas('resumen', fn (array $r): bool => $r['total'] === ['cantidad' => 1, 'monto' => 5950.0])
             ->assertViewHas('ventasDiarias', fn (array $d): bool => count($d) === $fechaAnterior->daysInMonth
                 && $d[2]['total'] === 5950.0)
-            ->assertViewHas('productosMasVendidos', fn (array $p): bool => $p === [['etiqueta' => 'Producto del mes anterior', 'total_vendido' => 5]])
+            ->assertViewHas('productosMasVendidos', fn (array $p): bool => $p === [['etiqueta' => 'Producto del mes anterior', 'total_vendido' => 5, 'stock' => 100]])
             ->assertSee('$5.950')
             ->assertSee(ucfirst($fechaAnterior->locale('es')->isoFormat('MMMM YYYY')));
     }
@@ -280,6 +283,7 @@ class DashboardTest extends TestCase
             ->assertOk()
             ->assertSee('7 productos con stock bajo')
             ->assertSee('stock=critico')
+            ->assertSee('class="alert-card stock-alert"', false)
             ->assertViewHas('cantidadStockCritico', 7);
     }
 }

@@ -18,7 +18,7 @@
     <div class="space-y-3">
         @forelse($notificaciones as $notificacion)
             @php($data = $notificacion->data)
-            <div class="grid grid-cols-1 items-start gap-4 border-l-4 {{ $notificacion->read_at ? 'border-amber-400 bg-gray-100' : 'border-[#b52f25] bg-amber-50' }} p-5 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto]">
+            <div class="grid grid-cols-1 items-start gap-4 rounded-xl border-l-4 {{ $notificacion->read_at ? 'border-amber-400 bg-gray-100' : 'border-[#b52f25] bg-amber-50' }} p-5 shadow-sm sm:grid-cols-[minmax(0,1fr)_auto]">
                 <div class="min-w-0 break-words">
                     <span class="inline-block rounded-full px-3 py-1 text-sm font-bold {{ $notificacion->read_at ? 'bg-amber-100 text-amber-900' : 'bg-red-100 text-red-800' }}">{{ $notificacion->read_at ? 'Leído' : 'No leído' }}</span>
                     <h2 class="mt-1 font-bold text-gray-900">{{ $data['titulo'] }}</h2>
@@ -34,7 +34,7 @@
                 @endif
             </div>
         @empty
-            <div class="bg-white p-8 text-center text-gray-500">No hay avisos pendientes.</div>
+            <div class="rounded-xl bg-white p-8 text-center text-gray-500">No hay avisos pendientes.</div>
         @endforelse
     </div>
     <div class="mt-6">{{ $notificaciones->links() }}</div>

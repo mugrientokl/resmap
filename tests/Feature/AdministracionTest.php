@@ -71,6 +71,44 @@ class AdministracionTest extends TestCase
         $this->actingAs($admin)->put('/administracion/navegacion', ['posicion_navegacion' => 'superior'])->assertNotFound();
     }
 
+    public function test_user_creation_generates_unique_username_and_stores_personal_data(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+
+        $datos = [
+            'nombre' => 'juan',
+            'apellido_paterno' => 'pÉREZ',
+            'apellido_materno' => 'SOTO',
+            'run' => '11.111.111-1',
+            'correo' => 'juan@example.cl',
+            'telefono' => '212345678',
+            'rol' => 'Vendedor',
+        ];
+
+        $this->actingAs($admin)->post(route('usuarios.store'), $datos)
+            ->assertStatus(200)
+            ->assertSessionHasNoErrors()
+            ->assertSee('initial-username', false)
+            ->assertSee('Copiar credenciales', false);
+
+        $this->assertDatabaseHas('users', [
+            'username' => 'juan.soto',
+            'name' => 'Juan Pérez Soto',
+            'run' => '11111111-1',
+            'email' => 'juan@example.cl',
+            'telefono' => '+56212345678',
+        ]);
+
+        $datos['run'] = '12.345.678-5';
+        $datos['correo'] = 'juan2@example.cl';
+        $this->actingAs($admin)->post(route('usuarios.store'), $datos)
+            ->assertStatus(200)
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('users', ['username' => 'juan.soto2']);
+
+    }
+
     public function test_user_management_displays_each_flash_notification_only_once(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);

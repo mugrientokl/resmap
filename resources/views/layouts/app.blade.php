@@ -9,21 +9,13 @@
     <title>RESMAP - Sistema de Gestión</title>
     @vite('resources/css/app.css')
     <link rel="stylesheet" href="{{ asset('css/global-controls.css') }}">
+    <link rel="stylesheet" href="{{ asset('css/fondo-sistema.css') }}">
     <script defer src="{{ asset('js/notifications.js') }}"></script>
     <style>
         [x-cloak] { display: none !important; }
 
         body { padding-top: 76px; }
         body.homepage { padding-top: 0; }
-        body.homepage,
-        body.catalogo-page {
-            background-image: linear-gradient(rgba(8, 17, 22, .25), rgba(8, 17, 22, .35)), url('{{ asset('images/contacto-fondo.jpeg') }}');
-            background-attachment: fixed;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-size: cover;
-        }
-
         :root { --content-gutter: clamp(1rem, 10vw, 5cm); }
         body.homepage,
         body.catalogo-page,
@@ -52,11 +44,8 @@
 
         .home-footer-info {
             border-top: 1px solid rgba(214, 107, 96, .6);
-            background: linear-gradient(120deg, #391817, #1d2023 65%, #301817);
-            color: #fff;
-        }
-        .contact-footer .home-contact-section {
-            padding-right: calc(var(--content-gutter) + 5.75rem);
+            background: linear-gradient(120deg, rgba(255, 255, 255, .96), rgba(255, 235, 231, .94));
+            color: #382723;
         }
         .contact-footer .home-contact-content { grid-template-columns: minmax(0, 1fr); }
         .home-contact-content > div { min-width: 0; grid-template-columns: minmax(0, 1fr); }
@@ -69,11 +58,8 @@
             .home-contact-cards > :not(h2) strong,
             .home-contact-cards > :not(h2) > span:last-child > span { font-size: 1rem; overflow-wrap: anywhere; }
         }
-        @media (min-width: 1024px) {
-            .contact-footer .home-contact-section { padding-right: calc(var(--content-gutter) + 16.5rem); }
-        }
         @media (min-width: 1280px) {
-            .contact-footer .home-contact-content { grid-template-columns: minmax(0, 2fr) minmax(0, 3fr); }
+            .contact-footer .home-contact-content { grid-template-columns: minmax(0, 25rem) minmax(0, 1fr); }
         }
         .home-footer-grid {
             display: grid;
@@ -84,7 +70,7 @@
         .home-footer-brand a { flex: 0 0 45%; }
         .home-footer-brand img { width: 14rem; max-width: 100%; }
         .home-footer-heading {
-            color: #ffd36f;
+            color: #8f241d;
             font-size: 1.125rem;
             font-weight: 800;
         }
@@ -95,16 +81,16 @@
             margin-top: 1rem;
         }
         .home-footer-links a {
-            color: rgba(255, 255, 255, .9);
+            color: #493733;
             transition: color .2s ease;
         }
-        .home-footer-links a:hover { color: #ffd36f; }
+        .home-footer-links a:hover { color: #b52f25; }
         .home-footer-links a:focus-visible {
-            outline: 2px solid #ffd36f;
+            outline: 2px solid #8f241d;
             outline-offset: 4px;
         }
         .home-footer-credit a { display: inline-flex; align-items: center; gap: .5rem; max-width: 100%; }
-        .home-footer-credit img { width: 12rem; min-width: 0; }
+        .home-footer-credit img { width: 16rem; min-width: 0; }
         .home-footer-credit a span { flex-shrink: 0; }
         @media (min-width: 1024px) {
             .home-footer-grid { grid-template-columns: 1fr 1fr 1.3fr; gap: 3rem; }
@@ -140,8 +126,6 @@
             color: #fff !important;
         }
 
-        .brand-logo { filter: drop-shadow(1px 0 0 #fff) drop-shadow(-1px 0 0 #fff) drop-shadow(0 1px 0 #fff) drop-shadow(0 -1px 0 #fff); }
-        .brand-caption { display: none; }
         .nav-icon { display: none; }
 
         #home-navigation { transition: background-color .3s ease, box-shadow .3s ease; }
@@ -305,16 +289,6 @@
                 max-width: 4rem;
                 transition: max-width .22s ease;
             }
-            body.navegacion-izquierda .brand-caption {
-                display: none;
-                margin-top: .2rem;
-                color: #fff;
-                font-size: .6rem;
-                font-weight: 800;
-                letter-spacing: .14em;
-                text-align: center;
-                text-transform: uppercase;
-            }
             body.navegacion-izquierda #main-menu,
             body.navegacion-izquierda #public-menu {
                 align-items: stretch;
@@ -325,17 +299,17 @@
             body.navegacion-izquierda .nav-link {
                 display: flex;
                 align-items: center;
-                justify-content: center;
-                gap: 0;
+                justify-content: flex-start;
+                gap: .75rem;
                 min-height: 2.75rem;
-                padding: .65rem;
+                padding: .6rem .75rem;
                 border: 1px solid transparent;
                 border-radius: .65rem;
                 color: #fff7f5;
                 font-size: 1.0625rem;
                 font-weight: 600;
                 line-height: 1.35;
-                white-space: nowrap;
+                white-space: normal;
                 transition: background-color .2s ease, border-color .2s ease, color .2s ease, padding .55s cubic-bezier(.22, 1, .36, 1), gap .55s cubic-bezier(.22, 1, .36, 1);
             }
             body.navegacion-izquierda .nav-icon {
@@ -346,15 +320,15 @@
                 color: #ffd5c9;
             }
             body.navegacion-izquierda .nav-link > span:not(.nav-badge),
-            body.navegacion-izquierda #profile-menu-button > span:nth-child(2),
-            body.navegacion-izquierda #profile-menu-button > svg {
+            body.navegacion-izquierda #profile-menu-button > span:nth-child(2) {
                 width: auto;
-                max-width: 0;
+                min-width: 0;
+                max-width: 15rem;
                 overflow: hidden;
-                opacity: 0;
-                transform: translateX(-.5rem);
-                will-change: max-width, opacity, transform;
-                transition: max-width .22s ease, opacity .14s ease;
+                overflow-wrap: anywhere;
+                opacity: 1;
+                transform: translateX(0);
+                white-space: normal;
             }
             body.navegacion-izquierda .nav-link:hover {
                 border-color: rgba(255, 255, 255, .16);
@@ -374,11 +348,10 @@
                 outline-offset: 2px;
             }
             body.navegacion-izquierda .nav-badge {
-                position: absolute;
-                top: .15rem;
-                right: .15rem;
-                margin-left: 0;
-                font-size: .65rem;
+                position: static;
+                flex: none;
+                margin-left: auto;
+                font-size: .75rem;
             }
             body.navegacion-izquierda .nav-link { position: relative; }
             body.navegacion-izquierda .profile-section {
@@ -388,8 +361,8 @@
             }
             body.navegacion-izquierda #profile-menu-button {
                 min-height: 3.25rem;
-                justify-content: center;
-                padding: .6rem;
+                justify-content: flex-start;
+                padding: .6rem .75rem;
                 border: 1px solid rgba(255, 255, 255, .18);
                 border-radius: .65rem;
                 background-color: rgba(255, 255, 255, .07);
@@ -414,37 +387,6 @@
             }
             body.navegacion-izquierda .brand-logo {
                 max-width: 14.5rem;
-            }
-            body.navegacion-izquierda .brand-caption {
-                display: block;
-            }
-            body.navegacion-izquierda .nav-link {
-                justify-content: flex-start;
-                gap: .75rem;
-                padding: .6rem .75rem;
-                white-space: normal;
-            }
-            body.navegacion-izquierda .nav-link > span:not(.nav-badge),
-            body.navegacion-izquierda #profile-menu-button > span:nth-child(2) {
-                max-width: 15rem;
-                opacity: 1;
-                transform: translateX(0);
-                text-overflow: clip;
-                white-space: normal;
-            }
-            body.navegacion-izquierda #profile-menu-button > svg {
-                max-width: 1rem;
-                opacity: 1;
-                transform: translateX(0);
-            }
-            body.navegacion-izquierda #profile-menu-button {
-                justify-content: flex-start;
-                padding: .6rem .75rem;
-            }
-            body.navegacion-izquierda .nav-badge {
-                position: static;
-                margin-left: auto;
-                font-size: .75rem;
             }
         }
         @media (max-width: 767px) {
@@ -557,15 +499,14 @@
             transform: translateX(-50%);
             border: 1px solid rgba(205, 112, 105, .58);
             border-radius: 9999px;
-            background: linear-gradient(115deg, rgba(75, 31, 29, .94), rgba(37, 40, 43, .96) 55%, rgba(24, 31, 34, .97));
-            box-shadow: 0 10px 30px rgba(0, 0, 0, .35);
+            background: linear-gradient(115deg, rgba(255, 255, 255, .96), rgba(255, 235, 231, .94));
+            box-shadow: 0 10px 30px rgba(100, 40, 35, .18);
             -webkit-backdrop-filter: blur(14px);
             backdrop-filter: blur(14px);
             transition: background-color .3s ease, box-shadow .3s ease, transform .3s ease;
         }
         body.floating-public-navigation :is(#home-navigation, #main-navigation).is-scrolled {
-            background-color: rgba(20, 32, 38, .9);
-            box-shadow: 0 12px 32px rgba(0, 0, 0, .42);
+            box-shadow: 0 12px 32px rgba(100, 40, 35, .22);
         }
         .navigation-progress {
             position: absolute;
@@ -575,7 +516,7 @@
             height: 3px;
             overflow: hidden;
             border-radius: 9999px;
-            background: rgba(255, 255, 255, .1);
+            background: rgba(143, 36, 29, .12);
             pointer-events: none;
         }
         .navigation-progress::after {
@@ -583,7 +524,7 @@
             width: 100%;
             height: 100%;
             border-radius: inherit;
-            background: #f6b941;
+            background: #b52f25;
             content: '';
             transform: scaleX(var(--scroll-progress, 0));
             transform-origin: left;
@@ -598,7 +539,7 @@
         body.floating-public-navigation .brand-logo {
             height: clamp(5.25rem, 6.5vw, 6.5rem);
             max-width: 13rem;
-            filter: drop-shadow(0 2px 5px rgba(0, 0, 0, .45));
+            filter: drop-shadow(0 2px 4px rgba(100, 40, 35, .18));
             transition: height .3s ease;
         }
         body.floating-public-navigation :is(#home-navigation, #main-navigation).is-compact > div {
@@ -614,7 +555,7 @@
             border: 1px solid transparent;
             border-radius: 9999px;
             background: transparent;
-            color: #f8fafc;
+            color: #721d18;
             font-size: clamp(1.125rem, 1.4vw, 1.375rem);
             font-weight: 500;
             box-shadow: none;
@@ -623,7 +564,7 @@
         body.floating-public-navigation #public-menu .nav-link:hover {
             border-color: transparent;
             background: transparent;
-            color: #ffd5c9;
+            color: #b52f25;
             box-shadow: none;
         }
         body.floating-public-navigation #public-menu .nav-link[aria-current="page"],
@@ -634,7 +575,7 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, .28);
         }
         body.floating-public-navigation #public-menu .nav-link:focus-visible {
-            outline: 2px solid #ffd5c9;
+            outline: 2px solid #8f241d;
             outline-offset: 3px;
             transform: translateY(-3px);
         }
@@ -674,13 +615,18 @@
                 padding: .75rem;
                 border: 1px solid rgba(205, 112, 105, .58);
                 border-radius: 1rem;
-                background: linear-gradient(115deg, rgba(75, 31, 29, .97), rgba(37, 40, 43, .98) 55%, rgba(24, 31, 34, .98));
+                background: linear-gradient(115deg, rgba(255, 255, 255, .98), rgba(255, 235, 231, .97));
                 -webkit-backdrop-filter: blur(14px);
                 backdrop-filter: blur(14px);
             }
             body.floating-public-navigation #public-menu .nav-link {
                 justify-content: flex-start;
                 padding: .65rem 1rem;
+            }
+            body.floating-public-navigation #public-menu-toggle:not([hidden]) {
+                border-color: #d9aaa3;
+                background: rgba(255, 255, 255, .6);
+                color: #8f241d;
             }
         }
         @media (prefers-reduced-motion: reduce) {
@@ -698,12 +644,13 @@
             overflow: hidden;
             border: 1px solid rgba(214, 107, 96, .7);
             border-radius: 1.5rem;
-            background: linear-gradient(135deg, #4b1f1d, #25282b 55%, #181f22);
-            color: #fff;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, .5);
+            background: linear-gradient(135deg, rgba(255, 255, 255, .98), rgba(255, 239, 236, .96));
+            color: #241817;
+            box-shadow: 0 20px 60px rgba(100, 40, 35, .25);
+            backdrop-filter: blur(12px);
         }
-        .solicitud-modal .solicitud-header { border-color: rgba(255, 255, 255, .15); }
-        .solicitud-modal .solicitud-title { color: #ffd36f; }
+        .solicitud-modal .solicitud-header { border-color: #e8c8c3; }
+        .solicitud-modal .solicitud-title { color: #8f241d; }
         .solicitud-modal .solicitud-close {
             display: flex;
             width: 2.5rem;
@@ -711,21 +658,23 @@
             align-items: center;
             justify-content: center;
             border-radius: 9999px;
-            background: rgba(255, 255, 255, .1);
-            color: #fff;
+            background: #f7e8e6;
+            color: #8f241d;
         }
-        .solicitud-modal .solicitud-close:hover { background: rgba(255, 255, 255, .2); }
+        .solicitud-modal .solicitud-close:hover { background: #f0d1cc; }
         .solicitud-modal form label,
         .solicitud-modal form legend {
-            color: #f8f3f1;
+            color: #382723;
             font-size: 1.125rem;
             line-height: 1.4;
         }
-        .solicitud-modal form :is(label, legend) > span[aria-hidden="true"] { color: #ffaaa0; }
-        .solicitud-modal form label > span:not([aria-hidden]) { color: #d3c7c5; }
+        .solicitud-modal form :is(label, legend) > span[aria-hidden="true"] { color: #b52f25; }
+        .solicitud-modal form label > span:not([aria-hidden]) { color: #65504c; }
+        .solicitud-modal .solicitud-panel > p { color: #65504c; }
+        .solicitud-modal form h3 { color: #8f241d; }
         .solicitud-modal form > p,
         .solicitud-modal #rut_solicitud + p {
-            color: #d3c7c5;
+            color: #65504c;
             font-size: 1rem;
             line-height: 1.4;
         }
@@ -733,14 +682,14 @@
         .solicitud-modal form select:not([name="prefijo_telefono"]),
         .solicitud-modal form textarea {
             border-color: rgba(214, 107, 96, .6);
-            background: #202629;
-            color: #fff;
+            background: #fff;
+            color: #241817;
             font-size: 1.125rem;
         }
-        .solicitud-modal form :is(input, textarea)::placeholder { color: #bdb5b4; }
-        .solicitud-modal form input[type="radio"] { accent-color: #e85a4e; }
-        .solicitud-modal form select:not([name="prefijo_telefono"]) { color-scheme: dark; }
-        .solicitud-modal form select:disabled { color: #aaa09e; }
+        .solicitud-modal form :is(input, textarea)::placeholder { color: #786a67; }
+        .solicitud-modal form input[type="radio"] { accent-color: #b52f25; }
+        .solicitud-modal form select:not([name="prefijo_telefono"]) { color-scheme: light; }
+        .solicitud-modal form select:disabled { color: #786a67; }
         #servicio-modal form label > span.font-normal { font-size: 1rem; }
         #servicio-modal form :is(input:not([type="hidden"]), select, textarea) {
             font-weight: 400;
@@ -751,21 +700,21 @@
         }
         .solicitud-modal form [aria-label="Seleccionar código de país"] {
             border-color: rgba(214, 107, 96, .6);
-            background: #202629;
-            color: #fff;
+            background: #fff;
+            color: #241817;
             font-size: 1.0625rem;
         }
         .solicitud-modal form [aria-label="Seleccionar código de país"] + div {
             border-color: rgba(214, 107, 96, .6);
-            background: #202629;
-            color: #fff;
+            background: #fff;
+            color: #241817;
         }
-        .solicitud-modal form [aria-label="Seleccionar código de país"] + div button:hover { background: #4b302f; }
+        .solicitud-modal form [aria-label="Seleccionar código de país"] + div button:hover { background: #f7e8e6; }
         #servicio-modal form [aria-label="Seleccionar código de país"] { min-height: 100%; }
         .solicitud-modal form [aria-label="Seleccionar código de país"] + div button,
         .solicitud-modal form button[type="submit"] { font-size: 1.125rem; }
         .solicitud-modal :is(input, select, textarea, button):focus-visible {
-            outline: 2px solid #ffd36f;
+            outline: 2px solid #8f241d;
             outline-offset: 2px;
         }
         @media (prefers-reduced-motion: reduce) {
@@ -773,7 +722,7 @@
         }
     </style>
 </head>
-<body class="bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ $isStaff ? 'navegacion-izquierda' : 'navegacion-superior public-navigation' }}{{ $floatingPublicNavigation ? ' floating-public-navigation' : '' }}{{ request()->routeIs('catalogo.index') ? ' catalogo-page' : '' }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}">
+<body class="resmap-background bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ $isStaff ? 'navegacion-izquierda' : 'navegacion-superior public-navigation' }}{{ $floatingPublicNavigation ? ' floating-public-navigation' : '' }}{{ request()->routeIs('catalogo.index') ? ' catalogo-page' : '' }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}">
     @if($isStaff)
         <button type="button" id="mobile-menu-button" class="rounded-md p-2 text-white hover:bg-[#721d18] md:hidden" aria-controls="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" aria-expanded="false" aria-label="Abrir menú">
             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -782,8 +731,7 @@
     <nav id="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" class="fixed inset-x-0 top-0 z-40 text-white {{ $isHome ? 'bg-transparent' : 'bg-[#8f241d] shadow-lg' }}">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
             <a href="{{ route('home') }}" class="brand-link flex items-center" aria-label="Ir al inicio de Resmap">
-                <img src="{{ asset('images/resmap sin fondo.png') }}" alt="Resmap" class="brand-logo h-12 w-auto max-w-45 object-contain">
-                <span class="brand-caption" aria-hidden="true">Repuestos y maquinaria</span>
+                <img src="{{ asset('images/resmap-logo-renovado.png') }}" alt="Resmap" class="brand-logo h-12 w-auto max-w-45 object-contain">
             </a>
             @if($isStaff)
                 @php($unreadNotifications = auth()->user()->notificacionesVisibles()->unread()->whereNull('deleted_at')->count())
@@ -881,26 +829,26 @@
     @if(request()->routeIs('home', 'catalogo.index', 'servicios.index'))
         @include('servicios.formulario')
     @endif
-    <footer class="{{ $isHome ? 'contact-footer mt-0 overflow-hidden bg-transparent p-0 text-sm text-gray-600' : (request()->routeIs('catalogo.index') ? 'mt-8 border-t-2 border-[#9f2f25] bg-[#101214] px-4 py-8 pb-24 text-sm text-white/65 shadow-[0_-5px_20px_rgba(181,47,37,.25)] lg:pb-8' : 'mt-8 border-t border-[#e8c8c3] bg-white px-4 py-8 text-sm text-gray-600') }}">
+    <footer class="{{ $isHome ? 'contact-footer mt-0 overflow-hidden bg-transparent p-0 text-sm text-gray-600' : (request()->routeIs('catalogo.index') ? 'mt-8 border-t border-[#e8c8c3] bg-white/90 px-4 py-8 pb-24 text-sm text-gray-600 lg:pb-8' : 'mt-8 border-t border-[#e8c8c3] bg-white px-4 py-8 text-sm text-gray-600') }}">
         @if($isHome)
             <section class="home-contact-section relative isolate overflow-hidden px-[var(--content-gutter)] py-10 sm:py-14 lg:py-16" aria-labelledby="contacto-titulo">
                 <div class="home-contact-content grid w-full gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-10 xl:gap-16">
                     <div class="home-contact-cards grid w-full max-w-[25rem] grid-rows-[auto_repeat(3,1fr)] justify-self-center gap-4">
-                        <h2 id="contacto-titulo" class="mb-3 text-2xl font-black uppercase text-[#f6b941] drop-shadow-[0_2px_6px_rgba(0,0,0,.8)] sm:text-3xl xl:text-4xl">Datos de contacto</h2>
-                        <a href="https://wa.me/56976477124" target="_blank" rel="noopener noreferrer" class="group flex min-h-28 items-center gap-4 rounded-full border border-[#d66b60]/70 bg-gradient-to-r from-[#5a1d1b]/90 to-[#202629]/90 px-4 py-4 text-white shadow-[0_10px_30px_rgba(0,0,0,.4)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-[#f08c80] hover:shadow-[0_16px_36px_rgba(143,36,29,.35)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white" style="border-radius: 9999px" aria-label="Escribirnos por WhatsApp al +56 9 7647 7124">
-                            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#791e1b]/75" aria-hidden="true">
+                        <h2 id="contacto-titulo" class="mb-3 text-2xl font-black uppercase text-[#721d18] sm:text-3xl xl:text-4xl">Datos de contacto</h2>
+                        <a href="https://wa.me/56976477124" target="_blank" rel="noopener noreferrer" class="resmap-glass group flex min-h-28 items-center gap-4 rounded-full border px-4 py-4 text-[#382723] transition duration-300 hover:-translate-y-1 hover:border-[#f08c80] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8f241d]" style="border-radius: 9999px" aria-label="Escribirnos por WhatsApp al +56 9 7647 7124">
+                            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#8f241d] text-white" aria-hidden="true">
                                 <svg class="h-9 w-9" fill="currentColor" viewBox="0 0 24 24"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6h-.1c-1.7 0-3.4-.5-4.8-1.3l-.3-.2-3.8 1 1-3.7-.2-.3a9.8 9.8 0 1 1 8.2 4.5Zm5.4-7.3c-.3-.1-1.8-.9-2.1-1-.3-.1-.5-.1-.7.2l-.9 1.1c-.2.2-.3.2-.6.1a8 8 0 0 1-4-3.5c-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3 2.8 1.2 2.8.8 3.3.8.5 0 1.8-.7 2-1.4.3-.6.3-1.2.2-1.3Z" /></svg>
                             </span>
                             <span><strong class="block text-xl font-medium sm:text-2xl">Escríbenos</strong><span class="mt-1 block text-xl font-medium sm:text-2xl">+56 9 7647 7124</span></span>
                         </a>
-                        <div class="flex min-h-28 items-center gap-4 rounded-full border border-[#d66b60]/70 bg-gradient-to-r from-[#5a1d1b]/90 to-[#202629]/90 px-4 py-4 text-white shadow-[0_10px_30px_rgba(0,0,0,.4)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-[#f08c80] hover:shadow-[0_16px_36px_rgba(143,36,29,.35)]">
-                            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#791e1b]/75" aria-hidden="true">
+                        <div class="resmap-glass flex min-h-28 items-center gap-4 rounded-full border px-4 py-4 text-[#382723] transition duration-300 hover:-translate-y-1 hover:border-[#f08c80]">
+                            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#8f241d] text-white" aria-hidden="true">
                                 <svg class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 7v5l3 2"/></svg>
                             </span>
                             <span><strong class="block text-xl font-medium sm:text-2xl">Horarios de atención</strong><span class="mt-1 block text-lg font-medium leading-tight sm:text-xl">Lunes a viernes<br>09:00 AM - 05:00 PM</span></span>
                         </div>
-                        <div class="flex min-h-28 items-center gap-4 rounded-full border border-[#d66b60]/70 bg-gradient-to-r from-[#5a1d1b]/90 to-[#202629]/90 px-4 py-4 text-white shadow-[0_10px_30px_rgba(0,0,0,.4)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-[#f08c80] hover:shadow-[0_16px_36px_rgba(143,36,29,.35)]">
-                            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#791e1b]/75" aria-hidden="true">
+                        <div class="resmap-glass flex min-h-28 items-center gap-4 rounded-full border px-4 py-4 text-[#382723] transition duration-300 hover:-translate-y-1 hover:border-[#f08c80]">
+                            <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#8f241d] text-white" aria-hidden="true">
                                 <svg class="h-9 w-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 6.75h18v10.5H3zM3 7l9 6 9-6"/></svg>
                             </span>
                             <span class="min-w-0"><strong class="block text-xl font-medium sm:text-2xl">Correo electrónico</strong><span class="mt-1 block break-all text-lg font-medium sm:text-xl">resmap.la@gmail.com</span></span>
@@ -908,13 +856,13 @@
                     </div>
 
                     <div class="grid gap-4">
-                        <h3 class="mb-3 text-2xl font-black uppercase text-[#f6b941] drop-shadow-[0_2px_6px_rgba(0,0,0,.8)] sm:text-3xl xl:text-4xl">Dónde encontrarnos</h3>
-                        <address class="flex flex-col rounded-3xl border border-[#d66b60]/70 bg-[#1b2024]/90 p-5 text-left not-italic text-white shadow-[0_14px_36px_rgba(0,0,0,.4)] backdrop-blur-md transition duration-300 hover:-translate-y-1 hover:scale-[1.01] hover:border-[#f08c80] hover:shadow-[0_20px_40px_rgba(143,36,29,.3)] sm:p-7">
+                        <h3 class="mb-3 text-2xl font-black uppercase text-[#721d18] sm:text-3xl xl:text-4xl">Dónde encontrarnos</h3>
+                        <address class="resmap-glass flex flex-col rounded-3xl border p-5 text-left not-italic text-[#382723] transition duration-300 hover:-translate-y-1 hover:border-[#f08c80] sm:p-7">
                             <p class="text-lg font-medium leading-snug sm:text-xl">Av. Gabriela Mistral 1255, Bodega 48<br>Los Ángeles, Región del Biobío, Chile</p>
                             <div class="mt-5 min-h-56 flex-1 overflow-hidden rounded-lg border border-[#e8c8c3] bg-[#f7f3f0] sm:min-h-72">
                                 <iframe title="Ubicación de RESMAP en Los Ángeles, Biobío" src="https://www.google.com/maps?q=-37.4741361,-72.32925&z=17&output=embed" class="h-56 w-full border-0 sm:h-72 lg:h-full lg:min-h-72" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
                             </div>
-                            <a href="https://www.google.com/maps/search/?api=1&query=-37.4741361,-72.32925" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center self-start text-lg font-semibold text-white underline underline-offset-4 transition hover:text-[#ffd5c9] sm:text-xl">Abrir en Google Maps <span class="ml-2" aria-hidden="true">→</span></a>
+                            <a href="https://www.google.com/maps/search/?api=1&query=-37.4741361,-72.32925" target="_blank" rel="noopener noreferrer" class="mt-4 inline-flex items-center self-start text-lg font-semibold text-[#8f241d] underline underline-offset-4 transition hover:text-[#b52f25] sm:text-xl">Abrir en Google Maps <span class="ml-2" aria-hidden="true">→</span></a>
                         </address>
                     </div>
                 </div>
@@ -924,9 +872,9 @@
                 <div class="home-footer-grid">
                     <div class="home-footer-brand">
                         <a href="{{ route('home') }}" class="inline-block" aria-label="Ir al inicio de Resmap">
-                            <img src="{{ asset('images/resmap sin fondo.png') }}" alt="Resmap" class="h-auto object-contain" loading="lazy">
+                            <img src="{{ asset('images/resmap-logo-renovado.png') }}" alt="Resmap" class="brand-logo h-auto object-contain" loading="lazy">
                         </a>
-                        <p class="text-base text-white/75">Repuestos y soluciones industriales</p>
+                        <p class="text-base text-[#65504c]">Repuestos y soluciones industriales</p>
                     </div>
 
                     <nav aria-label="Enlaces rápidos">
@@ -942,7 +890,7 @@
 
                     <div class="home-footer-credit">
                         <a href="https://admision.virginiogomez.cl/sedes/" target="_blank" rel="noopener noreferrer">
-                            <img src="https://www.virginiogomez.cl/static/admision/Logo_IPVG.png" alt="Instituto Profesional Virginio Gómez" class="h-auto object-contain" loading="lazy">
+                            <img src="{{ asset('images/logo-virginio-gomez.png') }}" alt="Instituto Profesional Virginio Gómez" class="h-auto object-contain" loading="lazy">
                             <span class="text-sm">Sede Los Ángeles</span>
                         </a>
                         <h2 class="mt-4 text-base font-semibold">Desarrollado por Patricia Belen Francisca Illanes Contreras - Gabriel Alexis Pinela Muñoz</h2>
@@ -950,7 +898,7 @@
                 </div>
             </section>
         @endif
-        <p class="{{ $isHome ? 'border-t border-white/10 bg-gradient-to-r from-[#641d1b] via-[#40191a] to-[#20191b] px-4 pt-4 pb-24 text-center text-white/65 lg:pb-4' : (request()->routeIs('catalogo.index') ? 'text-center' : 'mt-8 border-t border-[#f0ddda] pt-5 text-center') }}">© RESMAP 2026. Todos Los Derechos Reservados.</p>
+        <p class="{{ $isHome ? 'border-t border-[#e8c8c3] bg-[#fff4f1] px-4 pt-4 pb-24 text-center text-[#65504c] lg:pb-4' : (request()->routeIs('catalogo.index') ? 'text-center' : 'mt-8 border-t border-[#f0ddda] pt-5 text-center') }}">© RESMAP 2026. Todos Los Derechos Reservados.</p>
     </footer>
     @include('components.resmap-dialog')
     <script>

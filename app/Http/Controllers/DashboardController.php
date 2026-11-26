@@ -293,7 +293,7 @@ class DashboardController extends Controller
     }
 
     /**
-     * @return array<int, array{etiqueta: string, total_vendido: int}>
+     * @return array<int, array{etiqueta: string, total_vendido: int, stock: int}>
      */
     private function obtenerProductosMasVendidos(Carbon $desde, Carbon $hasta): array
     {
@@ -302,8 +302,8 @@ class DashboardController extends Controller
             ->whereHas('venta', function (Builder $query) use ($desde, $hasta): void {
                 Venta::aplicarFiltroCompletadas($query)->whereBetween('fecha', [$desde, $hasta]);
             })
-            ->selectRaw('productos.nombre, SUM(detalle_ventas.cantidad) as total_vendido')
-            ->groupBy('detalle_ventas.id_producto', 'productos.nombre')
+            ->selectRaw('productos.nombre, productos.stock, SUM(detalle_ventas.cantidad) as total_vendido')
+            ->groupBy('detalle_ventas.id_producto', 'productos.nombre', 'productos.stock')
             ->orderByDesc('total_vendido')
             ->orderBy('productos.nombre')
             ->limit(10)
@@ -311,6 +311,7 @@ class DashboardController extends Controller
             ->map(fn (object $producto): array => [
                 'etiqueta' => (string) $producto->nombre,
                 'total_vendido' => (int) $producto->total_vendido,
+                'stock' => (int) $producto->stock,
             ])
             ->all();
     }
