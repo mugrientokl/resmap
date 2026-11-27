@@ -10,13 +10,12 @@ use App\Observers\ClienteContactoObserver;
 use App\Services\Facturacion\FacturacionSimulada;
 use App\Services\Facturacion\ProveedorFacturacion;
 use App\Services\RegistroActividad;
+use App\Support\ConfiguracionSistema;
 use Illuminate\Auth\Events\Login;
 use Illuminate\Auth\Events\Logout;
 use Illuminate\Auth\Events\PasswordReset;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -31,29 +30,15 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         View::composer('*', function ($view): void {
-            $fondoActivo = DB::table('configuraciones')
-                ->where('clave', 'fondo_sistema')
-                ->value('valor');
-
-            $urls = [
-                'fondo-1' => asset('images/fondo-1.webp'),
-                'fondo-2' => asset('images/fondo-2.webp'),
-                'fondo-3' => asset('images/fondo-3.webp'),
-                'fondo-4' => asset('images/fondo-4.webp'),
-            ];
-
-            $url = $urls[(string) $fondoActivo] ?? $urls['fondo-1'];
-            if (is_string($fondoActivo) && str_starts_with($fondoActivo, 'personalizado:')) {
-                $id = substr($fondoActivo, strlen('personalizado:'));
-                $ruta = DB::table('configuraciones')
-                    ->where('clave', 'fondo_personalizado:'.$id)
-                    ->value('valor');
-                if (is_string($ruta) && Storage::disk('public')->exists($ruta)) {
-                    $url = Storage::disk('public')->url($ruta);
-                }
-            }
-
-            $view->with('resmapBackgroundUrl', $url);
+            $usuario = auth()->user();
+            $esAccesoInterno = $usuario !== null;
+            $view->with([
+                'resmapBackgroundUrl' => ConfiguracionSistema::fondoUrl(),
+                'resmapLogoUrl' => ConfiguracionSistema::logoUrl(),
+                'resmapFontSizePx' => $esAccesoInterno
+                    ? ConfiguracionSistema::fuenteRaizPx($usuario)
+                    : 16,
+            ]);
         });
 
         $urlApp = (string) config('app.url');

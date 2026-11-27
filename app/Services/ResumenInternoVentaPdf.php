@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Cliente;
 use App\Models\Venta;
+use App\Support\ConfiguracionSistema;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
@@ -61,7 +62,8 @@ class ResumenInternoVentaPdf
             'creditoAutorizadoPor',
         ]);
 
-        $logo = file_get_contents(public_path('images/resmap sin fondo.png'));
+        $rutaLogo = ConfiguracionSistema::logoRutaFisica();
+        $logo = $rutaLogo === null ? false : file_get_contents($rutaLogo);
         if ($logo === false) {
             throw new RuntimeException('No fue posible leer el logo de RESMAP para generar el resumen interno.');
         }

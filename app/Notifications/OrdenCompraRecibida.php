@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\OrdenCompra;
+use App\Support\ConfiguracionSistema;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
@@ -18,6 +19,10 @@ class OrdenCompraRecibida extends Notification
 
     public function via(object $notifiable): array
     {
+        if (! ConfiguracionSistema::notificacionActiva('ordenes_compra')) {
+            return [];
+        }
+
         return filled($notifiable->email)
             ? ['database', 'mail']
             : ['database'];
@@ -48,7 +53,10 @@ class OrdenCompraRecibida extends Notification
                 'logoUrl' => 'cid:resmap-logo',
             ]);
         $correo->withSymfonyMessage(function (Email $message): void {
-            $message->embedFromPath(public_path('images/resmap sin fondo.png'), 'resmap-logo');
+            $rutaLogo = ConfiguracionSistema::logoRutaFisica();
+            if ($rutaLogo !== null) {
+                $message->embedFromPath($rutaLogo, 'resmap-logo');
+            }
         });
 
         if ($archivoAdjunto !== null) {

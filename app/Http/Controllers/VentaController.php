@@ -38,15 +38,27 @@ class VentaController extends Controller
             'nombre_cliente' => TextoPersona::normalizar($request->input('nombre_cliente')),
             'contacto' => TextoPersona::normalizar($request->input('contacto')),
             'razon_social_cliente' => TextoPersona::normalizar($request->input('razon_social_cliente')),
+            'con_datos_cliente' => $request->has('con_datos_cliente')
+                ? $request->boolean('con_datos_cliente')
+                : true,
         ]);
 
-        $datos = $request->validate([
-            'tipo_documento' => 'required|string|in:Boleta Electrónica,Factura Electrónica',
-            'medio_pago' => 'required|string|in:Efectivo,Transferencia,Tarjeta,Crédito',
-            'forma_pago' => 'nullable|string|in:Contado,Crédito',
-            'rut' => ['required', 'string', 'max:20', new RutChileno],
-            'nombre_cliente' => 'required|string|max:255',
-            'contacto' => 'required|string|max:255',
+        $conDatosCliente = $request->boolean('con_datos_cliente');
+
+        $reglas = [
+            'con_datos_cliente' => ['required', 'boolean'],
+            'tipo_documento' => ['required_if:con_datos_cliente,true', 'string', 'in:Boleta Electrónica,Factura Electrónica'],
+            'medio_pago' => ['required', 'string', 'in:Efectivo,Transferencia,Tarjeta,Crédito'],
+            'folio_sii' => [
+                $conDatosCliente ? 'nullable' : 'required',
+                'integer',
+                'min:1',
+                'max:999999999',
+            ],
+            'forma_pago' => ['nullable', 'string', 'in:Contado,Crédito'],
+            'rut' => [$conDatosCliente ? 'required' : 'nullable', 'string', 'max:20', new RutChileno],
+            'nombre_cliente' => [$conDatosCliente ? 'required' : 'nullable', 'string', 'max:255'],
+            'contacto' => [$conDatosCliente ? 'required' : 'nullable', 'string', 'max:255'],
             'cargo' => 'nullable|string|max:255',
             'razon_social_cliente' => 'nullable|string|max:255',
             'giro_cliente' => [
@@ -55,7 +67,7 @@ class VentaController extends Controller
                 'string',
                 'max:255',
             ],
-            'correo_cliente' => ['required', 'email', new CorreoConDominio, 'max:255'],
+            'correo_cliente' => [$conDatosCliente ? 'required' : 'nullable', 'email', new CorreoConDominio, 'max:255'],
             'telefono_cliente' => ['nullable', 'string', 'regex:/^\+56[2-9][0-9]{8}$/'],
             'direccion_cliente' => [
                 Rule::requiredIf($request->input('tipo_documento') === 'Factura Electrónica'),
@@ -81,14 +93,19 @@ class VentaController extends Controller
                 'string',
                 'max:100',
             ],
-            'acteco_emisor' => ['required', Rule::in(array_keys(config('services.cotizaciones.actividades_emisor')))],
-            'tipo_venta' => ['required', Rule::in(['del_giro'])],
-            'tipo_compra' => ['required', Rule::in(['del_giro'])],
+            'acteco_emisor' => [
+                $conDatosCliente ? 'required' : 'nullable',
+                Rule::in(array_keys(config('services.cotizaciones.actividades_emisor'))),
+            ],
+            'tipo_venta' => [$conDatosCliente ? 'required' : 'nullable', Rule::in(['del_giro'])],
+            'tipo_compra' => [$conDatosCliente ? 'required' : 'nullable', Rule::in(['del_giro'])],
             'numero_oc' => 'nullable|string|max:100',
             'detalles' => 'required|array|min:1',
             'detalles.*.id_producto' => 'required|exists:productos,id_producto',
             'detalles.*.cantidad' => 'required|integer|min:1|max:2147483647',
-        ]);
+        ];
+
+        $datos = $request->validate($reglas);
         $claveIdempotencia = $request->header('Idempotency-Key');
         if ($claveIdempotencia !== null && ! Str::isUuid($claveIdempotencia)) {
             throw ValidationException::withMessages([
@@ -101,7 +118,7 @@ class VentaController extends Controller
                 ->where('user_id', $request->user()->id)
                 ->with('cliente')
                 ->first();
-            if ($ventaExistente?->cliente !== null) {
+            if ($ventaExistente !== null) {
                 return $this->respuestaVenta(
                     $request,
                     $ventaExistente,
@@ -114,36 +131,65 @@ class VentaController extends Controller
         try {
             $resultado = DB::transaction(function () use ($request, $datos, $claveIdempotencia) {
                 $actividades = config('services.cotizaciones.actividades_emisor');
-                $cliente = Cliente::query()->lockForUpdate()->firstOrCreate(
-                    ['rut' => $datos['rut']],
-                    [
+                $conDatosCliente = (bool) $datos['con_datos_cliente'];
+                $cliente = null;
+                $giroCliente = null;
+                $datosResumen = [
+                    'tipo_venta' => 'del_giro',
+                    'tipo_compra' => 'del_giro',
+                    'forma_pago' => 'Contado',
+                    'giro_emisor' => null,
+                ];
+
+                if ($conDatosCliente) {
+                    $cliente = Cliente::query()->lockForUpdate()->firstOrCreate(
+                        ['rut' => $datos['rut']],
+                        [
+                            'nombre' => $datos['nombre_cliente'],
+                            'contacto' => $datos['contacto'],
+                            'razon_social' => $datos['razon_social_cliente'] ?? null,
+                            'giro' => $datos['giro_cliente'] ?? null,
+                            'correo' => $datos['correo_cliente'],
+                            'telefono' => $datos['telefono_cliente'] ?? null,
+                            'direccion' => $datos['direccion_cliente'] ?? null,
+                            'region' => $datos['region_cliente'] ?? null,
+                            'comuna' => $datos['comuna_cliente'] ?? null,
+                            'ciudad' => $datos['ciudad_cliente'] ?? null,
+                        ]
+                    );
+
+                    $giroCliente = $datos['giro_cliente'] ?? $cliente->giro;
+
+                    $cliente->update([
                         'nombre' => $datos['nombre_cliente'],
                         'contacto' => $datos['contacto'],
-                        'razon_social' => $datos['razon_social_cliente'] ?? null,
-                        'giro' => $datos['giro_cliente'] ?? null,
+                        'razon_social' => $datos['razon_social_cliente'] ?? $cliente->razon_social,
+                        'giro' => $giroCliente,
                         'correo' => $datos['correo_cliente'],
-                        'telefono' => $datos['telefono_cliente'] ?? null,
+                        'telefono' => $datos['telefono_cliente'] ?? $cliente->telefono,
                         'direccion' => $datos['direccion_cliente'] ?? null,
                         'region' => $datos['region_cliente'] ?? null,
                         'comuna' => $datos['comuna_cliente'] ?? null,
                         'ciudad' => $datos['ciudad_cliente'] ?? null,
-                    ]
-                );
+                    ]);
 
-                $giroCliente = $datos['giro_cliente'] ?? $cliente->giro;
-
-                $cliente->update([
-                    'nombre' => $datos['nombre_cliente'],
-                    'contacto' => $datos['contacto'],
-                    'razon_social' => $datos['razon_social_cliente'] ?? $cliente->razon_social,
-                    'giro' => $giroCliente,
-                    'correo' => $datos['correo_cliente'],
-                    'telefono' => $datos['telefono_cliente'] ?? $cliente->telefono,
-                    'direccion' => $datos['direccion_cliente'],
-                    'region' => $datos['region_cliente'],
-                    'comuna' => $datos['comuna_cliente'],
-                    'ciudad' => $datos['ciudad_cliente'],
-                ]);
+                    $datosResumen = [
+                        'acteco_emisor' => $datos['acteco_emisor'],
+                        'tipo_venta' => $datos['tipo_venta'],
+                        'nombre' => $datos['nombre_cliente'],
+                        'rut' => $datos['rut'],
+                        'giro' => $giroCliente,
+                        'direccion' => $datos['direccion_cliente'] ?? null,
+                        'comuna' => $datos['comuna_cliente'] ?? null,
+                        'ciudad' => $datos['ciudad_cliente'] ?? null,
+                        'contacto' => $datos['contacto'],
+                        'tipo_compra' => $datos['tipo_compra'],
+                        'correo' => $datos['correo_cliente'],
+                        'numero_oc' => $datos['numero_oc'] ?? null,
+                        'forma_pago' => $datos['forma_pago'] ?? 'Contado',
+                        'giro_emisor' => $actividades[$datos['acteco_emisor']],
+                    ];
+                }
 
                 $neto = 0;
                 $detallesCalculados = [];
@@ -182,8 +228,8 @@ class VentaController extends Controller
                 $venta = Venta::create([
                     'clave_idempotencia' => $claveIdempotencia,
                     'fecha' => now(),
-                    'tipo_documento' => $datos['tipo_documento'],
-                    'folio_sii' => null,
+                    'tipo_documento' => $conDatosCliente ? $datos['tipo_documento'] : 'Boleta Electrónica',
+                    'folio_sii' => $conDatosCliente ? null : $datos['folio_sii'],
                     'neto' => $montoNeto,
                     'iva' => $montoIva,
                     'total' => $totalBruto,
@@ -195,26 +241,11 @@ class VentaController extends Controller
                     'estado_entrega' => 'entregada',
                     'stock_descontado_at' => now(),
                     'user_id' => $request->user()->id,
-                    'id_cliente' => $cliente->id_cliente,
-                    'datos_cliente' => $cliente->snapshotDatos(),
-                    'contacto' => $datos['contacto'],
+                    'id_cliente' => $cliente?->id_cliente,
+                    'datos_cliente' => $cliente?->snapshotDatos(),
+                    'contacto' => $datos['contacto'] ?? null,
                     'cargo' => $datos['cargo'] ?? null,
-                    'datos_resumen' => [
-                        'acteco_emisor' => $datos['acteco_emisor'],
-                        'tipo_venta' => $datos['tipo_venta'],
-                        'nombre' => $datos['nombre_cliente'],
-                        'rut' => $datos['rut'],
-                        'giro' => $giroCliente,
-                        'direccion' => $datos['direccion_cliente'],
-                        'comuna' => $datos['comuna_cliente'],
-                        'ciudad' => $datos['ciudad_cliente'],
-                        'contacto' => $datos['contacto'],
-                        'tipo_compra' => $datos['tipo_compra'],
-                        'correo' => $datos['correo_cliente'],
-                        'numero_oc' => $datos['numero_oc'] ?? null,
-                        'forma_pago' => $datos['forma_pago'] ?? 'Contado',
-                        'giro_emisor' => $actividades[$datos['acteco_emisor']],
-                    ],
+                    'datos_resumen' => $datosResumen,
                 ]);
 
                 foreach ($detallesCalculados as $det) {
@@ -278,7 +309,7 @@ class VentaController extends Controller
                     ->where('user_id', $request->user()->id)
                     ->with('cliente')
                     ->first();
-                if ($ventaExistente?->cliente !== null) {
+                if ($ventaExistente !== null) {
                     return $this->respuestaVenta(
                         $request,
                         $ventaExistente,
@@ -305,7 +336,7 @@ class VentaController extends Controller
     private function respuestaVenta(
         Request $request,
         Venta $venta,
-        Cliente $cliente,
+        ?Cliente $cliente,
         bool $repetida = false,
     ): JsonResponse {
         $request->session()->flash('success', '¡Venta completada correctamente! El stock fue actualizado.');

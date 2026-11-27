@@ -7,6 +7,7 @@ use App\Notifications\OrdenCompraRecibida;
 use App\Notifications\ProductoStockCritico;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\SolicitudWebRecibida;
+use App\Support\ConfiguracionSistema;
 use App\Support\TextoPersona;
 use Illuminate\Auth\Passwords\CanResetPassword;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
@@ -19,7 +20,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-#[Fillable(['username', 'name', 'apellido_paterno', 'apellido_materno', 'run', 'email', 'telefono', 'password', 'rol'])]
+#[Fillable(['username', 'name', 'apellido_paterno', 'apellido_materno', 'run', 'email', 'telefono', 'password', 'rol', 'tamano_fuente'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements CanResetPasswordContract
 {
@@ -74,16 +75,20 @@ class User extends Authenticatable implements CanResetPasswordContract
     public function notificacionesVisibles(): MorphMany
     {
         $consulta = $this->notifications();
-        if ($this->rol === 'Administrador' || ($this->rol === 'Vendedor' && $this->permisos === null)) {
-            return $consulta;
-        }
-
         $tipos = [];
-        if ($this->tienePermiso('productos.ver')) {
+        if ($this->tienePermiso('productos.ver') && ConfiguracionSistema::notificacionActiva('stock_critico')) {
             $tipos[] = ProductoStockCritico::class;
         }
         if ($this->tienePermiso('cotizaciones.ver')) {
-            array_push($tipos, SolicitudWebRecibida::class, NuevaCotizacionPendiente::class, OrdenCompraRecibida::class);
+            if (ConfiguracionSistema::notificacionActiva('solicitudes')) {
+                $tipos[] = SolicitudWebRecibida::class;
+            }
+            if (ConfiguracionSistema::notificacionActiva('cotizaciones')) {
+                $tipos[] = NuevaCotizacionPendiente::class;
+            }
+            if (ConfiguracionSistema::notificacionActiva('ordenes_compra')) {
+                $tipos[] = OrdenCompraRecibida::class;
+            }
         }
 
         return $consulta->whereIn('type', $tipos);

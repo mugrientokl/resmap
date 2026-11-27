@@ -395,6 +395,22 @@ Route::middleware([
         ->middleware(['auth', 'role:Administrador'])
         ->name('configuracion.fondos.subir');
 
+    Route::put('/administracion/logo', [ConfiguracionController::class, 'actualizarLogo'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('configuracion.logo.actualizar');
+
+    Route::post('/administracion/logos', [ConfiguracionController::class, 'subirLogo'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('configuracion.logos.subir');
+
+    Route::put('/administracion/fuente', [ConfiguracionController::class, 'actualizarFuente'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('configuracion.fuente.actualizar');
+
+    Route::put('/administracion/notificaciones', [ConfiguracionController::class, 'actualizarNotificaciones'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('configuracion.notificaciones.actualizar');
+
     Route::delete('/administracion/fondos/{id}', [ConfiguracionController::class, 'eliminarFondo'])
         ->middleware(['auth', 'role:Administrador'])
         ->whereUuid('id')

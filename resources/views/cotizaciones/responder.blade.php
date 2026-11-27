@@ -11,7 +11,7 @@
     <header class="bg-[#8f241d] shadow-lg">
         <div class="mx-auto flex max-w-5xl items-center justify-between px-5 py-4">
             <a href="{{ route('home') }}" aria-label="RESMAP">
-                <img src="{{ asset('images/resmap-logo-renovado.png') }}" alt="RESMAP" class="h-14 w-auto rounded-lg bg-white p-1">
+                <img src="{{ $resmapLogoUrl }}" alt="RESMAP" class="h-14 w-auto rounded-lg bg-white p-1">
             </a>
             <span class="hidden text-right text-xs font-bold uppercase tracking-[.2em] text-white sm:block">Cotización comercial</span>
         </div>

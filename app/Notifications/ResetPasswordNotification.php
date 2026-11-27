@@ -2,6 +2,7 @@
 
 namespace App\Notifications;
 
+use App\Support\ConfiguracionSistema;
 use Illuminate\Auth\Notifications\ResetPassword as BaseResetPasswordNotification;
 use Illuminate\Notifications\Messages\MailMessage;
 use Symfony\Component\Mime\Email;
@@ -26,7 +27,10 @@ class ResetPasswordNotification extends BaseResetPasswordNotification
                 ),
             ])
             ->withSymfonyMessage(function (Email $message): void {
-                $message->embedFromPath(public_path('images/resmap sin fondo.png'), 'resmap-logo');
+                $rutaLogo = ConfiguracionSistema::logoRutaFisica();
+                if ($rutaLogo !== null) {
+                    $message->embedFromPath($rutaLogo, 'resmap-logo');
+                }
             });
     }
 }

@@ -14,6 +14,63 @@ use Tests\TestCase;
 
 class ResumenInternoVentaTest extends TestCase
 {
+    public function test_pos_can_register_simple_sale_without_customer_data(): void
+    {
+        $vendedor = User::factory()->create(['rol' => 'Vendedor']);
+        $categoriaId = DB::table('categorias')->insertGetId([
+            'nombre_categoria' => 'Ventas simples',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        $productoId = DB::table('productos')->insertGetId([
+            'codigo_barra' => 'RES-SIMPLE',
+            'nombre' => 'Producto simple',
+            'precio' => 1190,
+            'stock' => 5,
+            'stock_critico' => 1,
+            'id_categoria' => $categoriaId,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $this->actingAs($vendedor)->postJson('/ventas', [
+            'con_datos_cliente' => false,
+            'detalles' => [['id_producto' => $productoId, 'cantidad' => 1]],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('folio_sii');
+        $this->actingAs($vendedor)->postJson('/ventas', [
+            'con_datos_cliente' => false,
+            'folio_sii' => 125438,
+            'detalles' => [['id_producto' => $productoId, 'cantidad' => 1]],
+        ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('medio_pago');
+        $this->assertDatabaseCount('ventas', 0);
+
+        $this->actingAs($vendedor)->postJson('/ventas', [
+            'con_datos_cliente' => false,
+            'folio_sii' => 125438,
+            'medio_pago' => 'Efectivo',
+            'detalles' => [['id_producto' => $productoId, 'cantidad' => 2]],
+        ])->assertCreated();
+
+        $venta = Venta::firstOrFail();
+        $this->assertNull($venta->id_cliente);
+        $this->assertNull($venta->datos_cliente);
+        $this->assertSame('Efectivo', $venta->medio_pago);
+        $this->assertSame(125438, $venta->folio_sii);
+        $this->assertSame(2380, (int) $venta->total);
+        $this->assertDatabaseCount('clientes', 0);
+        $this->assertSame(3, (int) DB::table('productos')->where('id_producto', $productoId)->value('stock'));
+
+        $this->get('/pos')
+            ->assertOk()
+            ->assertSee('Registrar venta simple')
+            ->assertSee('Datos del cliente')
+            ->assertSee('id="panel-datos-cliente"', false);
+    }
+
     use RefreshDatabase;
 
     public function test_pos_sale_offers_internal_summary_download_as_pdf(): void
@@ -67,7 +124,7 @@ class ResumenInternoVentaTest extends TestCase
         $venta = Venta::firstOrFail();
         $this->assertSame('Comercio de repuestos', $venta->datos_resumen['giro']);
         $this->assertSame('Los Ángeles', $venta->datos_resumen['comuna']);
-        $this->assertSame('Contacto POS', $venta->datos_resumen['contacto']);
+        $this->assertSame('Contacto Pos', $venta->datos_resumen['contacto']);
         $this->assertSame('Concepción', $venta->datos_resumen['ciudad']);
         $this->assertSame('del_giro', $venta->datos_resumen['tipo_venta']);
         $this->assertSame('del_giro', $venta->datos_resumen['tipo_compra']);
@@ -102,7 +159,7 @@ class ResumenInternoVentaTest extends TestCase
             ->assertSeeText('Giro: Comercio de repuestos')
             ->assertSeeText('Comuna: Los Ángeles')
             ->assertSeeText('Ciudad: Concepción')
-            ->assertSeeText('Atención / contacto: Contacto POS')
+            ->assertSeeText('Atención / contacto: Contacto Pos')
             ->assertSeeText('Tipo de compra: Del giro')
             ->assertSeeInOrder(['Código', 'Producto'])
             ->assertDontSeeText('Modalidad de entrega');

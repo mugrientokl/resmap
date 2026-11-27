@@ -8,6 +8,7 @@ use App\Models\InventarioMovimiento;
 use App\Models\Producto;
 use App\Models\SolicitudWeb;
 use App\Models\Venta;
+use App\Support\ConfiguracionSistema;
 use App\Support\PeriodoVentas;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\Carbon;
@@ -26,7 +27,8 @@ class DashboardController extends Controller
     public function exportarPdf(Request $request)
     {
         $ahora = now();
-        $logo = file_get_contents(public_path('images/resmap sin fondo.png'));
+        $rutaLogo = ConfiguracionSistema::logoRutaFisica();
+        $logo = $rutaLogo === null ? false : file_get_contents($rutaLogo);
 
         return Pdf::loadView('dashboard.pdf', [
             ...$this->obtenerDatosDashboard($request),

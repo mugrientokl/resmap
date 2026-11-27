@@ -13,6 +13,7 @@ use App\Notifications\NuevaCotizacionPendiente;
 use App\Notifications\SolicitudWebRecibida;
 use App\Services\ResumenInternoVentaPdf;
 use App\Services\SeguimientoCotizacion;
+use App\Support\ConfiguracionSistema;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -192,7 +193,8 @@ class SolicitudWebController extends Controller
                 'El resumen interno estará disponible cuando el servicio esté completado.'
             );
 
-            $logo = file_get_contents(public_path('images/resmap sin fondo.png'));
+            $rutaLogo = ConfiguracionSistema::logoRutaFisica();
+            $logo = $rutaLogo === null ? false : file_get_contents($rutaLogo);
 
             return Pdf::loadView('solicitudes.factura-pdf', [
                 'solicitud' => $solicitud,

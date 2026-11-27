@@ -75,6 +75,57 @@ class AdministracionTest extends TestCase
             ->assertSee('Fondo 4');
     }
 
+    public function test_admin_can_switch_visual_submodules_logo_and_font(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+
+        $this->actingAs($admin)
+            ->get(route('configuracion.index', ['seccion' => 'ajustes-visuales']))
+            ->assertOk()
+            ->assertSee('Ajustes visuales')
+            ->assertSee('Logo del sistema')
+            ->assertSee('RESMAP Logo 2')
+            ->assertSee('RESMAP Repuestos Eléctricos')
+            ->assertSee('Tamaño de fuente');
+
+        $this->actingAs($admin)
+            ->put(route('configuracion.logo.actualizar'), ['logo' => 'logo-sin-fondo'])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('configuraciones', ['clave' => 'logo_sistema', 'valor' => 'logo-sin-fondo']);
+
+        $this->actingAs($admin)
+            ->put(route('configuracion.fuente.actualizar'), ['tamano_fuente' => 'grande'])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('users', ['id' => $admin->id, 'tamano_fuente' => 'grande']);
+
+        $this->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('style="font-size: 18px"', false)
+            ->assertSee(asset('images/resmap sin fondo.png'), false);
+    }
+
+    public function test_admin_can_disable_notification_types(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+
+        $this->actingAs($admin)
+            ->get(route('configuracion.index', ['seccion' => 'notificaciones']))
+            ->assertOk()
+            ->assertSee('Tipos de notificación')
+            ->assertSee('Stock crítico de productos');
+
+        $this->actingAs($admin)
+            ->put(route('configuracion.notificaciones.actualizar'), [
+                'notificaciones' => ['solicitudes', 'ordenes_compra'],
+            ])
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('configuraciones', ['clave' => 'notificacion_stock_critico', 'valor' => '0']);
+        $this->assertDatabaseHas('configuraciones', ['clave' => 'notificacion_cotizaciones', 'valor' => '0']);
+        $this->assertDatabaseHas('configuraciones', ['clave' => 'notificacion_solicitudes', 'valor' => '1']);
+        $this->assertDatabaseHas('configuraciones', ['clave' => 'notificacion_ordenes_compra', 'valor' => '1']);
+    }
+
     public function test_admin_can_select_default_and_upload_delete_custom_background(): void
     {
         Storage::fake('public');

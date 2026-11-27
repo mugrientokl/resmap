@@ -9,7 +9,7 @@
         'ventas' => 'Ventas',
         'cotizaciones' => 'Cotizaciones y servicios',
         'clientes' => 'Clientes',
-        'reportes' => 'Reportes',
+        'reportes' => 'Reportes de venta',
         'categorias' => 'Categorías',
         'proveedores' => 'Proveedores',
     ];

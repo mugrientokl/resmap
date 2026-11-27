@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Cliente;
 use App\Models\CotizacionVersion;
+use App\Support\ConfiguracionSistema;
 use Barryvdh\DomPDF\Facade\Pdf;
 use RuntimeException;
 
@@ -12,7 +13,8 @@ class CotizacionPdf
     public function generar(CotizacionVersion $version): string
     {
         $version->loadMissing(['cotizacion.solicitud', 'detalles']);
-        $logo = file_get_contents(public_path('images/resmap sin fondo.png'));
+        $rutaLogo = ConfiguracionSistema::logoRutaFisica();
+        $logo = $rutaLogo === null ? false : file_get_contents($rutaLogo);
         if ($logo === false) {
             throw new RuntimeException('No fue posible leer el logo de RESMAP para generar la cotización.');
         }

@@ -14,10 +14,95 @@ class ConfiguracionController extends Controller
 {
     public function index(): View
     {
+        $seccion = request('seccion', 'ajustes-visuales');
+        if (! in_array($seccion, ['ajustes-visuales', 'notificaciones'], true)) {
+            $seccion = 'ajustes-visuales';
+        }
+
         return view('configuracion.index', [
             'fondos' => $this->fondos(),
             'fondoActivo' => $this->fondoActivo(),
+            'logos' => $this->logos(),
+            'logoActivo' => $this->logoActivo(),
+            'tamanoFuente' => $this->tamanoFuente(),
+            'notificaciones' => $this->configuracionNotificaciones(),
+            'seccion' => $seccion,
         ]);
+    }
+
+    public function actualizarLogo(Request $request): RedirectResponse
+    {
+        $idsValidos = collect($this->logos())->pluck('id')->all();
+        $validated = $request->validate([
+            'logo' => ['required', 'string', 'in:'.implode(',', $idsValidos)],
+        ]);
+
+        DB::table('configuraciones')->updateOrInsert(
+            ['clave' => 'logo_sistema'],
+            ['valor' => $validated['logo']],
+        );
+
+        return back()->with('success', 'El logo del sistema fue actualizado.');
+    }
+
+    public function subirLogo(Request $request): RedirectResponse
+    {
+        $request->validate([
+            'logo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:10240'],
+        ]);
+
+        $archivo = $request->file('logo');
+        if (! $archivo instanceof UploadedFile) {
+            return back()->with('error', 'No se pudo leer el logo.');
+        }
+
+        $id = (string) Str::uuid();
+        $nombre = 'logos-personalizados/'.$id.'.webp';
+        $imagen = $this->crearImagenWebp($archivo);
+        if ($imagen === null) {
+            return back()->with('error', 'El logo no pudo convertirse a WebP.');
+        }
+
+        Storage::disk('public')->put($nombre, $imagen);
+        DB::table('configuraciones')->insert([
+            'clave' => 'logo_personalizado:'.$id,
+            'valor' => $nombre,
+        ]);
+        DB::table('configuraciones')->updateOrInsert(
+            ['clave' => 'logo_sistema'],
+            ['valor' => 'personalizado:'.$id],
+        );
+
+        return back()->with('success', 'El logo personalizado fue agregado y activado.');
+    }
+
+    public function actualizarFuente(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'tamano_fuente' => ['required', 'string', 'in:pequena,mediana,grande'],
+        ]);
+
+        $request->user()->update(['tamano_fuente' => $validated['tamano_fuente']]);
+
+        return back()->with('success', 'El tamaño de fuente fue actualizado.');
+    }
+
+    public function actualizarNotificaciones(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'notificaciones' => ['nullable', 'array'],
+            'notificaciones.*' => ['string', 'in:solicitudes,cotizaciones,ordenes_compra,stock_critico'],
+        ]);
+
+        $activas = $validated['notificaciones'] ?? [];
+        foreach (['solicitudes', 'cotizaciones', 'ordenes_compra', 'stock_critico'] as $tipo) {
+            DB::table('configuraciones')->updateOrInsert(
+                ['clave' => 'notificacion_'.$tipo],
+                ['valor' => in_array($tipo, $activas, true) ? '1' : '0'],
+            );
+        }
+
+        return back()->with('success', 'La configuración de notificaciones fue actualizada.');
     }
 
     public function actualizarFondo(Request $request): RedirectResponse
@@ -126,6 +211,70 @@ class ConfiguracionController extends Controller
         return is_string($id) && collect($this->fondos())->contains('id', $id)
             ? $id
             : 'fondo-1';
+    }
+
+    private function logos(): array
+    {
+        $logos = [
+            ['id' => 'logo-renovado', 'nombre' => 'Logo renovado', 'url' => asset('images/resmap-logo-renovado.png')],
+            ['id' => 'logo-sin-fondo', 'nombre' => 'Logo transparente', 'url' => asset('images/resmap sin fondo.png')],
+            ['id' => 'logo-resmap-2', 'nombre' => 'RESMAP Logo 2', 'url' => asset('images/resmap-logo-2.png')],
+            ['id' => 'logo-repuestos-electricos', 'nombre' => 'RESMAP Repuestos Eléctricos', 'url' => asset('images/resmap-repuestos-electricos.png')],
+        ];
+
+        $personalizados = DB::table('configuraciones')
+            ->where('clave', 'like', 'logo_personalizado:%')
+            ->orderBy('clave')
+            ->get();
+
+        foreach ($personalizados as $personalizado) {
+            $id = substr($personalizado->clave, strlen('logo_personalizado:'));
+            $logos[] = [
+                'id' => 'personalizado:'.$id,
+                'nombre' => 'Logo personalizado',
+                'url' => Storage::disk('public')->url($personalizado->valor),
+            ];
+        }
+
+        return $logos;
+    }
+
+    private function logoActivo(): string
+    {
+        $id = DB::table('configuraciones')->where('clave', 'logo_sistema')->value('valor');
+
+        return is_string($id) && collect($this->logos())->contains('id', $id)
+            ? $id
+            : 'logo-renovado';
+    }
+
+    private function tamanoFuente(): string
+    {
+        $valor = auth()->user()?->tamano_fuente;
+
+        return in_array($valor, ['pequena', 'mediana', 'grande'], true)
+            ? (string) $valor
+            : 'mediana';
+    }
+
+    private function configuracionNotificaciones(): array
+    {
+        $tipos = [
+            'solicitudes' => 'Solicitudes y servicios web',
+            'cotizaciones' => 'Cotizaciones pendientes',
+            'ordenes_compra' => 'Órdenes de compra recibidas',
+            'stock_critico' => 'Stock crítico de productos',
+        ];
+
+        foreach ($tipos as $tipo => $nombre) {
+            $valor = DB::table('configuraciones')->where('clave', 'notificacion_'.$tipo)->value('valor');
+            $tipos[$tipo] = [
+                'nombre' => $nombre,
+                'activo' => $valor === null || $valor === '1',
+            ];
+        }
+
+        return $tipos;
     }
 
     private function crearImagenWebp(UploadedFile $archivo): ?string

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Producto;
 use App\Models\User;
 use App\Notifications\ProductoStockCritico;
+use App\Support\ConfiguracionSistema;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -40,6 +41,9 @@ class NotificacionController extends Controller
 
     private function notifyCriticalProducts(User $usuario): void
     {
+        if (! ConfiguracionSistema::notificacionActiva('stock_critico')) {
+            return;
+        }
         $yaNotificados = $usuario->notifications()
             ->where('type', ProductoStockCritico::class)
             ->pluck('data')

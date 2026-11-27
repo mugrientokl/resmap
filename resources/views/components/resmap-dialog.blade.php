@@ -6,6 +6,15 @@
         </header>
         <div class="p-6">
             <p id="resmap-dialog-message" class="whitespace-pre-line leading-6 text-gray-700"></p>
+            <div id="resmap-dialog-input-wrap" class="mt-4 hidden">
+                <label id="resmap-dialog-input-label" for="resmap-dialog-input" class="block text-sm font-bold text-[#721d18]">Dato requerido</label>
+                <input id="resmap-dialog-input" type="text" class="mt-2 w-full rounded-md border border-gray-300 p-2.5 text-sm shadow-sm">
+                <p id="resmap-dialog-input-error" class="mt-2 hidden text-sm font-medium text-red-700" role="alert"></p>
+            </div>
+            <div id="resmap-dialog-select-wrap" class="mt-4 hidden">
+                <label id="resmap-dialog-select-label" for="resmap-dialog-select" class="block text-sm font-bold text-[#721d18]">Dato requerido</label>
+                <select id="resmap-dialog-select" class="mt-2 w-full rounded-md border border-gray-300 p-2.5 text-sm shadow-sm"></select>
+            </div>
             <div class="mt-6 flex justify-end gap-3">
                 <button id="resmap-dialog-cancel" type="button" class="hidden rounded-md border border-[#d9aaa3] px-5 py-2.5 font-bold text-[#8f241d] hover:bg-[#fffaf9]">Cancelar</button>
                 <button id="resmap-dialog-confirm" type="button" class="rounded-md bg-[#b52f25] px-5 py-2.5 font-bold text-white hover:bg-[#8f241d]">Entendido</button>
@@ -20,6 +29,13 @@
     const resmapDialogMessage = document.getElementById('resmap-dialog-message');
     const resmapDialogConfirm = document.getElementById('resmap-dialog-confirm');
     const resmapDialogCancel = document.getElementById('resmap-dialog-cancel');
+    const resmapDialogInputWrap = document.getElementById('resmap-dialog-input-wrap');
+    const resmapDialogInput = document.getElementById('resmap-dialog-input');
+    const resmapDialogInputLabel = document.getElementById('resmap-dialog-input-label');
+    const resmapDialogInputError = document.getElementById('resmap-dialog-input-error');
+    const resmapDialogSelectWrap = document.getElementById('resmap-dialog-select-wrap');
+    const resmapDialogSelect = document.getElementById('resmap-dialog-select');
+    const resmapDialogSelectLabel = document.getElementById('resmap-dialog-select-label');
 
     function showResmapDialog(message, { title = 'Aviso', confirmText = 'Entendido', cancelText = null, type = 'info' } = {}) {
         if (!resmapDialog) {
@@ -115,6 +131,176 @@
         cancelText: 'Cancelar',
         type: 'warning',
     });
+    window.resmapPrompt = (message, {
+        title = 'Ingresa un dato',
+        confirmText = 'Continuar',
+        label = 'Dato',
+        placeholder = '',
+        inputMode = 'text',
+        validate = null,
+    } = {}) => {
+        resmapDialogTitle.textContent = title;
+        resmapDialogMessage.textContent = message;
+        resmapDialogConfirm.textContent = confirmText;
+        resmapDialogCancel.textContent = 'Cancelar';
+        resmapDialogCancel.classList.remove('hidden');
+        resmapDialogInputWrap.classList.remove('hidden');
+        resmapDialogInputLabel.textContent = label;
+        resmapDialogInput.placeholder = placeholder;
+        resmapDialogInput.inputMode = inputMode;
+        resmapDialogInput.value = '';
+        resmapDialogInputError.textContent = '';
+        resmapDialogInputError.classList.add('hidden');
+        document.getElementById('resmap-dialog-icon').textContent = '!';
+        resmapDialogHeader.className = resmapDialogHeader.className
+            .replace(/bg-(green|red|amber)-[0-9]+|bg-\[#8f241d\]/g, '')
+            .trim();
+        resmapDialogHeader.classList.add('bg-[#8f241d]');
+        resmapDialogConfirm.className = resmapDialogConfirm.className
+            .replace(/bg-(green|red|amber)-[0-9]+|bg-\[#b52f25\]|hover:bg-(green|red|amber)-[0-9]+|hover:bg-\[#8f241d\]/g, '')
+            .trim();
+        resmapDialogConfirm.classList.add('bg-[#b52f25]', 'hover:bg-[#8f241d]');
+
+        const previousFocus = document.activeElement;
+        resmapDialog.classList.remove('hidden');
+        resmapDialog.classList.add('flex');
+        resmapDialog.setAttribute('aria-hidden', 'false');
+        resmapDialogInput.focus();
+
+        return new Promise(resolve => {
+            const finish = result => {
+                resmapDialog.classList.add('hidden');
+                resmapDialog.classList.remove('flex');
+                resmapDialog.setAttribute('aria-hidden', 'true');
+                resmapDialogInputWrap.classList.add('hidden');
+                resmapDialogConfirm.removeEventListener('click', accept);
+                resmapDialogCancel.removeEventListener('click', cancel);
+                resmapDialog.removeEventListener('click', clickOutside);
+                document.removeEventListener('keydown', keydown);
+                previousFocus?.focus();
+                resolve(result);
+            };
+            const accept = () => {
+                const valor = resmapDialogInput.value.trim();
+                if (typeof validate === 'function') {
+                    const mensajeError = validate(valor);
+                    if (mensajeError) {
+                        resmapDialogInputError.textContent = mensajeError;
+                        resmapDialogInputError.classList.remove('hidden');
+                        resmapDialogInput.focus();
+                        return;
+                    }
+                } else if (!valor) {
+                    resmapDialogInputError.textContent = 'Ingresa este dato obligatorio.';
+                    resmapDialogInputError.classList.remove('hidden');
+                    resmapDialogInput.focus();
+                    return;
+                }
+                finish(valor);
+            };
+            const cancel = () => finish(null);
+            const clickOutside = event => {
+                if (event.target === resmapDialog) cancel();
+            };
+            const keydown = event => {
+                if (event.key === 'Escape') cancel();
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    accept();
+                }
+            };
+            resmapDialogConfirm.addEventListener('click', accept);
+            resmapDialogCancel.addEventListener('click', cancel);
+            resmapDialog.addEventListener('click', clickOutside);
+            document.addEventListener('keydown', keydown);
+        });
+    };
+    window.resmapPromptWithSelect = (message, {
+        title = 'Ingresa los datos',
+        confirmText = 'Continuar',
+        inputLabel = 'Dato',
+        placeholder = '',
+        inputMode = 'text',
+        selectLabel = 'Selecciona una opción',
+        selectOptions = [],
+        validateInput = null,
+    } = {}) => {
+        resmapDialogTitle.textContent = title;
+        resmapDialogMessage.textContent = message;
+        resmapDialogConfirm.textContent = confirmText;
+        resmapDialogCancel.textContent = 'Cancelar';
+        resmapDialogCancel.classList.remove('hidden');
+        resmapDialogInputWrap.classList.remove('hidden');
+        resmapDialogSelectWrap.classList.remove('hidden');
+        resmapDialogInputLabel.textContent = inputLabel;
+        resmapDialogInput.placeholder = placeholder;
+        resmapDialogInput.inputMode = inputMode;
+        resmapDialogInput.value = '';
+        resmapDialogSelectLabel.textContent = selectLabel;
+        resmapDialogSelect.replaceChildren();
+        selectOptions.forEach(option => {
+            const elemento = document.createElement('option');
+            elemento.value = option.value;
+            elemento.textContent = option.label;
+            resmapDialogSelect.append(elemento);
+        });
+        resmapDialogInputError.textContent = '';
+        resmapDialogInputError.classList.add('hidden');
+        document.getElementById('resmap-dialog-icon').textContent = '!';
+
+        const previousFocus = document.activeElement;
+        resmapDialog.classList.remove('hidden');
+        resmapDialog.classList.add('flex');
+        resmapDialog.setAttribute('aria-hidden', 'false');
+        resmapDialogInput.focus();
+
+        return new Promise(resolve => {
+            const finish = result => {
+                resmapDialog.classList.add('hidden');
+                resmapDialog.classList.remove('flex');
+                resmapDialog.setAttribute('aria-hidden', 'true');
+                resmapDialogInputWrap.classList.add('hidden');
+                resmapDialogSelectWrap.classList.add('hidden');
+                resmapDialogConfirm.removeEventListener('click', accept);
+                resmapDialogCancel.removeEventListener('click', cancel);
+                resmapDialog.removeEventListener('click', clickOutside);
+                document.removeEventListener('keydown', keydown);
+                previousFocus?.focus();
+                resolve(result);
+            };
+            const accept = () => {
+                const valor = resmapDialogInput.value.trim();
+                const mensajeError = typeof validateInput === 'function'
+                    ? validateInput(valor)
+                    : (!valor ? 'Ingresa este dato obligatorio.' : null);
+                if (mensajeError) {
+                    resmapDialogInputError.textContent = mensajeError;
+                    resmapDialogInputError.classList.remove('hidden');
+                    resmapDialogInput.focus();
+                    return;
+                }
+                finish({
+                    input: valor,
+                    select: resmapDialogSelect.value,
+                });
+            };
+            const cancel = () => finish(null);
+            const clickOutside = event => {
+                if (event.target === resmapDialog) cancel();
+            };
+            const keydown = event => {
+                if (event.key === 'Escape') cancel();
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    accept();
+                }
+            };
+            resmapDialogConfirm.addEventListener('click', accept);
+            resmapDialogCancel.addEventListener('click', cancel);
+            resmapDialog.addEventListener('click', clickOutside);
+            document.addEventListener('keydown', keydown);
+        });
+    };
 
     const pendingConfirmations = new WeakSet();
     document.addEventListener('submit', event => {

@@ -227,7 +227,6 @@
         max-width: 260px;
         margin: 0 0 8px;
         color: #000;
-        font-size: 0.8rem;
     }
 
     .btn-pdf {
@@ -481,7 +480,6 @@
     .chart-card-heading p {
         margin: 4px 0 0;
         color: var(--dashboard-muted);
-        font-size: 0.82rem;
     }
 
     .chart-card canvas {

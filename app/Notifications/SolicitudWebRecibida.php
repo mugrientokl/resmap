@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\Cliente;
 use App\Models\Producto;
 use App\Models\SolicitudWeb;
+use App\Support\ConfiguracionSistema;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -64,7 +65,7 @@ class SolicitudWebRecibida extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ConfiguracionSistema::notificacionActiva('solicitudes') ? ['database', 'mail'] : [];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -85,7 +86,10 @@ class SolicitudWebRecibida extends Notification implements ShouldQueue
                 'urlSolicitud' => route('solicitudes.show', $this->solicitud->id_solicitud),
             ])
             ->withSymfonyMessage(function (Email $message): void {
-                $message->embedFromPath(public_path('images/resmap sin fondo.png'), 'resmap-logo');
+                $rutaLogo = ConfiguracionSistema::logoRutaFisica();
+                if ($rutaLogo !== null) {
+                    $message->embedFromPath($rutaLogo, 'resmap-logo');
+                }
             });
     }
 

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Cotizacion;
+use App\Support\ConfiguracionSistema;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -26,7 +27,7 @@ class NuevaCotizacionPendiente extends Notification implements ShouldQueue
 
     public function via(object $notifiable): array
     {
-        return ['database', 'mail'];
+        return ConfiguracionSistema::notificacionActiva('cotizaciones') ? ['database', 'mail'] : [];
     }
 
     public function toMail(object $notifiable): MailMessage
@@ -41,7 +42,10 @@ class NuevaCotizacionPendiente extends Notification implements ShouldQueue
                 'logoUrl' => 'cid:resmap-logo',
             ])
             ->withSymfonyMessage(function (Email $message): void {
-                $message->embedFromPath(public_path('images/resmap sin fondo.png'), 'resmap-logo');
+                $rutaLogo = ConfiguracionSistema::logoRutaFisica();
+                if ($rutaLogo !== null) {
+                    $message->embedFromPath($rutaLogo, 'resmap-logo');
+                }
             });
     }
 

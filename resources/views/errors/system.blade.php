@@ -12,7 +12,7 @@
         <section class="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-xl">
             <header class="flex items-center justify-between bg-[#8f241d] px-8 py-6">
                 <a href="{{ route('home') }}" aria-label="Ir al inicio de RESMAP">
-                    <img src="{{ asset('images/resmap-logo-renovado.png') }}" alt="RESMAP" class="h-14 w-auto rounded-lg bg-white p-1">
+                    <img src="{{ $resmapLogoUrl }}" alt="RESMAP" class="h-14 w-auto rounded-lg bg-white p-1">
                 </a>
                 <span class="rounded-full bg-white/15 px-4 py-2 text-sm font-bold tracking-widest text-white">ERROR {{ $status }}</span>
             </header>

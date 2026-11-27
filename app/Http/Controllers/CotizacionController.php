@@ -27,6 +27,7 @@ use App\Services\InventarioReservaService;
 use App\Services\ResumenInternoVentaPdf;
 use App\Services\VentaCotizacionService;
 use App\Services\WhatsAppCloudApi;
+use App\Support\ConfiguracionSistema;
 use App\Support\Rut;
 use App\Support\TelefonoChileno;
 use App\Support\TextoPersona;
@@ -763,7 +764,8 @@ class CotizacionController extends Controller
                         'numero' => 'RESMAP-'.$venta->id_venta,
                         'autorizada_at' => $momento,
                     ]);
-                    $logo = file_get_contents(public_path('images/resmap sin fondo.png'));
+                    $rutaLogo = ConfiguracionSistema::logoRutaFisica();
+                    $logo = $rutaLogo === null ? false : file_get_contents($rutaLogo);
                     if ($logo === false) {
                         throw new RuntimeException('No fue posible leer el logo de RESMAP para generar la orden de compra.');
                     }

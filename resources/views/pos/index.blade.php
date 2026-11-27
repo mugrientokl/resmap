@@ -3,12 +3,29 @@
 @section('content')
 <style>
     .pos-page {
-        max-width: 100rem;
+        max-width: 72rem;
         margin: 0 auto;
     }
 
     .pos-header {
+        width: 100%;
+        border: 1px solid #ead8d5;
+        border-radius: 1rem;
+        background: #fff;
+        padding: 1.25rem 1.5rem;
         margin-bottom: 1.5rem;
+        box-shadow: 0 8px 24px rgba(80, 38, 31, .05);
+    }
+
+    .pos-header.pos-simple-header {
+        max-width: 52rem;
+        margin-right: auto;
+        margin-left: auto;
+    }
+
+    .pos-header h2,
+    .pos-header p {
+        max-width: 48rem;
     }
 
     .pos-kicker {
@@ -76,6 +93,16 @@
         .pos-grid {
             grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr);
         }
+
+        .pos-grid.pos-simple-grid {
+            grid-template-columns: minmax(0, 1fr);
+        }
+
+        .pos-grid.pos-simple-grid .pos-panel {
+            max-width: 52rem;
+            width: 100%;
+            justify-self: center;
+        }
     }
 
     .pos-resumen label {
@@ -108,13 +135,13 @@
     }
 </style>
 <div class="pos-page">
-    <header class="pos-header">
+    <header id="pos-header" class="pos-header pos-simple-header">
         <p class="pos-kicker">Ventas / Punto de venta</p>
         <h2 class="mt-1 text-2xl font-black text-[#241817] sm:text-3xl">Punto de Venta (POS) - Repuestos</h2>
         <p class="mt-2 text-sm text-gray-600">Agrega los repuestos y completa los datos para registrar la venta.</p>
     </header>
 
-    <div class="pos-grid">
+    <div id="pos-grid" class="pos-grid pos-simple-grid">
     <section class="pos-panel p-5 sm:p-6" aria-labelledby="titulo-productos-pos">
         <div class="pos-section-heading mb-5">
             <span class="pos-section-number" aria-hidden="true">1</span>
@@ -191,10 +218,21 @@
             </div>
 
             @if(auth()->user()->tienePermiso('ventas.crear'))
-            <button type="button" id="registrar-venta" onclick="procesarVenta()"
-                class="w-full rounded-md bg-[#8f241d] px-4 py-3 text-base font-bold text-white shadow-sm hover:bg-[#721d18] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d] disabled:opacity-50">
-                Registrar venta
-            </button>
+            <div class="grid gap-3">
+                <button type="button" id="registrar-venta-simple" onclick="procesarVenta(false)"
+                    class="w-full rounded-md bg-[#8f241d] px-4 py-3 text-base font-bold text-white shadow-sm hover:bg-[#721d18] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d] disabled:opacity-50">
+                    Registrar venta simple
+                </button>
+                <button type="button" id="abrir-datos-cliente" onclick="mostrarDatosCliente()"
+                    class="w-full rounded-md border border-[#8f241d] bg-white px-4 py-3 text-base font-bold text-[#8f241d] hover:bg-[#fff8f6] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]">
+                    Datos del cliente
+                </button>
+                <button type="button" id="registrar-venta" onclick="procesarVenta(true)"
+                    hidden
+                    class="w-full rounded-md bg-[#8f241d] px-4 py-3 text-base font-bold text-white shadow-sm hover:bg-[#721d18] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d] disabled:opacity-50">
+                    Registrar venta con datos del cliente
+                </button>
+            </div>
             @endif
 
             @if (session('resumen_venta_id'))
@@ -206,13 +244,17 @@
         </div>
     </section>
 
-    <section class="pos-panel pos-resumen p-5 sm:p-6" aria-labelledby="titulo-datos-venta">
+    <section id="panel-datos-cliente" class="pos-panel pos-resumen p-5 sm:p-6" aria-labelledby="titulo-datos-venta" hidden>
             <div class="pos-section-heading mb-5">
                 <span class="pos-section-number" aria-hidden="true">2</span>
-                <div>
+                <div class="min-w-0 flex-1">
                     <h3 id="titulo-datos-venta" class="text-lg font-black text-[#721d18]">Datos de venta y facturación</h3>
                     <p class="mt-1 text-sm text-gray-600">Estos datos también se utilizan para el resumen interno, que no es un documento tributario electrónico.</p>
                 </div>
+                <button type="button" onclick="ocultarDatosCliente()"
+                    class="shrink-0 rounded-md border border-[#d7bbb6] px-3 py-2 text-xs font-bold text-[#721d18] hover:bg-[#fff5f3]">
+                    Venta simple
+                </button>
             </div>
 
             <div class="pos-client-fields">
@@ -387,7 +429,7 @@
                         </select>
                     </div>
 
-                    <div>
+                    <div id="contenedor-medio-pago">
                         <label for="medio_pago" class="block text-xs font-medium text-gray-700">
                             Medio de Pago
                         </label>
@@ -414,6 +456,30 @@ let carro = [];
 let ventaEnProceso = false;
 let borradorHabilitado = true;
 let busquedaClienteEnProceso = false;
+let modoDatosCliente = false;
+
+function mostrarDatosCliente() {
+    modoDatosCliente = true;
+    document.getElementById('pos-header').classList.remove('pos-simple-header');
+    document.getElementById('pos-grid').classList.remove('pos-simple-grid');
+    document.getElementById('contenedor-medio-pago').classList.remove('hidden');
+    document.getElementById('panel-datos-cliente').hidden = false;
+    document.getElementById('registrar-venta-simple').hidden = true;
+    document.getElementById('abrir-datos-cliente').hidden = true;
+    document.getElementById('registrar-venta').hidden = false;
+    document.getElementById('panel-datos-cliente').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function ocultarDatosCliente() {
+    modoDatosCliente = false;
+    document.getElementById('pos-header').classList.add('pos-simple-header');
+    document.getElementById('pos-grid').classList.add('pos-simple-grid');
+    document.getElementById('contenedor-medio-pago').classList.add('hidden');
+    document.getElementById('panel-datos-cliente').hidden = true;
+    document.getElementById('registrar-venta-simple').hidden = false;
+    document.getElementById('abrir-datos-cliente').hidden = false;
+    document.getElementById('registrar-venta').hidden = true;
+}
 
 const claveBorrador = 'resmap-pos-venta-pendiente';
 const claveIdempotenciaBorrador = 'resmap-pos-venta-idempotencia';
@@ -838,7 +904,7 @@ function renderCarro() {
     guardarBorrador();
 }
 
-async function procesarVenta() {
+async function procesarVenta(conDatosCliente = modoDatosCliente) {
     if (ventaEnProceso) return;
 
     if (busquedaClienteEnProceso) {
@@ -851,6 +917,55 @@ async function procesarVenta() {
         return;
     }
 
+    if (!conDatosCliente) {
+        const datosComprobante = await window.resmapPromptWithSelect(
+            'Asocia esta venta simple con el comprobante y registra cómo se pagó.',
+            {
+                title: 'Número de folio',
+                inputLabel: 'Folio del comprobante *',
+                placeholder: 'Ej. 125438',
+                inputMode: 'numeric',
+                confirmText: 'Aceptar folio',
+                selectLabel: 'Tipo de pago *',
+                selectOptions: [
+                    { value: 'Efectivo', label: 'Efectivo' },
+                    { value: 'Transferencia', label: 'Transferencia' },
+                    { value: 'Tarjeta', label: 'Tarjeta' },
+                    { value: 'Crédito', label: 'Crédito' },
+                ],
+                validateInput: valor => /^\d{1,9}$/.test(valor)
+                    ? null
+                    : 'Ingresa un número de folio válido de hasta 9 dígitos.',
+            }
+        );
+
+        if (!datosComprobante) return;
+
+        const folio = datosComprobante.input;
+        const medioPagoSimple = datosComprobante.select;
+
+        const datosSimple = {
+            con_datos_cliente: false,
+            folio_sii: Number(folio),
+            medio_pago: medioPagoSimple,
+            detalles: carro.map(item => ({
+                id_producto: item.id_producto,
+                cantidad: item.cantidad
+            }))
+        };
+
+        if (carro.some(item => item.cantidad > item.stockMax)) {
+            window.resmapAlert(
+                'Hay productos cuya cantidad supera el stock disponible. Ajusta el carrito.',
+                'warning'
+            );
+            return;
+        }
+
+        return confirmarYEnviarVenta(datosSimple, `Venta simple · Folio ${folio}`, medioPagoSimple);
+    }
+
+    modoDatosCliente = true;
     const rut = document.getElementById('rut').value.trim();
     const nombre = document.getElementById('nombre_cliente').value.trim();
     const contacto = document.getElementById('contacto_cliente').value.trim();
@@ -923,6 +1038,7 @@ async function procesarVenta() {
 
     const medioPago = document.getElementById('medio_pago').value;
     const datos = {
+        con_datos_cliente: true,
         tipo_documento: tipoDocumento,
         medio_pago: medioPago,
         rut,
@@ -949,9 +1065,15 @@ async function procesarVenta() {
         }))
     };
 
+    await confirmarYEnviarVenta(datos, nombre, medioPago);
+}
+
+async function confirmarYEnviarVenta(datos, identificacionCliente, medioPago) {
     guardarBorrador();
 
-    const boton = document.getElementById('registrar-venta');
+    const boton = modoDatosCliente
+        ? document.getElementById('registrar-venta')
+        : document.getElementById('registrar-venta-simple');
     ventaEnProceso = true;
     boton.disabled = true;
     let solicitudIniciada = false;
@@ -965,8 +1087,11 @@ async function procesarVenta() {
             return `• ${item.nombre}: ${item.cantidad} × $ ${subtotal}`;
         }).join('\n');
         const totalVenta = document.getElementById('label-total').textContent.trim();
+        const resumenPago = medioPago
+            ? `\nMedio de pago: ${medioPago}`
+            : '';
         const confirmado = await window.resmapConfirm(
-            `Revisa la venta antes de registrarla:\n${detalleProductos}\n\nCliente: ${nombre}\nDocumento: ${tipoDocumento}\nMedio de pago: ${medioPago}\nTotal: ${totalVenta}\n\nAl continuar, se registrará la venta y se descontará el stock.`,
+            `Revisa la venta antes de registrarla:\n${detalleProductos}\n\nCliente: ${identificacionCliente}${resumenPago}\nTotal: ${totalVenta}\n\nAl continuar, se registrará la venta y se descontará el stock.`,
             { title: 'Confirmar venta', confirmText: 'Registrar venta' }
         );
 
@@ -1071,6 +1196,7 @@ async function buscarCodigo() {
 
 restaurarBorrador();
 actualizarRequisitoGiro();
+document.getElementById('contenedor-medio-pago').classList.add('hidden');
 renderCarro();
 
 (() => {

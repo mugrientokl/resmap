@@ -4,6 +4,7 @@ namespace App\Mail;
 
 use App\Models\Cliente;
 use App\Models\CotizacionVersion;
+use App\Support\ConfiguracionSistema;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
@@ -27,7 +28,12 @@ class CotizacionCliente extends Mailable
         return new Envelope(
             subject: 'Cotización RESMAP - versión '.$this->version->numero_version,
             using: [
-                fn (Email $message) => $message->embedFromPath(public_path('images/resmap sin fondo.png'), 'resmap-logo'),
+                function (Email $message): void {
+                    $rutaLogo = ConfiguracionSistema::logoRutaFisica();
+                    if ($rutaLogo !== null) {
+                        $message->embedFromPath($rutaLogo, 'resmap-logo');
+                    }
+                },
             ],
         );
     }

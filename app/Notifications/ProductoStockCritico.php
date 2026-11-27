@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Producto;
+use App\Support\ConfiguracionSistema;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
 
@@ -14,7 +15,7 @@ class ProductoStockCritico extends Notification
 
     public function via(object $notifiable): array
     {
-        return ['database'];
+        return ConfiguracionSistema::notificacionActiva('stock_critico') ? ['database'] : [];
     }
 
     public function toArray(object $notifiable): array

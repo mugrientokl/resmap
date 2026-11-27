@@ -2,7 +2,7 @@
 @php($isHome = request()->routeIs('home'))
 @php($isStaff = auth()->check() && in_array(auth()->user()->rol, ['Administrador', 'Vendedor'], true))
 @php($floatingPublicNavigation = ! $isStaff && request()->routeIs('home', 'catalogo.index', 'servicios.index'))
-<html lang="es">
+<html lang="es" @if($isStaff) style="font-size: {{ $resmapFontSizePx }}px" @endif>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -841,7 +841,7 @@
     <nav id="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" class="fixed inset-x-0 top-0 z-40 text-white {{ $isHome ? 'bg-transparent' : 'bg-[#b52f25] shadow-lg' }}">
         <div class="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
             <a href="{{ route('home') }}" class="brand-link flex items-center" aria-label="Ir al inicio de Resmap">
-                <img src="{{ asset('images/resmap-logo-renovado.png') }}" alt="Resmap" class="brand-logo h-12 w-auto max-w-45 object-contain">
+                <img src="{{ $resmapLogoUrl }}" alt="Resmap" class="brand-logo h-12 w-auto max-w-45 object-contain">
             </a>
             @if($isStaff)
                 @php($unreadNotifications = auth()->user()->notificacionesVisibles()->unread()->whereNull('deleted_at')->count())
@@ -871,7 +871,7 @@
                     <a href="{{ route('solicitudes.index') }}" class="nav-link block rounded px-3 py-2 text-sm hover:bg-[#721d18] hover:text-[#ffd5c9]" @if(request()->routeIs('solicitudes.*', 'cotizaciones.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M6 3h8l4 4v14H6V3Zm8 0v4h4M9 11h6M9 15h6"/></svg><span>Cotizaciones / Servicios</span> @if($pendingRequests)<span class="nav-badge ml-1 rounded-full bg-[#ffd5c9] px-2 py-0.5 text-xs text-[#8f241d]">{{ $pendingRequests }}</span>@endif</a>
                     @endif
                     @if(auth()->user()->tienePermiso('reportes.ver'))
-                        <a href="{{ route('reportes.index') }}" class="nav-link" @if(request()->routeIs('reportes.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 20h16M6 17v-6m6 6V5m6 12V9"/></svg><span>Reportes</span></a>
+                        <a href="{{ route('reportes.index') }}" class="nav-link" @if(request()->routeIs('reportes.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 20h16M6 17v-6m6 6V5m6 12V9"/></svg><span>Reportes de venta</span></a>
                     @endif
                     @if(auth()->user()->tienePermiso('movimientos.ver'))
                         <a href="{{ route('inventario.movimientos') }}" class="nav-link" @if(request()->routeIs('inventario.movimientos*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg><span>Movimientos de Inventario</span></a>
@@ -996,7 +996,7 @@
                 <div class="home-footer-grid">
                     <div class="home-footer-brand">
                         <a href="{{ route('home') }}" class="inline-block" aria-label="Ir al inicio de Resmap">
-                            <img src="{{ asset('images/resmap-logo-renovado.png') }}" alt="Resmap" class="brand-logo h-auto object-contain" loading="lazy">
+                            <img src="{{ $resmapLogoUrl }}" alt="Resmap" class="brand-logo h-auto object-contain" loading="lazy">
                         </a>
                         <p class="text-base text-[#65504c]">Repuestos y soluciones industriales</p>
                     </div>
