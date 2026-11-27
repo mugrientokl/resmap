@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class AdministracionTest extends TestCase
@@ -20,7 +22,6 @@ class AdministracionTest extends TestCase
             $response = $this->actingAs($user)->get(route('dashboard'))->assertOk()
                 ->assertSee('navegacion-izquierda')
                 ->assertDontSee('navegacion-superior public-navigation')
-                ->assertDontSee('href="'.url('/administracion').'"', false)
                 ->assertDontSee('href="'.route('catalogo.index').'"', false)
                 ->assertDontSee('href="'.route('servicios.index').'"', false);
 
@@ -40,7 +41,7 @@ class AdministracionTest extends TestCase
                 }
             }
 
-            foreach (['categorias.index', 'proveedores.index', 'usuarios.index', 'backups.index'] as $route) {
+            foreach (['categorias.index', 'proveedores.index', 'usuarios.index', 'backups.index', 'configuracion.index'] as $route) {
                 if ($role === 'Administrador') {
                     $this->assertStringContainsString('href="'.route($route).'"', $navigationLinks);
                 } else {
@@ -54,7 +55,7 @@ class AdministracionTest extends TestCase
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
 
-        foreach (['dashboard', 'categorias.index', 'proveedores.index', 'usuarios.index', 'backups.index', 'notificaciones.index'] as $page) {
+        foreach (['dashboard', 'categorias.index', 'proveedores.index', 'usuarios.index', 'backups.index', 'configuracion.index', 'notificaciones.index'] as $page) {
             $response = $this->actingAs($admin)->get(route($page))->assertOk();
             $this->assertMatchesRegularExpression(
                 '/<a href="'.preg_quote(route($page), '/').'"[^>]*aria-current="page"/',
@@ -63,12 +64,51 @@ class AdministracionTest extends TestCase
         }
     }
 
-    public function test_navigation_configuration_is_no_longer_available(): void
+    public function test_visual_configuration_is_admin_only(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
 
-        $this->actingAs($admin)->get('/administracion')->assertNotFound();
-        $this->actingAs($admin)->put('/administracion/navegacion', ['posicion_navegacion' => 'superior'])->assertNotFound();
+        $this->actingAs($seller)->get('/administracion')->assertForbidden();
+        $this->actingAs($admin)->get('/administracion')->assertOk()
+            ->assertSee('Fondo 1')
+            ->assertSee('Fondo 4');
+    }
+
+    public function test_admin_can_select_default_and_upload_delete_custom_background(): void
+    {
+        Storage::fake('public');
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+
+        $this->actingAs($admin)
+            ->put(route('configuracion.fondo.actualizar'), ['fondo' => 'fondo-3'])
+            ->assertSessionHasNoErrors();
+        $this->assertDatabaseHas('configuraciones', ['clave' => 'fondo_sistema', 'valor' => 'fondo-3']);
+
+        $this->actingAs($admin)
+            ->post(route('configuracion.fondos.subir'), [
+                'fondo' => UploadedFile::fake()->image('personalizado.jpg', 640, 360),
+            ])
+            ->assertSessionHasNoErrors();
+
+        $registro = DB::table('configuraciones')
+            ->where('clave', 'like', 'fondo_personalizado:%')
+            ->first();
+        $this->assertNotNull($registro);
+        Storage::disk('public')->assertExists($registro->valor);
+
+        $id = substr($registro->clave, strlen('fondo_personalizado:'));
+        $this->actingAs($admin)
+            ->put(route('configuracion.fondo.actualizar'), ['fondo' => 'personalizado:'.$id])
+            ->assertSessionHasNoErrors();
+
+        $this->actingAs($admin)
+            ->delete(route('configuracion.fondos.eliminar', $id))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseMissing('configuraciones', ['clave' => $registro->clave]);
+        $this->assertDatabaseHas('configuraciones', ['clave' => 'fondo_sistema', 'valor' => 'fondo-1']);
+        Storage::disk('public')->assertMissing($registro->valor);
     }
 
     public function test_user_creation_generates_unique_username_and_stores_personal_data(): void

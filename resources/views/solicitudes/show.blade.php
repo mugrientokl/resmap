@@ -36,6 +36,16 @@
     $datosResumen = $venta?->datos_resumen ?? [];
     $datosProductosCotizacion = $productosDisponibles->map(fn ($p) => ['id' => $p->id_producto, 'nombre' => $p->nombre, 'codigo' => $p->codigo_origen ?: $p->codigo_barra, 'stock' => (int) $p->stock, 'disponible' => $p->stock_disponible])->values();
     $otrosErrores = collect($errors->getMessages())->except('detalles_productos')->flatten();
+    $estiloEstado = match ($solicitud->estado_comercial['estado']) {
+        'completada' => 'border-green-500 bg-green-50 text-green-900',
+        'cerrada' => 'border-red-500 bg-red-50 text-red-900',
+        'servicio' => match ($solicitud->estado) {
+            'Entregado y completado' => 'border-green-500 bg-green-50 text-green-900',
+            'Rechazado' => 'border-red-500 bg-red-50 text-red-900',
+            default => 'border-amber-500 bg-amber-50 text-amber-900',
+        },
+        default => 'border-amber-500 bg-amber-50 text-amber-900',
+    };
 @endphp
 <div class="mx-auto max-w-6xl">
     <div class="flex flex-wrap items-center justify-between gap-4">
@@ -56,7 +66,7 @@
                 <p class="text-xs font-black uppercase tracking-wider text-[#b52f25]">{{ $esServicio ? 'Servicio' : 'Cotización' }} #{{ $solicitud->id_solicitud }}</p>
                 <h1 class="mt-2 text-3xl font-black">Detalle {{ $esServicio ? 'del servicio' : 'de la cotización' }}</h1>
                 <p class="mt-2 text-sm text-gray-500">Recibida el {{ $solicitud->fecha?->format('d/m/Y H:i') }}</p>
-                <div class="mt-5 rounded-lg border-l-4 border-amber-500 bg-amber-50 p-4">
+                <div class="mt-5 rounded-lg border-l-4 {{ $estiloEstado }} p-4">
                     <p class="font-black">{{ $solicitud->estado_comercial['titulo'] }}</p>
                     <p class="mt-1 text-sm">{{ $solicitud->estado_comercial['detalle'] }}</p>
                 </div>
@@ -158,7 +168,7 @@
                                     <select name="repuestos[{{ $indice }}][id_producto]" required class="min-w-40 flex-1 border p-2" aria-label="Repuesto">
                                         <option value="">Selecciona un repuesto</option>
                                         @foreach($productosDisponibles as $producto)
-                                            <option value="{{ $producto->id_producto }}" @selected((string) ($repuesto['id_producto'] ?? '') === (string) $producto->id_producto)>{{ $producto->nombre }} · {{ $producto->codigo_origen ?: $producto->codigo_barra }} · ${{ number_format($producto->precio, 2, ',', '.') }}</option>
+                                            <option value="{{ $producto->id_producto }}" @selected((string) ($repuesto['id_producto'] ?? '') === (string) $producto->id_producto)>{{ $producto->nombre }} · {{ $producto->codigo_origen ?: $producto->codigo_barra }} · ${{ number_format($producto->precioVigente(), 2, ',', '.') }}</option>
                                         @endforeach
                                     </select>
                                     <input type="number" name="repuestos[{{ $indice }}][cantidad]" value="{{ $repuesto['cantidad'] ?? 1 }}" min="1" max="99999" required class="w-24 border p-2" aria-label="Cantidad">
@@ -171,7 +181,7 @@
                                 <select name="repuestos[__INDEX__][id_producto]" required class="min-w-40 flex-1 border p-2" aria-label="Repuesto">
                                     <option value="">Selecciona un repuesto</option>
                                     @foreach($productosDisponibles as $producto)
-                                        <option value="{{ $producto->id_producto }}">{{ $producto->nombre }} · {{ $producto->codigo_origen ?: $producto->codigo_barra }} · ${{ number_format($producto->precio, 2, ',', '.') }}</option>
+                                        <option value="{{ $producto->id_producto }}">{{ $producto->nombre }} · {{ $producto->codigo_origen ?: $producto->codigo_barra }} · ${{ number_format($producto->precioVigente(), 2, ',', '.') }}</option>
                                     @endforeach
                                 </select>
                                 <input type="number" name="repuestos[__INDEX__][cantidad]" value="1" min="1" max="99999" required class="w-24 border p-2" aria-label="Cantidad">
@@ -192,12 +202,22 @@
                     <p class="mt-4 whitespace-pre-line border-l-4 border-amber-500 bg-amber-50 p-3 text-sm"><strong>Última respuesta registrada:</strong> {{ $solicitud->cotizacion->comentarios_cliente }}</p>
                 @endif
                 @foreach($solicitud->cotizacion?->versiones->sortByDesc('numero_version') ?? [] as $version)
+                    @php($versionReemplazada = $version->estado === 'reemplazada' || $version->numero_version < $solicitud->cotizacion->ultima_version)
                     <div class="mt-3 border p-3 text-sm">
                         <div class="flex flex-wrap items-center justify-between gap-3">
-                            <span>Versión {{ $version->numero_version }} · {{ ucfirst(str_replace('_', ' ', $version->estado)) }} · ${{ number_format($version->total, 0, ',', '.') }} · válida hasta {{ $version->vigente_hasta?->format('d/m/Y H:i') }}</span>
-                            <div class="flex flex-wrap gap-3">
-                                <a class="inline-block rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]" href="{{ route('cotizaciones.pdf', $version->id_version) }}">Descargar cotización PDF</a>
-                                @if($version->estado === 'borrador' && auth()->user()->tienePermiso('cotizaciones.editar'))
+                            <span>Versión {{ $version->numero_version }} · {{ $versionReemplazada ? 'Reemplazada' : ucfirst(str_replace('_', ' ', $version->estado)) }} · ${{ number_format($version->total, 0, ',', '.') }} ·
+                                @if($versionReemplazada)
+                                    <strong class="text-red-700">Invalidada por nueva versión</strong>
+                                @else
+                                    válida hasta {{ $version->vigente_hasta?->format('d/m/Y H:i') }}
+                                @endif
+                            </span>
+                            <div class="flex flex-col gap-3">
+                                <a class="inline-block rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]" href="{{ route('cotizaciones.pdf', $version->id_version) }}">{{ $versionReemplazada ? 'Descargar PDF histórico' : 'Descargar cotización PDF' }}</a>
+                                @if($version->venta && $version->venta->estado_venta === 'confirmada' && $version->venta->stock_descontado_at && ($version->venta->resumen_interno_pdf !== null || ! empty($version->venta->datos_resumen)))
+                                    <a class="inline-block rounded-md border border-[#b52f25] px-4 py-2 font-bold text-[#9f2f25] shadow-sm hover:bg-[#f7e8e6]" href="{{ route('ventas.resumen-interno', $version->venta->id_venta) }}">Descargar resumen interno PDF</a>
+                                @endif
+                                @if(! $versionReemplazada && $version->estado === 'borrador' && auth()->user()->tienePermiso('cotizaciones.editar'))
                                     <form method="POST" action="{{ route('cotizaciones.enviar', $version->id_version) }}" data-confirm-message="¿Enviar esta cotización al cliente?">@csrf<button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Enviar al cliente</button></form>
                                 @endif
                             </div>
@@ -208,13 +228,15 @@
                             @endforeach
                         </ul>
                         @if($version->enviada_at)
-                            <p class="mt-2 text-xs text-gray-600" role="status">
-                                Correo: {{ str_replace('_', ' ', $version->email_estado ?: 'no enviado') }} ·
-                                WhatsApp: {{ str_replace('_', ' ', $version->whatsapp_estado ?: 'no enviado') }}
-                                @if(in_array('en_cola', [$version->email_estado, $version->whatsapp_estado], true))
-                                    · Actualizando estado automáticamente
-                                @endif
-                            </p>
+                            @php($estadosEnvio = $version->estadosEnvio(! $versionReemplazada))
+                            <div class="mt-2 text-xs text-gray-600" data-estado-envio data-envio-url="{{ route('cotizaciones.estado-envio', $version->id_version) }}" data-envio-pendiente="{{ $estadosEnvio['pendiente'] ? '1' : '0' }}">
+                                <p role="status" aria-live="polite">
+                                    Correo: <span data-envio-correo>{{ str_replace('_', ' ', $estadosEnvio['email_estado']) }}</span> ·
+                                    WhatsApp: <span data-envio-whatsapp>{{ str_replace('_', ' ', $estadosEnvio['whatsapp_estado']) }}</span>
+                                    <span data-envio-aviso>{{ $estadosEnvio['pendiente'] ? '· Consultando estado automáticamente, sin recargar la página' : '' }}</span>
+                                </p>
+                                <button type="button" data-envio-consultar hidden class="mt-2 font-bold text-[#9f2f25] underline">Consultar estado de envío</button>
+                            </div>
                         @endif
                     </div>
                 @endforeach
@@ -284,8 +306,44 @@
                 @if(auth()->user()->tienePermiso('cotizaciones.editar') && auth()->user()->tienePermiso('ventas.crear') && $ultimaVersion?->estado === 'aceptada' && ! $ventaCompleta)
                     <form method="POST" action="{{ route('cotizaciones.convertir-venta', $ultimaVersion->id_version) }}" class="mt-6 border-t pt-5" data-confirm-message="¿Confirmas que se registre la venta y se descuente el stock?">
                         @csrf
-                        <p class="mb-3 text-sm">Puedes convertir la cotización aceptada en venta sin adjuntar una orden de compra.</p>
+                        <label class="mb-3 block text-sm font-bold">Estado del pago
+                            <select id="estado-pago-venta" name="estado_pago" required @if($errors->getBag('pagoVenta')->has('estado_pago')) aria-invalid="true" aria-describedby="error-estado-pago-venta" @endif class="mt-1 block w-full border p-2">
+                                <option value="">Seleccionar</option>
+                                <option value="pagado" @selected(old('estado_pago') === 'pagado')>Pagada: cerrar por completo</option>
+                                <option value="pendiente" @selected(old('estado_pago') === 'pendiente')>Registrar venta con pago pendiente</option>
+                            </select>
+                            @error('estado_pago', 'pagoVenta')<span id="error-estado-pago-venta" role="alert" class="mt-1 block text-sm text-red-700">{{ $message }}</span>@enderror
+                        </label>
+                        <div id="campo-medio-pago-venta" @if(old('estado_pago') !== 'pagado') hidden @endif>
+                            <label class="mb-3 block text-sm font-bold">Medio de pago
+                                <select id="medio-pago-venta" name="medio_pago" @if(old('estado_pago') === 'pagado') required @else disabled @endif @if($errors->getBag('pagoVenta')->has('medio_pago')) aria-invalid="true" aria-describedby="error-medio-pago-venta" @endif class="mt-1 block w-full border p-2">
+                                    <option value="">Seleccionar</option>
+                                    @foreach(['Efectivo', 'Transferencia', 'Tarjeta'] as $medio)
+                                        <option value="{{ $medio }}" @selected(old('medio_pago') === $medio)>{{ $medio }}</option>
+                                    @endforeach
+                                </select>
+                                @error('medio_pago', 'pagoVenta')<span id="error-medio-pago-venta" role="alert" class="mt-1 block text-sm text-red-700">{{ $message }}</span>@enderror
+                            </label>
+                        </div>
                         <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Registrar venta</button>
+                    </form>
+                @endif
+
+                @if(! $esServicio && $ventaCompleta && $venta->estado_pago !== 'pagado' && auth()->user()->tienePermiso('cotizaciones.editar') && auth()->user()->tienePermiso('ventas.crear'))
+                    <form method="POST" action="{{ route('ventas.confirmar-pago', $venta->id_venta) }}" class="mt-6 space-y-3 border-t pt-5" data-confirm-message="¿Confirmas que se recibió todo el saldo pendiente? Esta acción cerrará el pago de la cotización.">
+                        @csrf
+                        <h3 class="font-black">Confirmar pago total</h3>
+                        <p class="text-sm">Saldo pendiente: $ {{ number_format(max(0, (float) $venta->total - (float) $venta->monto_pagado), 0, ',', '.') }}. No se registran abonos.</p>
+                        <label class="block text-sm font-bold">Medio de pago
+                            <select name="medio_pago" required @if($errors->getBag('pagoVenta')->has('medio_pago')) aria-invalid="true" aria-describedby="error-confirmar-pago" @endif class="mt-1 block w-full border p-2">
+                                <option value="">Seleccionar</option>
+                                @foreach(['Efectivo', 'Transferencia', 'Tarjeta'] as $medio)
+                                    <option value="{{ $medio }}" @selected(old('medio_pago') === $medio)>{{ $medio }}</option>
+                                @endforeach
+                            </select>
+                            @error('medio_pago', 'pagoVenta')<span id="error-confirmar-pago" role="alert" class="mt-1 block text-sm text-red-700">{{ $message }}</span>@enderror
+                        </label>
+                        <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Confirmar pago total</button>
                     </form>
                 @endif
 
@@ -384,25 +442,27 @@
                         <button class="rounded-md bg-[#b52f25] px-4 py-2 font-bold text-white shadow-sm hover:bg-[#8f241d]">Generar resumen interno</button>
                     </form>
                 @elseif($ventaCompleta && ! empty($venta->datos_resumen))
-                    <p class="mt-6 border-t pt-5 text-sm">El resumen interno ya fue generado y no puede modificarse. Su descarga está disponible en Reportes para administradores.</p>
+                    <p class="mt-6 border-t pt-5 text-sm">El resumen interno ya fue generado y no puede modificarse. Puedes descargarlo desde el botón debajo del PDF de cotización.</p>
                 @endif
         </section>
     </div>
 </div>
 <script src="{{ asset('js/rut.js') }}"></script>
+<script src="{{ asset('js/estado-envio-cotizacion.js') }}" defer></script>
 <script>
-    @if(in_array('en_cola', [$ultimaVersion?->email_estado, $ultimaVersion?->whatsapp_estado], true))
-        const claveActualizacionCotizacion = 'cotizacion-envio-{{ $ultimaVersion?->id_version }}';
-        const intentosActualizacion = Number(sessionStorage.getItem(claveActualizacionCotizacion) || 0);
-        if (intentosActualizacion < 6) {
-            sessionStorage.setItem(claveActualizacionCotizacion, String(intentosActualizacion + 1));
-            setTimeout(() => window.location.reload(), 5000);
-        }
-    @else
-        @if($ultimaVersion)
-            sessionStorage.removeItem('cotizacion-envio-{{ $ultimaVersion->id_version }}');
-        @endif
-    @endif
+    const estadoPagoVenta = document.getElementById('estado-pago-venta');
+    const campoMedioPagoVenta = document.getElementById('campo-medio-pago-venta');
+    const medioPagoVenta = document.getElementById('medio-pago-venta');
+    if (estadoPagoVenta && campoMedioPagoVenta && medioPagoVenta) {
+        const actualizarMedioPago = () => {
+            const pagada = estadoPagoVenta.value === 'pagado';
+            campoMedioPagoVenta.hidden = !pagada;
+            medioPagoVenta.disabled = !pagada;
+            medioPagoVenta.required = pagada;
+        };
+        estadoPagoVenta.addEventListener('change', actualizarMedioPago);
+        actualizarMedioPago();
+    }
 
     const repuestosServicio = document.getElementById('repuestos-servicio');
     const botonRepuestoServicio = document.getElementById('agregar-repuesto-servicio');

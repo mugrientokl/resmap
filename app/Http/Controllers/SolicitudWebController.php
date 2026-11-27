@@ -62,7 +62,13 @@ class SolicitudWebController extends Controller
                         ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_facturacion', 'simulada_exitosa')
                             ->where('estado_entrega', '!=', 'entregada')),
                     'completada' => $query->where('tipo_solicitud', '!=', 'servicio')
-                        ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_venta', 'confirmada')->whereNotNull('stock_descontado_at')),
+                        ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_venta', 'confirmada')
+                            ->whereNotNull('stock_descontado_at')->where('estado_pago', 'pagado')),
+                    'pendiente_pago' => $query->where('tipo_solicitud', '!=', 'servicio')
+                        ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_pago', '!=', 'pagado')),
+                    'completada_pendiente_pago' => $query->where('tipo_solicitud', '!=', 'servicio')
+                        ->whereHas('cotizacion.versiones.venta', fn ($query) => $query->where('estado_venta', 'confirmada')
+                            ->whereNotNull('stock_descontado_at')->where('estado_pago', '!=', 'pagado')),
                     'cerrada' => $query->where(function ($query): void {
                         $query->where('tipo_solicitud', '!=', 'servicio')
                             ->where(function ($query): void {
@@ -220,7 +226,7 @@ class SolicitudWebController extends Controller
         return $detalles->map(function (array $detalle) use ($productos) {
             $producto = $productos->get($detalle['id_producto']);
             $cantidad = (int) $detalle['cantidad'];
-            $precioIva = (float) ($producto?->precio ?? 0);
+            $precioIva = (float) ($producto?->precioVigente() ?? 0);
             $precioNeto = round($precioIva / 1.19);
 
             return [
@@ -279,10 +285,28 @@ class SolicitudWebController extends Controller
         $venta = $version?->venta ?? $solicitud->venta;
 
         if ($venta?->estado_venta === 'confirmada' && $venta->stock_descontado_at !== null) {
+            if ($venta->estado_pago !== 'pagado') {
+                $saldo = number_format(max(0, (float) $venta->total - (float) $venta->monto_pagado), 0, ',', '.');
+
+                return [
+                    'titulo' => 'Venta completada · pago pendiente',
+                    'detalle' => 'La venta está registrada y el stock fue descontado. Saldo pendiente: $ '.$saldo.'. Confirma el pago total para cerrar la cotización.',
+                    'estado' => 'completada_pendiente_pago',
+                ];
+            }
+
             return [
                 'titulo' => 'Venta completada',
-                'detalle' => 'La venta está registrada y el stock fue descontado. Puedes generar un resumen interno.',
+                'detalle' => 'La venta está registrada, el stock fue descontado y el pago está completo. Puedes generar un resumen interno.',
                 'estado' => 'completada',
+            ];
+        }
+
+        if ($venta && $venta->estado_pago !== 'pagado') {
+            return [
+                'titulo' => 'Pago pendiente',
+                'detalle' => 'La venta aún debe registrarse y su pago está pendiente.',
+                'estado' => 'pendiente_pago',
             ];
         }
 
@@ -507,7 +531,7 @@ class SolicitudWebController extends Controller
                         throw new \RuntimeException("Stock disponible insuficiente para {$producto->nombre}; hay {$disponible} unidades libres.");
                     }
 
-                    $subtotal = (float) $producto->precio * $cantidad;
+                    $subtotal = $producto->precioVigente() * $cantidad;
                     $total += $subtotal;
                     $detallesVenta[] = compact('producto', 'cantidad', 'subtotal');
                 }
@@ -534,7 +558,7 @@ class SolicitudWebController extends Controller
                         'id_venta' => $venta->id_venta,
                         'id_producto' => $detalle['producto']->id_producto,
                         'cantidad' => $detalle['cantidad'],
-                        'precio_unitario' => $detalle['producto']->precio,
+                        'precio_unitario' => $detalle['producto']->precioVigente(),
                         'subtotal' => $detalle['subtotal'],
                     ]);
 
@@ -618,7 +642,7 @@ class SolicitudWebController extends Controller
                 if ($cantidad > $disponible) {
                     throw ValidationException::withMessages(['repuestos' => "Stock insuficiente para {$producto->nombre}; hay {$disponible} unidades disponibles."]);
                 }
-                $subtotalCentavos = (int) round((float) $producto->precio * 100) * $cantidad;
+                $subtotalCentavos = (int) round($producto->precioVigente() * 100) * $cantidad;
                 $totalCentavos += $subtotalCentavos;
                 $detalles[] = compact('producto', 'cantidad', 'subtotalCentavos');
             }
@@ -665,7 +689,7 @@ class SolicitudWebController extends Controller
                     'id_producto' => $producto->id_producto,
                     'descripcion' => $producto->nombre,
                     'cantidad' => $detalle['cantidad'],
-                    'precio_unitario' => $producto->precio,
+                    'precio_unitario' => $producto->precioVigente(),
                     'subtotal' => $detalle['subtotalCentavos'] / 100,
                 ]);
                 $stockAnterior = (int) $producto->stock;

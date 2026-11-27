@@ -99,11 +99,13 @@ class ResumenInternoVentaTest extends TestCase
             'despacho' => 0,
             'logoDataUri' => '',
         ])
-            ->assertSee('Giro: Comercio de repuestos')
-            ->assertSee('Comuna: Los Ángeles')
-            ->assertSee('Ciudad: Concepción')
-            ->assertSee('Contacto: Contacto POS')
-            ->assertSee('Tipo de compra: Del giro');
+            ->assertSeeText('Giro: Comercio de repuestos')
+            ->assertSeeText('Comuna: Los Ángeles')
+            ->assertSeeText('Ciudad: Concepción')
+            ->assertSeeText('Atención / contacto: Contacto POS')
+            ->assertSeeText('Tipo de compra: Del giro')
+            ->assertSeeInOrder(['Código', 'Producto'])
+            ->assertDontSeeText('Modalidad de entrega');
 
         $respuesta = $this->get(route('ventas.resumen-interno', $venta->id_venta));
         $respuesta->assertOk();
@@ -213,6 +215,57 @@ class ResumenInternoVentaTest extends TestCase
 
         $venta->update(['total' => 99999]);
         $this->assertSame($primeraDescarga, $this->get(route('reportes.ventas.resumen', $venta->id_venta))->assertOk()->getContent());
+    }
+
+    public function test_seller_can_download_generated_quote_summary_from_its_detail_without_reports_access(): void
+    {
+        $vendedor = User::factory()->create(['rol' => 'Vendedor']);
+        [$solicitud, $venta] = $this->crearCotizacionConVenta($vendedor, ['estado_venta' => 'confirmada']);
+        $venta->update(['stock_descontado_at' => now(), 'estado_pago' => 'pagado']);
+        $urlDescarga = route('ventas.resumen-interno', $venta->id_venta);
+
+        $this->actingAs($vendedor)->get(route('solicitudes.show', $solicitud->id_solicitud))
+            ->assertDontSee($urlDescarga, false);
+        $this->get($urlDescarga)->assertNotFound();
+        $this->get(route('reportes.ventas.resumen', $venta->id_venta))->assertForbidden();
+
+        $this->post(route('ventas.generar-resumen', $venta->id_venta), [
+            'tipo_documento' => 'Factura Electrónica',
+            'medio_pago' => 'Transferencia',
+            'forma_pago' => 'Contado',
+            'acteco_emisor' => '453000',
+            'tipo_venta' => 'del_giro',
+            'tipo_compra' => 'del_giro',
+            'nombre' => 'Empresa de prueba',
+            'rut' => '12.345.678-5',
+            'giro' => 'Comercio de repuestos',
+            'direccion' => 'Calle 123',
+            'region' => 'Biobío',
+            'comuna' => 'Los Ángeles',
+            'ciudad' => 'Los Ángeles',
+            'contacto' => 'Contacto de prueba',
+            'correo' => 'prueba@example.test',
+            'numero_oc' => 'OC-PRUEBA',
+        ])->assertRedirect()->assertSessionHasNoErrors()
+            ->assertSessionHas('success', 'Resumen interno generado. Puedes descargarlo desde el detalle de la cotización.');
+        $pdfGuardado = base64_decode($venta->fresh()->resumen_interno_pdf, true);
+        $this->assertStringStartsWith('%PDF', $pdfGuardado);
+        $this->get(route('solicitudes.show', $solicitud->id_solicitud))
+            ->assertSeeInOrder(['Descargar cotización PDF', 'Descargar resumen interno PDF'])
+            ->assertSee($urlDescarga, false);
+        $this->get($urlDescarga)->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertContent($pdfGuardado);
+        $venta->update(['total' => 99999]);
+        $this->get($urlDescarga)->assertContent($pdfGuardado);
+
+        $sinPermisos = User::factory()->create(['rol' => 'Vendedor']);
+        $sinPermisos->forceFill(['permisos' => []])->save();
+        $this->actingAs($sinPermisos)->get($urlDescarga)->assertForbidden();
+        $sinPermisos->forceFill(['permisos' => ['ventas.ver']])->save();
+        $this->actingAs($sinPermisos->fresh())->get($urlDescarga)->assertForbidden();
+        $sinPermisos->forceFill(['permisos' => ['cotizaciones.ver']])->save();
+        $this->actingAs($sinPermisos->fresh())->get($urlDescarga)->assertOk()->assertContent($pdfGuardado);
     }
 
     /**

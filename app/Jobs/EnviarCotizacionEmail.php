@@ -40,7 +40,19 @@ class EnviarCotizacionEmail implements ShouldBeUnique, ShouldQueue
             ->with(['cotizacion.solicitud.cliente', 'detalles'])
             ->findOrFail($this->versionId);
 
-        if ($version->estado !== 'enviada' || $version->email_estado !== 'en_cola') {
+        if ($version->estado !== 'enviada'
+            || $version->numero_version !== $version->cotizacion->ultima_version
+            || $version->vigente_hasta?->isFuture() !== true) {
+            $version->cancelarEnviosPendientes();
+            Log::info('Se omitió el envío de una cotización que ya no está vigente.', [
+                'version_id' => $this->versionId,
+                'canal' => 'correo',
+                'estado' => $version->estado,
+            ]);
+
+            return;
+        }
+        if ($version->email_estado !== 'en_cola') {
             return;
         }
 

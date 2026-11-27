@@ -41,8 +41,8 @@ class SolicitudWebRecibida extends Notification implements ShouldQueue
                 'nombre' => $producto?->nombre ?? 'Producto no disponible',
                 'codigo' => $producto?->codigo_origen ?: $producto?->codigo_barra ?: 'Sin código',
                 'cantidad' => $cantidad,
-                'precio' => (float) ($producto?->precio ?? 0),
-                'subtotal' => $cantidad * (float) ($producto?->precio ?? 0),
+                'precio' => (float) ($producto?->precioVigente() ?? 0),
+                'subtotal' => $cantidad * (float) ($producto?->precioVigente() ?? 0),
             ];
         })->values()->all();
 

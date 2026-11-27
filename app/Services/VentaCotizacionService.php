@@ -12,6 +12,28 @@ use Illuminate\Validation\ValidationException;
 
 class VentaCotizacionService
 {
+    public function confirmarPagoTotal(Venta $venta, string $medioPago): Venta
+    {
+        return DB::transaction(function () use ($venta, $medioPago): Venta {
+            $venta = Venta::query()->whereKey($venta->id_venta)->lockForUpdate()->firstOrFail();
+            if ($venta->cotizacion_version_id === null || $venta->estado_venta !== 'confirmada' || $venta->stock_descontado_at === null) {
+                throw ValidationException::withMessages(['venta' => 'Solo se puede confirmar el pago de una venta de cotización ya registrada.']);
+            }
+            if ($venta->estado_pago === 'pagado') {
+                return $venta;
+            }
+
+            $venta->update([
+                'estado_pago' => 'pagado',
+                'monto_pagado' => $venta->total,
+                'medio_pago' => $medioPago,
+                'pago_confirmado_at' => now(),
+            ]);
+
+            return $venta;
+        }, attempts: 3);
+    }
+
     public function completar(Venta $venta, int $usuarioId): Venta
     {
         return DB::transaction(function () use ($venta, $usuarioId): Venta {

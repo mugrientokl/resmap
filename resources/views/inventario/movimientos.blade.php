@@ -139,7 +139,7 @@
                 </ul>
             </div>
         @endif
-        <form id="movement-form" action="{{ route('inventario.movimientos.store') }}" method="POST" class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2" data-confirm-message="Confirma el movimiento de inventario y verifica el stock resultante." data-confirm-title="Confirmar movimiento de inventario" data-confirm-text="Registrar movimiento">
+        <form id="movement-form" action="{{ route('inventario.movimientos.store') }}" method="POST" class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2" data-confirm-title="Confirmar movimiento de inventario" data-confirm-text="Registrar movimiento">
             @csrf
             <input type="hidden" name="_form_context" value="movement">
 
@@ -197,13 +197,6 @@
                             <div id="movement-product-{{ $index }}-options" role="listbox" class="absolute left-0 top-full z-30 mt-1 hidden max-h-60 w-full overflow-y-auto rounded-md border border-gray-300 bg-white shadow-lg">
                                 <p class="picker-no-results hidden px-3 py-2 text-sm text-gray-500">No hay repuestos que coincidan con la búsqueda.</p>
                             </div>
-                            <label for="movement-product-{{ $index }}-category" class="mb-1 mt-3 block text-sm font-medium text-gray-700">Filtrar por categoría</label>
-                            <select id="movement-product-{{ $index }}-category" class="w-full rounded-md border border-gray-300 p-2 text-sm">
-                                <option value="">Todas las categorías</option>
-                                @foreach($categorias as $categoria)
-                                    <option value="{{ $categoria->id_categoria }}">{{ $categoria->nombre_categoria }}</option>
-                                @endforeach
-                            </select>
                         </div>
                         <div>
                             <label for="movement-product-{{ $index }}-quantity" class="movement-quantity-label mb-1 block text-sm font-medium text-gray-700">Cantidad</label>
@@ -214,7 +207,10 @@
                             <input id="movement-product-{{ $index }}-price" type="number" name="productos[{{ $index }}][precio_entrada]" value="{{ $linea['precio_entrada'] ?? '' }}" min="0" max="99999999.99" step="0.01" class="movement-price w-full rounded-md border border-gray-300 p-2 text-sm">
                             <p class="movement-cost-preview mt-1 text-xs text-gray-600"></p>
                             <p class="movement-last-purchase mt-1 text-xs text-gray-600" aria-live="polite"></p>
-                            <input type="hidden" name="productos[{{ $index }}][aplicar_precio_venta]" value="0" class="movement-apply-price">
+                            <label for="movement-product-{{ $index }}-sale-price" class="mb-1 mt-3 block text-sm font-medium text-gray-700">Precio final de venta (con IVA y margen de ganancia)</label>
+                            <input id="movement-product-{{ $index }}-sale-price" type="number" name="productos[{{ $index }}][precio_venta_manual]" value="" min="0" max="99999999.99" step="0.01" class="movement-sale-price w-full rounded-md border border-gray-300 p-2 text-sm">
+                            <p class="movement-sale-price-preview mt-1 text-xs text-gray-600" aria-live="polite"></p>
+                            <input type="hidden" name="productos[{{ $index }}][aplicar_precio_venta]" value="1" class="movement-apply-price">
                         </div>
                         <button type="button" class="remove-movement-line justify-self-start text-sm font-medium text-red-700 underline">Quitar producto</button>
                     </div>
@@ -228,20 +224,6 @@
                 <button type="submit" class="rounded-md bg-[#b52f25] px-4 py-2 text-sm font-medium text-white hover:bg-[#8f241d]">Registrar Movimiento</button>
             </div>
         </form>
-    </div>
-</div>
-<div id="movement-price-confirmation-modal" class="fixed inset-0 z-[70] hidden overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="movement-price-confirmation-title">
-    <div class="mx-auto my-6 w-full max-w-xl rounded-lg bg-white shadow-2xl">
-        <div class="border-b border-amber-200 px-6 py-4">
-            <h3 id="movement-price-confirmation-title" class="text-lg font-bold text-gray-800">¿Actualizar los precios de venta?</h3>
-            <p class="mt-2 text-sm text-gray-600">La adquisición cambia el costo promedio y la recomendación de estos productos:</p>
-        </div>
-        <ul id="movement-price-confirmation-products" class="max-h-60 space-y-2 overflow-y-auto px-6 py-4 text-sm text-gray-700"></ul>
-        <div class="flex flex-wrap justify-end gap-2 border-t bg-gray-50 px-6 py-4">
-            <button type="button" id="keep-movement-prices" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Dejar precios actuales</button>
-            <button type="button" id="apply-movement-prices" class="rounded-md bg-[#b52f25] px-4 py-2 text-sm font-medium text-white hover:bg-[#8f241d]">Actualizar precios ahora</button>
-            <button type="button" id="cancel-movement-price-confirmation" class="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100">Cancelar movimiento</button>
-        </div>
     </div>
 </div>
 <div id="movement-provider-modal" class="fixed inset-0 z-60 hidden overflow-y-auto bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="movement-provider-modal-title">
@@ -349,8 +331,6 @@
             const selectedProductInput = picker.querySelector('input[type="hidden"]');
             const suggestions = picker.querySelector('[role="listbox"]');
             const noResults = picker.querySelector('.picker-no-results');
-            const categorySelect = picker.querySelector('select');
-
             if (!searchInput || !selectedProductInput || !suggestions || !noResults) {
                 return;
             }
@@ -384,16 +364,14 @@
 
             const filterProducts = () => {
                 const searchTerms = normalize(searchInput.value).split(/\s+/).filter(Boolean);
-                const selectedCategory = categorySelect?.value || '';
 
                 visibleOptions = productOptions.filter((option) => {
-                    const matchesCategory = !selectedCategory || option.dataset.categoryId === selectedCategory;
                     const searchableText = normalize(option.dataset.search || option.textContent);
                     const matchesSearch = searchTerms.every((term) => searchableText.includes(term));
 
-                    option.classList.toggle('hidden', !matchesCategory || !matchesSearch);
+                    option.classList.toggle('hidden', !matchesSearch);
 
-                    return matchesCategory && matchesSearch;
+                    return matchesSearch;
                 });
 
                 noResults.classList.toggle('hidden', visibleOptions.length > 0);
@@ -411,8 +389,7 @@
             };
 
             const initiallySelectedProduct = productOptions.find((option) => option.dataset.productId === selectedProductInput.value);
-            const initialProductMatchesCategory = initiallySelectedProduct
-                && (!categorySelect?.value || initiallySelectedProduct.dataset.categoryId === categorySelect.value);
+            const initialProductMatchesCategory = initiallySelectedProduct;
 
             if (initialProductMatchesCategory) {
                 selectedLabel = initiallySelectedProduct.dataset.label;
@@ -478,20 +455,6 @@
                 option.addEventListener('click', () => selectProduct(option));
             });
 
-            categorySelect?.addEventListener('change', () => {
-                const selectedOption = productOptions.find((option) => option.dataset.productId === selectedProductInput.value);
-                if (selectedOption && categorySelect.value && selectedOption.dataset.categoryId !== categorySelect.value) {
-                    selectedProductInput.value = '';
-                    selectedLabel = '';
-                    searchInput.value = '';
-                    searchInput.setCustomValidity('Selecciona un repuesto de la lista de sugerencias.');
-                    picker.dispatchEvent(new Event('productchange'));
-                }
-
-                filterProducts();
-                setSuggestionsOpen(true);
-            });
-
             document.addEventListener('click', (event) => {
                 if (!picker.contains(event.target)) {
                     setSuggestionsOpen(false);
@@ -513,14 +476,7 @@
         const providerSubmit = providerForm.querySelector('button[type="submit"]');
         const movementLines = document.getElementById('movement-lines');
         const addMovementLineButton = document.getElementById('add-movement-line');
-        const priceConfirmationModal = document.getElementById('movement-price-confirmation-modal');
-        const priceConfirmationProducts = document.getElementById('movement-price-confirmation-products');
-        const applyMovementPricesButton = document.getElementById('apply-movement-prices');
-        const keepMovementPricesButton = document.getElementById('keep-movement-prices');
-        const cancelPriceConfirmationButton = document.getElementById('cancel-movement-price-confirmation');
         let nextLineIndex = Math.max(...Array.from(movementLines.querySelectorAll('.movement-line'), (line) => Number(line.dataset.index)), -1) + 1;
-        let pendingPriceChangeLines = [];
-        let priceDecisionCompleted = false;
         const openModalButton = document.getElementById('open-movement-modal');
         const closeModalButtons = [
             document.getElementById('close-movement-modal'),
@@ -529,7 +485,6 @@
         let previousFocus = null;
 
         const updateMovementLines = () => {
-            priceDecisionCompleted = false;
             const lines = Array.from(movementLines.querySelectorAll('.movement-line'));
             const isPurchase = movementReason.value === 'Compra / Adquisición';
             lines.forEach((line, index) => {
@@ -569,7 +524,12 @@
                 }
                 const catalogItem = productCatalog.find((item) => String(item.id) === product.value);
                 const applyPrice = line.querySelector('.movement-apply-price');
-                applyPrice.disabled = !selected || !isPurchase;
+                applyPrice.disabled = true;
+                applyPrice.value = selected && isPurchase ? '1' : '0';
+                const salePrice = line.querySelector('.movement-sale-price');
+                const salePricePreview = line.querySelector('.movement-sale-price-preview');
+                salePrice.disabled = !selected || !isPurchase;
+                salePrice.required = selected && isPurchase;
                 const costPreview = line.querySelector('.movement-cost-preview');
                 if (selected && catalogItem && isPurchase) {
                     const quantity = Number(line.querySelector('.movement-quantity').value || 0);
@@ -586,8 +546,17 @@
                     costPreview.textContent = quantity > 0 && unitCost > 0
                         ? `Costo total: ${money(quantity * unitCost)} · Costo promedio nuevo: ${money(newAverage)} · Precio recomendado con IVA referencial: ${money(recommended)}`
                         : `Costo promedio actual: ${previousCost !== null ? money(previousCost) : 'sin registrar'} · Precio actual: ${money(catalogItem.precio)}`;
+                    if (recommended > 0) {
+                        if (salePrice.dataset.editado !== 'true') {
+                            salePrice.value = recommended.toFixed(2);
+                        }
+                        salePricePreview.textContent = `Recomendación con IVA referencial (19%): ${money(recommended)}. El precio final es editable.`;
+                    } else {
+                        salePricePreview.textContent = 'Ingresa costo y cantidad para calcular una recomendación; el precio final se define manualmente.';
+                    }
                 } else {
                     costPreview.textContent = '';
+                    salePricePreview.textContent = '';
                 }
                 line.querySelector('.remove-movement-line').classList.toggle('hidden', lines.length === 1);
             });
@@ -616,7 +585,12 @@
                 input.setCustomValidity('');
             });
             line.querySelector('.movement-apply-price').value = '0';
-            line.querySelector('select').value = '';
+            line.querySelector('.movement-sale-price').value = '';
+            line.querySelector('.movement-sale-price').dataset.editado = 'false';
+            const lineSelect = line.querySelector('select');
+            if (lineSelect) {
+                lineSelect.value = '';
+            }
             line.querySelector('[role="listbox"]').classList.add('hidden');
             line.querySelector('[role="combobox"]').setAttribute('aria-expanded', 'false');
             line.querySelector('[role="combobox"]').removeAttribute('aria-activedescendant');
@@ -631,6 +605,9 @@
             picker.addEventListener('productchange', updateMovementLines);
             line.querySelector('.movement-quantity').addEventListener('input', updateMovementLines);
             line.querySelector('.movement-price').addEventListener('input', updateMovementLines);
+            line.querySelector('.movement-sale-price').addEventListener('input', (event) => {
+                event.currentTarget.dataset.editado = 'true';
+            });
             line.querySelector('.remove-movement-line').addEventListener('click', () => {
                 line.remove();
                 updateMovementLines();
@@ -663,50 +640,6 @@
             updateProviderField();
         };
 
-        const calculateRecommendedPrice = (line) => {
-            const productId = line.querySelector('input[type="hidden"]').value;
-            const product = productCatalog.find((item) => String(item.id) === productId);
-            const quantity = Number(line.querySelector('.movement-quantity').value || 0);
-            const unitCost = Number(line.querySelector('.movement-price').value || 0);
-            if (!product || quantity <= 0) {
-                return null;
-            }
-
-            const newAverage = Math.round((
-                (product.stock * (product.costo_promedio_neto || 0) + quantity * unitCost)
-                / (product.stock + quantity)
-            ) * 100) / 100;
-            const margin = Number(product.margen_objetivo || 30);
-            const recommended = Math.round(newAverage * (1 + margin / 100) * 1.19 * 100) / 100;
-            if (Math.round(recommended * 100) === Math.round(Number(product.precio) * 100)) {
-                return null;
-            }
-
-            return { line, product, recommended };
-        };
-
-        const resolvePriceChanges = (applyRecommendedPrices) => {
-            pendingPriceChangeLines.forEach(({ line }) => {
-                line.querySelector('.movement-apply-price').value = applyRecommendedPrices ? '1' : '0';
-            });
-            pendingPriceChangeLines = [];
-            priceDecisionCompleted = true;
-            priceConfirmationModal.classList.add('hidden');
-            movementForm.requestSubmit();
-        };
-
-        applyMovementPricesButton.addEventListener('click', () => resolvePriceChanges(true));
-        keepMovementPricesButton.addEventListener('click', () => resolvePriceChanges(false));
-        cancelPriceConfirmationButton.addEventListener('click', () => {
-            pendingPriceChangeLines = [];
-            priceConfirmationModal.classList.add('hidden');
-        });
-        priceConfirmationModal.addEventListener('click', (event) => {
-            if (event.target === priceConfirmationModal) {
-                pendingPriceChangeLines = [];
-                priceConfirmationModal.classList.add('hidden');
-            }
-        });
 
         const openMovementModal = () => {
             if (!movementModal) {
@@ -782,35 +715,34 @@
         });
         movementReason?.addEventListener('change', updateProviderField);
         movementForm?.addEventListener('submit', (event) => {
-            if (movementReason.value === 'Compra / Adquisición' && !priceDecisionCompleted) {
-                const priceChanges = Array.from(movementLines.querySelectorAll('.movement-line'))
-                    .map(calculateRecommendedPrice)
-                    .filter(Boolean);
+            if (event.submitter && event.submitter.type === 'submit') {
+                event.preventDefault();
+                const summary = Array.from(movementLines.querySelectorAll('.movement-line'))
+                    .filter((line) => line.querySelector('input[type="hidden"]').value)
+                    .map((line) => {
+                        const productId = line.querySelector('input[type="hidden"]').value;
+                        const product = productCatalog.find((item) => String(item.id) === productId);
+                        const quantity = Number(line.querySelector('.movement-quantity').value);
+                        const result = movementType.value === 'ajuste'
+                            ? quantity
+                            : product.stock + (movementType.value === 'egreso' ? -quantity : quantity);
 
-                if (priceChanges.length > 0) {
-                    event.preventDefault();
-                    pendingPriceChangeLines = priceChanges;
-                    priceConfirmationProducts.replaceChildren();
-                    const money = (amount) => `$${new Intl.NumberFormat('es-CL', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(amount)}`;
-                    priceChanges.forEach(({ product, recommended }) => {
-                        const item = document.createElement('li');
-                        item.textContent = `${product.etiqueta}: ${money(product.precio)} → ${money(recommended)}`;
-                        priceConfirmationProducts.appendChild(item);
-                    });
-                    priceConfirmationModal.classList.remove('hidden');
-                    applyMovementPricesButton.focus();
-                    return;
-                }
+                        return `${product.etiqueta} → ${result}`;
+                    })
+                    .join('\n');
+
+                window.resmapConfirm(
+                    `Movimiento: ${movementType.selectedOptions[0].textContent.trim()}\nMotivo: ${movementReason.selectedOptions[0].textContent.trim()}\n\n${summary}\n\n¿Deseas registrar estos cambios?`,
+                    {
+                        title: 'Confirmar movimiento de inventario',
+                        confirmText: 'Registrar movimiento',
+                    },
+                ).then((confirmed) => {
+                    if (confirmed) {
+                        movementForm.submit();
+                    }
+                });
             }
-
-            const summary = Array.from(movementLines.querySelectorAll('.movement-line')).filter((line) => line.querySelector('input[type="hidden"]').value).map((line) => {
-                const productId = line.querySelector('input[type="hidden"]').value;
-                const product = productCatalog.find((item) => String(item.id) === productId);
-                const quantity = Number(line.querySelector('.movement-quantity').value);
-                const result = movementType.value === 'ajuste' ? quantity : product.stock + (movementType.value === 'egreso' ? -quantity : quantity);
-                return `${product.etiqueta} → ${result}`;
-            }).join('\n');
-            movementForm.dataset.confirmMessage = `Movimiento: ${movementType.selectedOptions[0].textContent.trim()}\nMotivo: ${movementReason.selectedOptions[0].textContent.trim()}\n\n${summary}\n\n¿Deseas registrar estos cambios?`;
         });
         movementModal?.addEventListener('click', (event) => {
             if (event.target === movementModal) {
@@ -818,11 +750,6 @@
             }
         });
         document.addEventListener('keydown', (event) => {
-            if (event.key === 'Escape' && !priceConfirmationModal.classList.contains('hidden')) {
-                pendingPriceChangeLines = [];
-                priceConfirmationModal.classList.add('hidden');
-                return;
-            }
             if (event.key === 'Escape' && !providerModal.classList.contains('hidden')) {
                 closeProviderModal();
                 return;

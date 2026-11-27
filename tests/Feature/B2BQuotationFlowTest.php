@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
@@ -176,12 +177,20 @@ class B2BQuotationFlowTest extends TestCase
             'logoDataUri' => '',
         ];
         $this->view('cotizaciones.pdf', $datos)
-            ->assertSee('Razón social: Cliente de prueba')
-            ->assertSee('Atención / contacto: Contacto B2B')
-            ->assertSee('Cargo / área: OT-123')
-            ->assertSee('Teléfono: +56912345678')
-            ->assertSee('Región: Metropolitana')
-            ->assertSee('Ciudad: Santiago')
+            ->assertSee('Razón social:')
+            ->assertSee('Cliente De Prueba')
+            ->assertSee('Atención / contacto:')
+            ->assertSee('Contacto B2B')
+            ->assertSee('Giro:')
+            ->assertSee('Comercio automotriz')
+            ->assertSee('Cargo / área:')
+            ->assertSee('OT-123')
+            ->assertSee('Teléfono:')
+            ->assertSee('+56912345678')
+            ->assertSee('Región:')
+            ->assertSee('Metropolitana')
+            ->assertSee('Ciudad:')
+            ->assertSee('Santiago')
             ->assertSee('Esperando tener una buena acogida por parte de ustedes')
             ->assertDontSee('Empresa nueva')
             ->assertDontSee('Contacto nuevo')
@@ -233,10 +242,11 @@ class B2BQuotationFlowTest extends TestCase
         $this->assertDatabaseCount('ventas', 0);
         $this->get(route('solicitudes.show', $solicitudId))
             ->assertOk()
-            ->assertSee('sin adjuntar una orden de compra')
+            ->assertSee('Estado del pago')
+            ->assertDontSee('sin adjuntar una orden de compra')
             ->assertDontSee('Confirmar pago');
-        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasNoErrors();
-        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.convertir-venta', $versionId), ['estado_pago' => 'pendiente'])->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.convertir-venta', $versionId), ['estado_pago' => 'pendiente'])->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 3]);
         $this->assertDatabaseCount('ventas', 1);
@@ -251,6 +261,150 @@ class B2BQuotationFlowTest extends TestCase
         $this->assertDatabaseHas('reservas_inventario', ['producto_id' => $productId, 'estado' => 'consumida', 'cantidad' => 2]);
         $this->assertDatabaseHas('cotizacion_versiones', ['id_version' => $versionId, 'metodo_entrega' => 'por_coordinar']);
         $this->assertDatabaseCount('ordenes_compra', 0);
+    }
+
+    public function test_pending_payment_remains_visible_until_full_payment_without_another_stock_deduction(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $this->travelTo(now()->startOfSecond());
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 2);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $this->actingAs($seller)->post(route('solicitudes.cotizacion.crear', $solicitudId))->assertSessionHasNoErrors();
+        $version = CotizacionVersion::firstOrFail();
+        $this->post(route('cotizaciones.enviar', $version))->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.respuesta-interna', $version), ['decision' => 'aceptada'])->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.convertir-venta', $version), ['estado_pago' => 'pendiente'])->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.convertir-venta', $version), ['estado_pago' => 'pendiente'])->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.convertir-venta', $version), ['estado_pago' => 'pagado', 'medio_pago' => 'Tarjeta'])->assertSessionHasErrors('estado_pago');
+        $venta = Venta::firstOrFail();
+        $this->assertSame('pendiente', $venta->estado_pago);
+        $this->assertNull($venta->pago_confirmado_at);
+        $this->get(route('solicitudes.index', ['estado' => 'completada_pendiente_pago']))
+            ->assertSee('Cotización #'.$solicitudId)
+            ->assertSee('Venta completada · pago pendiente');
+        $this->get(route('solicitudes.index', ['estado' => 'pendiente_pago']))
+            ->assertSee('Cotización #'.$solicitudId);
+        $this->get(route('solicitudes.index', ['estado' => 'completada']))
+            ->assertDontSee('Cotización #'.$solicitudId);
+        $this->get(route('solicitudes.show', $solicitudId))
+            ->assertSee('Confirmar pago total');
+        $this->get(route('solicitudes.seguimiento', $solicitudId))
+            ->assertSee('Pago pendiente')
+            ->assertSee('Pago completo')
+            ->assertSee('Próximo paso')
+            ->assertDontSee('Nadie; proceso finalizado');
+
+        $this->post(route('ventas.confirmar-pago', $venta), ['medio_pago' => 'Cheque'])
+            ->assertSessionHasErrors('medio_pago', null, 'pagoVenta');
+        $this->assertSame('pendiente', $venta->fresh()->estado_pago);
+        $this->travel(2)->days();
+        $fechaPago = now();
+        $this->post(route('ventas.confirmar-pago', $venta), [
+            'medio_pago' => 'Transferencia',
+            'monto_pagado' => 1,
+            'total' => 1,
+        ])->assertSessionHasNoErrors();
+        $venta->refresh();
+        $this->assertSame('pagado', $venta->estado_pago);
+        $this->assertEquals($venta->total, $venta->monto_pagado);
+        $this->assertTrue($fechaPago->equalTo($venta->pago_confirmado_at));
+        $this->assertTrue($venta->pago_confirmado_at->greaterThan($venta->confirmada_at));
+        $this->post(route('ventas.confirmar-pago', $venta), ['medio_pago' => 'Tarjeta'])
+            ->assertSessionHasNoErrors();
+        $this->assertSame('Transferencia', $venta->fresh()->medio_pago);
+        $this->assertDatabaseCount('inventario_movimientos', 1);
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 3]);
+        $this->get(route('solicitudes.index', ['estado' => 'completada']))
+            ->assertSee('Cotización #'.$solicitudId);
+        $this->get(route('solicitudes.index', ['estado' => 'pendiente_pago']))
+            ->assertDontSee('Cotización #'.$solicitudId);
+        $this->get(route('solicitudes.index', ['estado' => 'completada_pendiente_pago']))
+            ->assertDontSee('Cotización #'.$solicitudId);
+        $this->get(route('solicitudes.seguimiento', $solicitudId))
+            ->assertSee('Pago confirmado')
+            ->assertSee('Nadie; proceso finalizado')
+            ->assertDontSee('Próximo paso');
+        $this->travelBack();
+    }
+
+    public function test_sale_requires_a_payment_choice_and_can_be_closed_as_paid_without_trusting_client_amounts(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 2);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $seller = User::factory()->create(['rol' => 'Vendedor']);
+        $this->actingAs($seller)->post(route('solicitudes.cotizacion.crear', $solicitudId))->assertSessionHasNoErrors();
+        $version = CotizacionVersion::firstOrFail();
+        $this->post(route('cotizaciones.enviar', $version))->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.respuesta-interna', $version), ['decision' => 'aceptada'])->assertSessionHasNoErrors();
+
+        $this->post(route('cotizaciones.convertir-venta', $version))->assertSessionHasErrors('estado_pago', null, 'pagoVenta');
+        $this->post(route('cotizaciones.convertir-venta', $version), ['estado_pago' => 'cancelada'])->assertSessionHasErrors('estado_pago', null, 'pagoVenta');
+        $this->from(route('solicitudes.show', $solicitudId))
+            ->post(route('cotizaciones.convertir-venta', $version), ['estado_pago' => 'pagado'])
+            ->assertRedirect(route('solicitudes.show', $solicitudId));
+        $this->get(route('solicitudes.show', $solicitudId))
+            ->assertSeeInOrder(['id="medio-pago-venta"', 'id="error-medio-pago-venta"'], false)
+            ->assertSee('Selecciona el medio de pago para registrar la venta como pagada.')
+            ->assertDontSee('No se pudo completar la acción:')
+            ->assertDontSee('The medio pago field');
+        $this->assertDatabaseCount('ventas', 0);
+        $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 5]);
+
+        $this->post(route('cotizaciones.convertir-venta', $version), [
+            'estado_pago' => 'pagado',
+            'medio_pago' => 'Efectivo',
+            'monto_pagado' => 1,
+            'total' => 1,
+        ])->assertSessionHasNoErrors();
+        $venta = Venta::firstOrFail();
+        $this->assertSame('pagado', $venta->estado_pago);
+        $this->assertEquals($version->total, $venta->monto_pagado);
+        $this->assertNotNull($venta->pago_confirmado_at);
+        $this->post(route('cotizaciones.convertir-venta', $version), ['estado_pago' => 'pendiente'])->assertSessionHasErrors('estado_pago');
+        $this->assertSame('pagado', $venta->fresh()->estado_pago);
+        $this->assertDatabaseCount('ventas', 1);
+        $this->assertDatabaseCount('inventario_movimientos', 1);
+        $this->get(route('solicitudes.show', $solicitudId))->assertDontSee('Confirmar pago total');
+
+        $seller->forceFill(['permisos' => ['cotizaciones.ver', 'cotizaciones.editar']])->save();
+        $this->actingAs($seller->fresh())->post(route('ventas.confirmar-pago', $venta), ['medio_pago' => 'Efectivo'])->assertForbidden();
+        $seller->forceFill(['permisos' => ['ventas.ver', 'ventas.crear']])->save();
+        $this->actingAs($seller->fresh())->post(route('ventas.confirmar-pago', $venta), ['medio_pago' => 'Efectivo'])->assertForbidden();
+    }
+
+    public function test_payment_cannot_be_confirmed_for_a_pos_sale_or_before_stock_is_deducted(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $venta = Venta::create([
+            'fecha' => now(),
+            'tipo_documento' => 'Resumen interno',
+            'neto' => 1000,
+            'iva' => 190,
+            'total' => 1190,
+            'medio_pago' => 'Pendiente de confirmación',
+            'estado_venta' => 'confirmada',
+            'estado_pago' => 'pendiente',
+            'user_id' => $admin->id,
+        ]);
+        $this->actingAs($admin)->post(route('ventas.confirmar-pago', $venta), ['medio_pago' => 'Efectivo'])
+            ->assertSessionHasErrors('venta');
+        $this->assertSame('pendiente', $venta->fresh()->estado_pago);
+
+        Notification::fake();
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $this->post(route('solicitudes.cotizacion.crear', $solicitudId))->assertSessionHasNoErrors();
+        $version = CotizacionVersion::firstOrFail();
+        $venta->update(['cotizacion_version_id' => $version->id_version]);
+        $this->post(route('ventas.confirmar-pago', $venta), ['medio_pago' => 'Efectivo'])
+            ->assertSessionHasErrors('venta');
+        $this->assertNull($venta->fresh()->pago_confirmado_at);
     }
 
     public function test_changes_create_new_version_and_release_removed_reservations(): void
@@ -279,6 +433,7 @@ class B2BQuotationFlowTest extends TestCase
         ])->assertSessionHasNoErrors();
         $secondVersion = (int) DB::table('cotizacion_versiones')->where('numero_version', 2)->value('id_version');
         $this->assertNotSame(0, $secondVersion);
+        $this->assertDatabaseHas('cotizacion_versiones', ['id_version' => $firstVersion, 'estado' => 'reemplazada']);
         $this->assertSame(1, (int) DB::table('reservas_inventario')->where('producto_id', $first)->where('estado', 'activa')->sum('cantidad'));
         $this->assertSame(2, (int) DB::table('reservas_inventario')->where('producto_id', $second)->where('estado', 'activa')->sum('cantidad'));
         $this->assertDatabaseHas('productos', ['id_producto' => $first, 'stock' => 5]);
@@ -287,6 +442,58 @@ class B2BQuotationFlowTest extends TestCase
             ->assertSessionHasNoErrors()
             ->assertSessionHas('rejected', 'Se registró el rechazo de la cotización.');
         $this->assertSame(0, DB::table('reservas_inventario')->where('estado', 'activa')->count());
+    }
+
+    public function test_new_version_invalidates_previous_quote_even_when_its_validity_date_is_in_the_future(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $this->createProductRequest($this->createProductWithStock(5), 1);
+        $solicitudId = (int) DB::table('solicitud_webs')->value('id_solicitud');
+        $this->actingAs(User::factory()->create(['rol' => 'Vendedor']))
+            ->post(route('solicitudes.cotizacion.crear', $solicitudId))->assertSessionHasNoErrors();
+        $anterior = CotizacionVersion::firstOrFail();
+        $this->post(route('cotizaciones.enviar', $anterior))->assertSessionHasNoErrors();
+        $anterior->update([
+            'token_cliente_hash' => hash('sha256', 'token-historico'),
+            'token_expira_at' => now()->addDays(3),
+        ]);
+        $urlPublica = URL::temporarySignedRoute('cotizaciones.pdf.publico', $anterior->vigente_hasta, ['version' => $anterior->id_version]);
+        $urlExterna = URL::temporarySignedRoute('cotizaciones.pdf.externo', $anterior->vigente_hasta, ['version' => $anterior->id_version], absolute: false);
+        $this->get($urlPublica)->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->get($urlExterna)->assertOk();
+
+        $this->post(route('solicitudes.cotizacion.crear', $solicitudId))->assertSessionHasNoErrors();
+        $anterior = $anterior->fresh(['cotizacion.solicitud', 'detalles']);
+        $this->assertTrue($anterior->vigente_hasta->isFuture());
+        $this->assertSame('reemplazada', $anterior->estado);
+        $this->assertNull($anterior->token_cliente_hash);
+        $this->assertNull($anterior->token_expira_at);
+        $this->get($urlPublica)->assertStatus(410)->assertSee('sido reemplazada por una nueva versión');
+        $this->get($urlExterna)->assertStatus(410);
+        $this->post(route('cotizaciones.enviar', $anterior))->assertUnprocessable();
+        $this->post(route('cotizaciones.respuesta-interna', $anterior), ['decision' => 'aceptada'])
+            ->assertSessionHasErrors('cotizacion');
+        $this->assertDatabaseCount('ventas', 0);
+
+        $this->get(route('cotizaciones.pdf', $anterior))->assertOk()->assertHeader('content-type', 'application/pdf');
+        $this->view('cotizaciones.pdf', [
+            'version' => $anterior,
+            'cliente' => Cliente::desdeSnapshot($anterior->snapshotDatosCliente()),
+            'logoDataUri' => '',
+        ])->assertSee('INVALIDADA POR REEMPLAZO')->assertDontSee('Válida hasta:');
+        $detalle = $this->get(route('solicitudes.show', $solicitudId))->assertOk()
+            ->assertSee('Invalidada por nueva versión')
+            ->assertSee('Descargar PDF histórico');
+        $this->assertSame(1, preg_match('/<span>Versión 1.*?<\\/span>/su', $detalle->getContent(), $etiquetaVersion));
+        $this->assertStringNotContainsString('válida hasta', $etiquetaVersion[0]);
+
+        $actual = CotizacionVersion::where('numero_version', 2)->firstOrFail();
+        $urlActual = URL::temporarySignedRoute('cotizaciones.pdf.publico', $actual->vigente_hasta, ['version' => $actual->id_version]);
+        $this->get($urlActual)->assertOk();
+        $anterior->update(['estado' => 'enviada']);
+        $this->get($urlPublica)->assertStatus(410);
+        $this->post(route('cotizaciones.enviar', $anterior))->assertUnprocessable();
     }
 
     public function test_sale_with_insufficient_stock_rolls_back_without_creating_a_sale(): void
@@ -303,7 +510,7 @@ class B2BQuotationFlowTest extends TestCase
         $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
         DB::table('productos')->where('id_producto', $productId)->update(['stock' => 1]);
 
-        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasErrors('stock');
+        $this->post(route('cotizaciones.convertir-venta', $versionId), ['estado_pago' => 'pagado', 'medio_pago' => 'Efectivo'])->assertSessionHasErrors('stock');
         $this->assertDatabaseCount('ventas', 0);
         $this->assertDatabaseCount('inventario_movimientos', 0);
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 1]);
@@ -321,7 +528,7 @@ class B2BQuotationFlowTest extends TestCase
         $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
         $this->post(route('cotizaciones.enviar', $versionId));
         $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
-        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.convertir-venta', $versionId), ['estado_pago' => 'pendiente'])->assertSessionHasNoErrors();
         DB::table('ventas')->update(['stock_descontado_at' => null, 'estado_venta' => 'pendiente_confirmacion']);
 
         $migration = require database_path('migrations/2026_11_13_224156_migrate_pending_b2b_sales_to_new_flow.php');
@@ -347,7 +554,7 @@ class B2BQuotationFlowTest extends TestCase
             $versionId = (int) DB::table('cotizacion_versiones')->max('id_version');
             $this->post(route('cotizaciones.enviar', $versionId));
             $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
-            $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasNoErrors();
+            $this->post(route('cotizaciones.convertir-venta', $versionId), ['estado_pago' => 'pendiente'])->assertSessionHasNoErrors();
             $products[$index] = $productId;
             $sales[$index] = (int) DB::table('ventas')->max('id_venta');
         }
@@ -382,7 +589,7 @@ class B2BQuotationFlowTest extends TestCase
         $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
         $this->post(route('cotizaciones.enviar', $versionId));
         $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
-        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.convertir-venta', $versionId), ['estado_pago' => 'pendiente'])->assertSessionHasNoErrors();
         DB::table('inventario_movimientos')->delete();
         DB::table('productos')->where('id_producto', $productId)->update(['stock' => 5]);
         DB::table('ventas')->update(['stock_descontado_at' => null, 'estado_venta' => 'pendiente_confirmacion']);
@@ -410,7 +617,7 @@ class B2BQuotationFlowTest extends TestCase
         $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
         DB::table('productos')->where('id_producto', $productId)->update(['stock' => 4]);
 
-        $this->post(route('cotizaciones.convertir-venta', $versionId))->assertSessionHasErrors('stock');
+        $this->post(route('cotizaciones.convertir-venta', $versionId), ['estado_pago' => 'pendiente'])->assertSessionHasErrors('stock');
         $this->assertDatabaseHas('productos', ['id_producto' => $productId, 'stock' => 4]);
         $this->assertSame(5, (int) DB::table('reservas_inventario')->where('estado', 'activa')->sum('cantidad'));
         $this->assertDatabaseCount('ventas', 0);
@@ -428,7 +635,7 @@ class B2BQuotationFlowTest extends TestCase
         $versionId = (int) DB::table('cotizacion_versiones')->value('id_version');
         $this->post(route('cotizaciones.enviar', $versionId));
         $this->post(route('cotizaciones.respuesta-interna', $versionId), ['decision' => 'aceptada']);
-        $this->post(route('cotizaciones.convertir-venta', $versionId));
+        $this->post(route('cotizaciones.convertir-venta', $versionId), ['estado_pago' => 'pendiente']);
         $ventaId = (int) DB::table('ventas')->value('id_venta');
         $admin = User::factory()->create(['rol' => 'Administrador']);
         $this->actingAs($admin)->get(route('reportes.ventas.resumen', $ventaId))->assertNotFound();
@@ -485,9 +692,9 @@ class B2BQuotationFlowTest extends TestCase
             ->assertSee('RECEPTOR')
             ->assertSee('453000')
             ->assertSee('Responsable receptor')
-            ->assertSee('Ciudad: Santiago')
+            ->assertSeeText('Ciudad: Santiago')
             ->assertSee('Tipo de venta: Del giro')
-            ->assertSee('Tipo de compra: Del giro')
+            ->assertSeeText('Tipo de compra: Del giro')
             ->assertDontSee('OT-123');
         $this->get(route('solicitudes.show', $solicitudId))
             ->assertOk()
@@ -933,6 +1140,7 @@ class B2BQuotationFlowTest extends TestCase
             'rut' => '12345678-5',
             'nombre' => 'Cliente de prueba',
             'contacto' => 'Contacto B2B',
+            'giro' => 'Comercio automotriz',
             'cargo' => 'OT-123',
             'correo' => $correo ?? 'cliente@example.test',
             'prefijo_telefono' => '+569',

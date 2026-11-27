@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="es">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Nueva contraseña | RESMAP</title>@vite('resources/css/app.css')<link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"><link rel="stylesheet" href="{{ asset('css/fondo-sistema.css') }}"></head>
-<body class="resmap-background flex min-h-screen items-center justify-center px-6 text-[#241817]">
+<body class="resmap-background flex min-h-screen items-center justify-center px-6 text-[#241817]" style="--resmap-background-url: url('{{ $resmapBackgroundUrl }}')">
 <main class="w-full max-w-md bg-white p-8 shadow-2xl sm:p-12">
     <a href="{{ route('login') }}" class="text-sm font-bold text-[#9f2f25]">← Volver al acceso</a>
     <h1 class="mt-10 text-3xl font-black">Nueva contraseña</h1>

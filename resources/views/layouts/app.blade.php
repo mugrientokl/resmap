@@ -66,6 +66,36 @@
             gap: 2rem;
             align-items: start;
         }
+        .home-contact-heading-panel {
+            display: inline-flex;
+            max-width: 100%;
+            border: 1px solid rgba(192, 106, 96, .22);
+            border-radius: 9999px;
+            background: rgba(255, 255, 255, .58);
+            padding: .65rem 1.25rem;
+            -webkit-backdrop-filter: blur(16px) saturate(125%);
+            backdrop-filter: blur(16px) saturate(125%);
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, .82);
+        }
+        .home-contact-address {
+            background: linear-gradient(135deg, rgba(255, 255, 255, .78), rgba(255, 239, 236, .68));
+            -webkit-backdrop-filter: blur(18px) saturate(125%);
+            backdrop-filter: blur(18px) saturate(125%);
+        }
+        @media (max-width: 639px) {
+            .home-contact-heading-panel {
+                width: 100%;
+                border-radius: 1rem;
+                justify-content: center;
+                text-align: center;
+            }
+            .home-contact-heading-panel h2,
+            .home-contact-heading-panel h3 {
+                font-size: 1.45rem;
+                line-height: 1.15;
+                overflow-wrap: anywhere;
+            }
+        }
         .home-footer-brand { display: flex; align-items: center; gap: 1rem; }
         .home-footer-brand a { flex: 0 0 45%; }
         .home-footer-brand img { width: 14rem; max-width: 100%; }
@@ -802,7 +832,7 @@
         }
     </style>
 </head>
-<body class="resmap-background bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ $isStaff ? 'navegacion-izquierda' : 'navegacion-superior public-navigation' }}{{ $floatingPublicNavigation ? ' floating-public-navigation' : '' }}{{ request()->routeIs('catalogo.index') ? ' catalogo-page' : '' }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}">
+<body class="resmap-background bg-[#f7f3f0] font-sans antialiased text-[#241817] {{ $isHome ? 'homepage' : '' }} {{ $isStaff ? 'navegacion-izquierda' : 'navegacion-superior public-navigation' }}{{ $floatingPublicNavigation ? ' floating-public-navigation' : '' }}{{ request()->routeIs('catalogo.index') ? ' catalogo-page' : '' }}{{ request()->routeIs('servicios.index') ? ' servicios-page' : '' }}" style="--resmap-background-url: url('{{ $resmapBackgroundUrl }}')">
     @if($isStaff)
         <button type="button" id="mobile-menu-button" class="rounded-md p-2 text-white hover:bg-[#721d18] md:hidden" aria-controls="{{ $isHome ? 'home-navigation' : 'main-navigation' }}" aria-expanded="false" aria-label="Abrir menú">
             <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
@@ -862,6 +892,7 @@
                     @if(auth()->user()->rol === 'Administrador')
                         <a href="{{ route('usuarios.index') }}" class="nav-link" @if(request()->routeIs('usuarios.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2m6-10a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm8-5a4 4 0 0 1 0 7m2 8v-2a4 4 0 0 0-2-3.46"/></svg><span>Usuarios</span></a>
                         <a href="{{ route('backups.index') }}" class="nav-link" @if(request()->routeIs('backups.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5h16v14H4V5Zm3 3h10M7 12h10M7 16h6"/></svg><span>Backups</span></a>
+                        <a href="{{ route('configuracion.index') }}" class="nav-link" @if(request()->routeIs('configuracion.*')) aria-current="page" @endif><svg class="nav-icon" aria-hidden="true" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-2.1a7.7 7.7 0 0 0 0-2.8l2-1.5-2-3.4-2.4 1a7.5 7.5 0 0 0-2.4-1.4L14.3 3h-4.6l-.4 3.3a7.5 7.5 0 0 0-2.4 1.4l-2.4-1-2 3.4 2 1.5a7.7 7.7 0 0 0 0 2.8l-2 1.5 2 3.4 2.4-1a7.5 7.5 0 0 0 2.4 1.4l.3 3.3h4.7l.3-3.3a7.5 7.5 0 0 0 2.4-1.4l2.4 1 2-3.4-2-1.5Z"/></svg><span>Configuración</span></a>
                     @endif
                 </div>
             @else
@@ -923,12 +954,14 @@
             <section class="home-contact-section relative isolate overflow-hidden px-[var(--content-gutter)] py-10 sm:py-14 lg:py-16" aria-labelledby="contacto-titulo">
                 <div class="home-contact-content grid w-full gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)] lg:items-start lg:gap-10 xl:gap-16">
                     <div class="home-contact-cards grid w-full max-w-[25rem] grid-rows-[auto_repeat(3,1fr)] justify-self-center gap-4">
-                        <h2 id="contacto-titulo" class="mb-3 text-2xl font-black uppercase text-[#721d18] sm:text-3xl xl:text-4xl">Datos de contacto</h2>
+                        <div class="home-contact-heading-panel mb-3">
+                            <h2 id="contacto-titulo" class="text-2xl font-black uppercase text-[#721d18] sm:text-3xl xl:text-4xl">Contáctanos</h2>
+                        </div>
                         <a href="https://wa.me/56976477124" target="_blank" rel="noopener noreferrer" class="resmap-glass group flex min-h-28 items-center gap-4 rounded-full border px-4 py-4 text-[#382723] transition duration-300 hover:-translate-y-1 hover:border-[#f08c80] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#8f241d]" style="border-radius: 9999px" aria-label="Escribirnos por WhatsApp al +56 9 7647 7124">
                             <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#8f241d] text-white" aria-hidden="true">
                                 <svg class="h-9 w-9" fill="currentColor" viewBox="0 0 24 24"><path d="M20.5 3.5A11.8 11.8 0 0 0 12.1 0C5.6 0 .3 5.3.3 11.8c0 2.1.6 4.1 1.6 5.8L.2 24l6.5-1.7a11.8 11.8 0 0 0 5.4 1.3h.1c6.5 0 11.8-5.3 11.8-11.8 0-3.1-1.2-6.1-3.5-8.3ZM12.1 21.6h-.1c-1.7 0-3.4-.5-4.8-1.3l-.3-.2-3.8 1 1-3.7-.2-.3a9.8 9.8 0 1 1 8.2 4.5Zm5.4-7.3c-.3-.1-1.8-.9-2.1-1-.3-.1-.5-.1-.7.2l-.9 1.1c-.2.2-.3.2-.6.1a8 8 0 0 1-4-3.5c-.3-.5.3-.5.8-1.6.1-.2 0-.4 0-.5l-.9-2.2c-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.1 3c.1.2 2 3.1 4.8 4.3 2.8 1.2 2.8.8 3.3.8.5 0 1.8-.7 2-1.4.3-.6.3-1.2.2-1.3Z" /></svg>
                             </span>
-                            <span><strong class="block text-xl font-medium sm:text-2xl">Escríbenos</strong><span class="mt-1 block text-xl font-medium sm:text-2xl">+56 9 7647 7124</span></span>
+                            <span><strong class="block text-xl font-medium sm:text-2xl">WhatsApp</strong><span class="mt-1 block text-xl font-medium sm:text-2xl">+56 9 7647 7124</span></span>
                         </a>
                         <div class="resmap-glass flex min-h-28 items-center gap-4 rounded-full border px-4 py-4 text-[#382723] transition duration-300 hover:-translate-y-1 hover:border-[#f08c80]">
                             <span class="flex h-16 w-16 shrink-0 items-center justify-center rounded-full border border-[#d66b60]/30 bg-[#8f241d] text-white" aria-hidden="true">
@@ -945,8 +978,10 @@
                     </div>
 
                     <div class="grid gap-4">
-                        <h3 class="mb-3 text-2xl font-black uppercase text-[#721d18] sm:text-3xl xl:text-4xl">Dónde encontrarnos</h3>
-                        <address class="resmap-glass flex flex-col rounded-3xl border p-5 text-left not-italic text-[#382723] transition duration-300 hover:-translate-y-1 hover:border-[#f08c80] sm:p-7">
+                        <div class="home-contact-heading-panel mb-3">
+                            <h3 class="text-2xl font-black uppercase text-[#721d18] sm:text-3xl xl:text-4xl">Dónde encontrarnos</h3>
+                        </div>
+                        <address class="resmap-glass home-contact-address flex flex-col rounded-3xl border p-5 text-left not-italic text-[#382723] transition duration-300 hover:-translate-y-1 hover:border-[#f08c80] sm:p-7">
                             <p class="text-lg font-medium leading-snug sm:text-xl">Av. Gabriela Mistral 1255, Bodega 48<br>Los Ángeles, Región del Biobío, Chile</p>
                             <div class="mt-5 min-h-56 flex-1 overflow-hidden rounded-lg border border-[#e8c8c3] bg-[#f7f3f0] sm:min-h-72">
                                 <iframe title="Ubicación de RESMAP en Los Ángeles, Biobío" src="https://www.google.com/maps?q=-37.4741361,-72.32925&z=17&output=embed" class="h-56 w-full border-0 sm:h-72 lg:h-full lg:min-h-72" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>

@@ -97,6 +97,42 @@ class SeguimientoCotizacionTest extends TestCase
             ->assertNotFound();
     }
 
+    public function test_historical_credit_balance_can_be_closed_with_full_payment(): void
+    {
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        [$solicitud, $version] = $this->crearCotizacion($admin, 'aceptada');
+        $venta = Venta::create([
+            'fecha' => now(),
+            'tipo_documento' => 'Resumen interno',
+            'neto' => 1000,
+            'iva' => 190,
+            'total' => 1190,
+            'medio_pago' => 'Transferencia',
+            'estado_venta' => 'confirmada',
+            'estado_pago' => 'credito_parcial',
+            'monto_pagado' => 500,
+            'credito_autorizado_por' => $admin->id,
+            'credito_autorizado_at' => now()->subDays(2),
+            'confirmada_at' => now()->subDays(2),
+            'stock_descontado_at' => now()->subDay(),
+            'cotizacion_version_id' => $version->id_version,
+            'user_id' => $admin->id,
+            'id_cliente' => $solicitud->id_cliente,
+        ]);
+
+        $this->actingAs($admin)->get(route('solicitudes.show', $solicitud->id_solicitud))
+            ->assertSee('Venta completada · pago pendiente')
+            ->assertSee('Saldo pendiente: $ 690');
+        $this->post(route('ventas.confirmar-pago', $venta), ['medio_pago' => 'Transferencia'])
+            ->assertSessionHasNoErrors();
+        $this->assertEquals(1190, $venta->fresh()->monto_pagado);
+        $this->get(route('solicitudes.seguimiento', $solicitud->id_solicitud))
+            ->assertSee('Crédito autorizado')
+            ->assertSee('Pago confirmado')
+            ->assertSee('Nadie; proceso finalizado')
+            ->assertDontSee('Pago pendiente');
+    }
+
     public function test_index_separates_and_lists_quotations_and_services(): void
     {
         $admin = User::factory()->create(['rol' => 'Administrador']);

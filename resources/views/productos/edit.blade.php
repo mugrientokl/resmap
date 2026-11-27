@@ -55,23 +55,7 @@
                     <option value="metro" @selected(old('unidad', $producto->unidad) === 'metro')>Metro</option>
                 </select>
             </div>
-            <div class="flex items-center gap-2 pt-6">
-                <input type="hidden" name="activo" value="0">
-                <input id="activo" type="checkbox" name="activo" value="1" @checked((bool) old('activo', $producto->activo)) class="rounded border-gray-300 text-[#b52f25] shadow-sm focus:ring-[#b52f25]">
-                <label for="activo" class="text-sm font-medium text-gray-700">Activo y visible en el catálogo</label>
-            </div>
         </div>
-
-        <div id="motivo-desactivacion-container" class="{{ $producto->activo && !(bool) old('activo', $producto->activo) ? '' : 'hidden' }}">
-            <label for="motivo_desactivacion" class="block text-sm font-medium text-gray-700">Motivo de desactivación</label>
-            <textarea id="motivo_desactivacion" name="motivo_desactivacion" rows="3" maxlength="1000" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">{{ old('motivo_desactivacion') }}</textarea>
-        </div>
-
-        @if($producto->stock > 0)
-            <p id="aviso-stock-desactivacion" class="{{ $producto->activo && !(bool) old('activo', $producto->activo) ? '' : 'hidden' }} rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900" role="alert">
-                El repuesto tiene {{ $producto->stock }} unidades. Al desactivarlo, el stock se conservará en inventario y dejará de estar disponible en el catálogo.
-            </p>
-        @endif
 
         <div>
             <label class="block text-sm font-medium text-gray-700">Descripción</label>
@@ -81,7 +65,7 @@
         <div>
             <label class="block text-sm font-medium text-gray-700">Imagen del producto (opcional)</label>
             <input type="file" name="imagen" accept="image/*" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm border p-2">
-            @if($producto->imagen)<img src="{{ asset('storage/'.$producto->imagen) }}" alt="{{ $producto->nombre }}" class="mt-3 h-24 w-24 object-cover">@endif
+            @if($producto->imagen)<img src="{{ asset('storage/'.$producto->imagen) }}" alt="{{ $producto->nombre }}" class="mt-3 h-32 w-32 object-contain">@endif
         </div>
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -135,25 +119,6 @@
     costoPromedio.addEventListener('input', actualizarPrecioProducto);
     margenObjetivo.addEventListener('input', actualizarPrecioProducto);
     actualizarPrecioProducto();
-
-    const activoProducto = document.getElementById('activo');
-    const motivoDesactivacionContainer = document.getElementById('motivo-desactivacion-container');
-    const motivoDesactivacion = document.getElementById('motivo_desactivacion');
-    const avisoStockDesactivacion = document.getElementById('aviso-stock-desactivacion');
-    const productoEstabaActivo = @json((bool) $producto->activo);
-
-    function actualizarAvisosDesactivacion() {
-        const seDesactiva = productoEstabaActivo && !activoProducto.checked;
-
-        motivoDesactivacionContainer.classList.toggle('hidden', !seDesactiva);
-        motivoDesactivacion.required = seDesactiva;
-        if (avisoStockDesactivacion) {
-            avisoStockDesactivacion.classList.toggle('hidden', !seDesactiva);
-        }
-    }
-
-    activoProducto.addEventListener('change', actualizarAvisosDesactivacion);
-    actualizarAvisosDesactivacion();
 
 </script>
 <script type="application/json" id="nombres-productos">@json($nombresExistentes)</script>

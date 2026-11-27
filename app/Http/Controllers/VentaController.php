@@ -19,6 +19,7 @@ use App\Support\TextoPersona;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -162,13 +163,14 @@ class VentaController extends Controller
                         throw new \Exception("Stock insuficiente para el producto: {$producto->nombre}");
                     }
 
-                    $subtotal = $producto->precio * $cantidad;
+                    $precioVigente = $producto->precioVigente();
+                    $subtotal = $precioVigente * $cantidad;
                     $neto += $subtotal;
 
                     $detallesCalculados[] = [
                         'producto' => $producto,
                         'cantidad' => $cantidad,
-                        'precio_unitario' => $producto->precio,
+                        'precio_unitario' => $precioVigente,
                         'subtotal' => $subtotal,
                     ];
                 }
@@ -321,10 +323,12 @@ class VentaController extends Controller
         ], 201);
     }
 
-    public function resumenInterno(int $venta, ResumenInternoVentaPdf $resumen)
+    public function resumenInterno(Request $request, int $venta, ResumenInternoVentaPdf $resumen): Response
     {
         $venta = Venta::completadas()->findOrFail($venta);
-        abort_if($venta->cotizacion_version_id !== null, 404);
+        if ($venta->cotizacion_version_id !== null) {
+            abort_unless($request->user()->tienePermiso('cotizaciones.ver'), 403);
+        }
 
         return $resumen->descargar($venta);
     }

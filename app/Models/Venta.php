@@ -19,6 +19,7 @@ use Illuminate\Support\Carbon;
  * @property string $total
  * @property int|null $cotizacion_version_id
  * @property Carbon|null $stock_descontado_at
+ * @property Carbon|null $pago_confirmado_at
  * @property array<string, mixed>|null $datos_cliente
  */
 class Venta extends Model
@@ -50,6 +51,7 @@ class Venta extends Model
         'estado_facturacion',
         'estado_entrega',
         'monto_pagado',
+        'pago_confirmado_at',
         'metodo_entrega',
         'direccion_despacho',
         'comuna_despacho',
@@ -73,6 +75,7 @@ class Venta extends Model
             'credito_autorizado_at' => 'datetime',
             'stock_descontado_at' => 'datetime',
             'confirmada_at' => 'datetime',
+            'pago_confirmado_at' => 'datetime',
             'entregada_at' => 'datetime',
             'datos_resumen' => 'array',
         ];

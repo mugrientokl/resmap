@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Query\Builder as QueryBuilder;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -22,6 +23,8 @@ use Illuminate\Validation\ValidationException;
  * @property string $nombre
  * @property string|null $nombre_normalizado
  * @property float|string $precio
+ * @property float|string|null $precio_oferta
+ * @property float|string|null $porcentaje_descuento
  * @property string|null $costo_promedio_neto
  * @property string|null $margen_objetivo
  * @property string $modo_precio
@@ -152,6 +155,10 @@ class Producto extends Model
         'descripcion',
         'imagen',
         'precio',
+        'precio_oferta',
+        'porcentaje_descuento',
+        'oferta_inicio_at',
+        'oferta_fin_at',
         'costo_promedio_neto',
         'margen_objetivo',
         'modo_precio',
@@ -171,6 +178,11 @@ class Producto extends Model
             'activo' => 'boolean',
             'costo_promedio_neto' => 'decimal:2',
             'margen_objetivo' => 'decimal:2',
+            'precio' => 'decimal:2',
+            'precio_oferta' => 'decimal:2',
+            'porcentaje_descuento' => 'decimal:2',
+            'oferta_inicio_at' => 'datetime',
+            'oferta_fin_at' => 'datetime',
         ];
     }
 
@@ -270,6 +282,36 @@ class Producto extends Model
         return Attribute::get(
             fn (): int => max(0, (int) $this->getAttribute('stock') - (int) ($this->attributes['stock_reservado'] ?? 0)),
         );
+    }
+
+    public function estaEnOferta(?Carbon $fecha = null): bool
+    {
+        $fecha = $fecha ?? now();
+
+        return (bool) $this->activo
+            && $this->precio_oferta !== null
+            && $this->oferta_inicio_at !== null
+            && $this->oferta_fin_at !== null
+            && $this->oferta_inicio_at->lte($fecha)
+            && $this->oferta_fin_at->gte($fecha);
+    }
+
+    public function precioVigente(?Carbon $fecha = null): float
+    {
+        return $this->estaEnOferta($fecha)
+            ? (float) $this->precio_oferta
+            : (float) $this->precio;
+    }
+
+    public function scopeEnOferta(Builder $query): Builder
+    {
+        return $query
+            ->where('activo', true)
+            ->whereNotNull('precio_oferta')
+            ->whereNotNull('oferta_inicio_at')
+            ->whereNotNull('oferta_fin_at')
+            ->where('oferta_inicio_at', '<=', now())
+            ->where('oferta_fin_at', '>=', now());
     }
 
     public function scopeBuscarCoincidencias(Builder $query, string $buscar): Builder

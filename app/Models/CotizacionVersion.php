@@ -79,6 +79,36 @@ class CotizacionVersion extends Model
         return [];
     }
 
+    /**
+     * @return array{email_estado: string, whatsapp_estado: string, pendiente: bool}
+     */
+    public function estadosEnvio(bool $esUltimaVersion): array
+    {
+        $envioVigente = $esUltimaVersion
+            && $this->estado === 'enviada'
+            && $this->vigente_hasta?->isFuture() === true;
+        $estados = [
+            'email_estado' => $this->email_estado ?: 'no_enviado',
+            'whatsapp_estado' => $this->whatsapp_estado ?: 'no_enviado',
+        ];
+        foreach ($estados as $canal => $estado) {
+            if (! $envioVigente && $estado === 'en_cola') {
+                $estados[$canal] = 'cancelado';
+            }
+        }
+
+        return [...$estados, 'pendiente' => in_array('en_cola', $estados, true)];
+    }
+
+    public function cancelarEnviosPendientes(): void
+    {
+        foreach (['email_estado', 'whatsapp_estado'] as $canal) {
+            $this->newQuery()->whereKey($this->getKey())
+                ->where($canal, 'en_cola')
+                ->update([$canal => 'cancelado']);
+        }
+    }
+
     public function detalles(): HasMany
     {
         return $this->hasMany(CotizacionDetalle::class, 'version_id', 'id_version');

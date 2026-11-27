@@ -33,6 +33,7 @@ use App\Support\TextoPersona;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\RequestException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -136,8 +137,14 @@ class CotizacionController extends Controller
             $vigenteHasta = now()->addDays((int) config('services.cotizaciones.vigencia_dias', 7));
 
             $cotizacion->versiones()
-                ->whereIn('estado', ['borrador', 'enviada'])
-                ->update(['estado' => 'reemplazada', 'token_cliente_hash' => null]);
+                ->where('numero_version', '<', $numeroVersion)
+                ->update([
+                    'estado' => 'reemplazada',
+                    'token_cliente_hash' => null,
+                    'token_expira_at' => null,
+                    'email_estado' => DB::raw("CASE WHEN email_estado = 'en_cola' THEN 'cancelado' ELSE email_estado END"),
+                    'whatsapp_estado' => DB::raw("CASE WHEN whatsapp_estado = 'en_cola' THEN 'cancelado' ELSE whatsapp_estado END"),
+                ]);
 
             $version = CotizacionVersion::create([
                 'cotizacion_id' => $cotizacion->id_cotizacion,
@@ -167,8 +174,8 @@ class CotizacionController extends Controller
                     'nombre_producto' => $producto->nombre,
                     'codigo_producto' => $producto->codigo_origen ?: $producto->codigo_barra,
                     'cantidad' => $cantidad,
-                    'precio_unitario' => $producto->precio,
-                    'subtotal' => (float) $producto->precio * $cantidad,
+                    'precio_unitario' => $producto->precioVigente(),
+                    'subtotal' => $producto->precioVigente() * $cantidad,
                 ]);
             }
 
@@ -189,6 +196,7 @@ class CotizacionController extends Controller
     public function enviar(CotizacionVersion $version): RedirectResponse
     {
         $version->load(['cotizacion.solicitud.cliente', 'detalles']);
+        abort_unless($version->numero_version === $version->cotizacion->ultima_version, 422, 'Esta versión fue reemplazada por una nueva cotización y ya no tiene validez.');
         abort_unless($version->estado === 'borrador', 422, 'Solo se pueden enviar cotizaciones en borrador.');
         abort_if($version->vigente_hasta->isPast(), 422, 'La cotización ya venció.');
 
@@ -290,6 +298,16 @@ class CotizacionController extends Controller
         ]);
     }
 
+    public function estadoEnvio(CotizacionVersion $version): JsonResponse
+    {
+        $version->loadMissing('cotizacion:id_cotizacion,ultima_version');
+
+        return response()->json(
+            $version->estadosEnvio($version->numero_version === $version->cotizacion->ultima_version),
+            headers: ['Cache-Control' => 'no-store, private'],
+        );
+    }
+
     public function registrarRespuesta(Request $request, CotizacionVersion $version, InventarioReservaService $reservas): RedirectResponse
     {
         $datos = $request->validate([
@@ -316,6 +334,7 @@ class CotizacionController extends Controller
                 'token_cliente_hash' => null,
                 'token_expira_at' => null,
             ]);
+            $version->cancelarEnviosPendientes();
             $cotizacion->update([
                 'estado' => $datos['decision'],
                 'comentarios_cliente' => $datos['comentarios'] ?? null,
@@ -334,7 +353,17 @@ class CotizacionController extends Controller
 
     public function convertirEnVenta(Request $request, CotizacionVersion $version, VentaCotizacionService $servicio): RedirectResponse
     {
-        DB::transaction(function () use ($request, $version, $servicio): void {
+        $datos = $request->validateWithBag('pagoVenta', [
+            'estado_pago' => ['required', 'in:pagado,pendiente'],
+            'medio_pago' => ['required_if:estado_pago,pagado', 'nullable', 'in:Efectivo,Transferencia,Tarjeta'],
+        ], [
+            'estado_pago.required' => 'Selecciona el estado del pago.',
+            'estado_pago.in' => 'Selecciona pagada o pendiente de pago.',
+            'medio_pago.required_if' => 'Selecciona el medio de pago para registrar la venta como pagada.',
+            'medio_pago.in' => 'Selecciona un medio de pago válido.',
+        ]);
+
+        DB::transaction(function () use ($request, $version, $servicio, $datos): void {
             $cotizacion = Cotizacion::query()->whereKey($version->cotizacion_id)->lockForUpdate()->firstOrFail();
             $version = CotizacionVersion::query()->whereKey($version->id_version)->lockForUpdate()->firstOrFail();
             if ($cotizacion->estado !== 'aceptada' || $version->estado !== 'aceptada'
@@ -342,10 +371,30 @@ class CotizacionController extends Controller
                 throw ValidationException::withMessages(['cotizacion' => 'Solo se puede convertir la última versión aceptada.']);
             }
             $venta = $this->crearVentaB2B($version, $request->user()->id);
-            $servicio->completar($venta, $request->user()->id);
+            $yaCompletada = $venta->stock_descontado_at !== null;
+            if ($yaCompletada && $venta->estado_pago !== $datos['estado_pago']) {
+                throw ValidationException::withMessages(['estado_pago' => 'La venta ya está registrada. Usa la acción de confirmar pago total para cerrar un saldo pendiente.']);
+            }
+            $venta = $servicio->completar($venta, $request->user()->id);
+            if (! $yaCompletada && $datos['estado_pago'] === 'pagado') {
+                $servicio->confirmarPagoTotal($venta, $datos['medio_pago']);
+            }
         });
 
         return back()->with('success', 'La venta quedó registrada y el stock descontado.');
+    }
+
+    public function confirmarPago(Request $request, Venta $venta, VentaCotizacionService $servicio): RedirectResponse
+    {
+        $datos = $request->validateWithBag('pagoVenta', [
+            'medio_pago' => ['required', 'in:Efectivo,Transferencia,Tarjeta'],
+        ], [
+            'medio_pago.required' => 'Selecciona el medio de pago recibido.',
+            'medio_pago.in' => 'Selecciona un medio de pago válido.',
+        ]);
+        $servicio->confirmarPagoTotal($venta, $datos['medio_pago']);
+
+        return back()->with('success', 'El pago total quedó confirmado. La cotización ya no tiene saldo pendiente.');
     }
 
     public function generarResumen(Request $request, Venta $venta, ResumenInternoVentaPdf $resumen): RedirectResponse|Response
@@ -434,7 +483,7 @@ class CotizacionController extends Controller
             $venta->save();
         });
 
-        return back()->with('success', 'Resumen interno generado. Puedes descargarlo desde Reportes.');
+        return back()->with('success', 'Resumen interno generado. Puedes descargarlo desde el detalle de la cotización.');
     }
 
     public function descargarOrdenCompra(OrdenCompra $ordenCompra): StreamedResponse
@@ -472,9 +521,13 @@ class CotizacionController extends Controller
 
     public function pdfPublico(CotizacionVersion $version, CotizacionPdf $pdf)
     {
-        abort_if($version->vigente_hasta->isPast(), 410, 'La cotización ya no está vigente.');
-
         $version->load(['cotizacion.solicitud.cliente', 'detalles']);
+        abort_if(
+            $version->estado === 'reemplazada' || $version->numero_version < $version->cotizacion->ultima_version,
+            410,
+            'Esta versión fue reemplazada por una nueva cotización y ya no tiene validez.',
+        );
+        abort_if($version->vigente_hasta->isPast(), 410, 'La cotización ya no está vigente.');
 
         return response($pdf->generar($version), 200, [
             'Content-Type' => 'application/pdf',

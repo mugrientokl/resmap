@@ -102,7 +102,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 403 => ['title' => 'No tienes permiso para ingresar', 'message' => 'Tu cuenta no tiene acceso a esta sección.'],
                 404 => ['title' => 'No encontramos esta página', 'message' => 'Puede que el enlace haya cambiado o que el contenido ya no esté disponible.'],
                 405 => ['title' => 'Esta acción no está disponible', 'message' => 'Vuelve a la página anterior e intenta una acción válida.'],
-                410 => ['title' => 'Este enlace ya no está disponible', 'message' => 'La cotización pudo haber vencido o ya fue respondida. Si necesitas revisarla, comunícate con RESMAP.'],
+                410 => ['title' => 'Este enlace ya no está disponible', 'message' => 'La cotización pudo haber vencido, sido reemplazada por una nueva versión o ya fue respondida. Si necesitas revisarla, comunícate con RESMAP.'],
                 419 => ['title' => 'Tu sesión venció', 'message' => 'Actualiza la página e intenta nuevamente. Si estabas enviando información, comprueba primero si se guardó.'],
                 429 => ['title' => 'Demasiados intentos', 'message' => 'Espera un momento antes de volver a intentarlo.'],
                 503 => ['title' => 'Estamos realizando mejoras', 'message' => 'El servicio estará disponible nuevamente en breve.'],

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Auditoria;
+use App\Models\Producto;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -413,7 +414,6 @@ class CatalogoStockTest extends TestCase
         $availableId = $this->createProductWithStock(3);
         $reservedId = $this->createProductWithStock(1);
         $emptyId = $this->createProductWithStock(0);
-        $categoryId = DB::table('categorias')->where('nombre_categoria', 'KITS Y SETS')->value('id_categoria');
 
         foreach ([
             $availableId => 'Kit disponible',
@@ -421,8 +421,11 @@ class CatalogoStockTest extends TestCase
             $emptyId => 'Kit agotado',
         ] as $id => $nombre) {
             DB::table('productos')->where('id_producto', $id)->update([
-                'id_categoria' => $categoryId,
                 'nombre' => $nombre,
+                'precio_oferta' => $id === $emptyId ? null : 800,
+                'porcentaje_descuento' => $id === $emptyId ? null : 20,
+                'oferta_inicio_at' => now()->subHour(),
+                'oferta_fin_at' => now()->addDay(),
             ]);
         }
 
@@ -435,12 +438,11 @@ class CatalogoStockTest extends TestCase
 
         $home = $this->get(route('home'))->assertOk()
             ->assertSee('Servicio técnico de confianza')
-            ->assertSee('Ver todos los kits y sets')
+            ->assertSee('Ofertas destacadas')
             ->assertSee('Kit disponible')
             ->assertDontSee('Kit reservado')
             ->assertDontSee('Kit agotado');
-        $this->assertSame([$availableId], $home->viewData('kitsYSets')->pluck('id_producto')->all());
-        $this->assertLessThanOrEqual(3, $home->viewData('kitsYSets')->count());
+        $this->assertSame([$availableId], $home->viewData('productosOferta')->pluck('id_producto')->all());
 
         $catalog = $this->get(route('catalogo.index'))->assertOk()
             ->assertSee('Kit disponible')
@@ -449,10 +451,6 @@ class CatalogoStockTest extends TestCase
             ->assertSee('Agotado');
         $product = $catalog->viewData('productosBuscador')->firstWhere('id_producto', $availableId);
         $this->assertSame(2, $product->stock_disponible);
-        $this->assertMatchesRegularExpression(
-            '/\["Kit disponible","[^"]+",'.$categoryId.','.$availableId.',2\]/',
-            $catalog->getContent(),
-        );
         $this->post(route('catalogo.solicitudes.store'), [
             ...$this->validCustomerData(),
             'detalles_productos' => [['id_producto' => $reservedId, 'cantidad' => 1]],
@@ -578,29 +576,16 @@ class CatalogoStockTest extends TestCase
         $admin = User::factory()->create(['rol' => 'Administrador']);
         $product = DB::table('productos')->where('id_producto', $productId)->first();
 
-        $this->actingAs($admin)
-            ->get(route('productos.edit', $productId))
-            ->assertOk()
-            ->assertSee('Motivo de desactivación')
-            ->assertSee('3 unidades');
-
-        $this->put(route('productos.update', $productId), [
-            'codigo_barra' => $product->codigo_barra,
-            'nombre' => $product->nombre,
-            'precio' => $product->precio,
-            'stock' => $product->stock,
-            'stock_critico' => $product->stock_critico,
-            'id_categoria' => $product->id_categoria,
-            'unidad' => 'metro',
+        $this->actingAs($admin)->put(route('productos.estado-oferta', $productId), [
             'activo' => '0',
             'motivo_desactivacion' => 'Repuesto fuera de línea',
+            'oferta_activa' => '0',
         ])->assertRedirect(route('productos.index'))
-            ->assertSessionHas('warning', 'El producto fue desactivado por: Repuesto fuera de línea. Se conservaron 3 unidades en inventario y no estará disponible en el catálogo.');
+            ->assertSessionHas('success');
 
         $this->assertDatabaseHas('productos', [
             'id_producto' => $productId,
             'stock' => 3,
-            'unidad' => 'metro',
             'activo' => false,
         ]);
         $registro = Auditoria::query()->where('accion', 'producto_desactivado')->firstOrFail();
@@ -622,15 +607,9 @@ class CatalogoStockTest extends TestCase
         $admin = User::factory()->create(['rol' => 'Administrador']);
         $product = DB::table('productos')->where('id_producto', $productId)->first();
 
-        $this->actingAs($admin)->put(route('productos.update', $productId), [
-            'codigo_barra' => $product->codigo_barra,
-            'nombre' => $product->nombre,
-            'precio' => $product->precio,
-            'stock' => $product->stock,
-            'stock_critico' => $product->stock_critico,
-            'id_categoria' => $product->id_categoria,
-            'unidad' => $product->unidad,
+        $this->actingAs($admin)->put(route('productos.estado-oferta', $productId), [
             'activo' => '0',
+            'oferta_activa' => '0',
         ])->assertSessionHasErrors('motivo_desactivacion');
 
         $this->assertDatabaseHas('productos', [
@@ -639,6 +618,38 @@ class CatalogoStockTest extends TestCase
             'activo' => true,
         ]);
         $this->assertDatabaseMissing('auditorias', ['accion' => 'producto_desactivado']);
+    }
+
+    public function test_administrator_can_configure_and_expire_a_product_offer(): void
+    {
+        $productId = $this->createProductWithStock(3);
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+
+        $this->actingAs($admin)->put(route('productos.estado-oferta', $productId), [
+            'activo' => '1',
+            'oferta_activa' => '1',
+            'porcentaje_descuento' => '20',
+            'precio_oferta' => '800',
+            'oferta_inicio_at' => now()->subHour()->format('Y-m-d\TH:i'),
+            'oferta_fin_at' => now()->addDay()->format('Y-m-d\TH:i'),
+        ])->assertRedirect(route('productos.index'))->assertSessionHas('success');
+
+        $this->assertDatabaseHas('productos', [
+            'id_producto' => $productId,
+            'precio_oferta' => 800,
+            'porcentaje_descuento' => 20,
+        ]);
+
+        $catalog = $this->get(route('catalogo.index'))->assertOk()
+            ->assertSee('Oferta', false);
+
+        DB::table('productos')->where('id_producto', $productId)->update([
+            'oferta_fin_at' => now()->subMinute(),
+        ]);
+
+        $product = Producto::findOrFail($productId);
+        $this->assertFalse($product->estaEnOferta());
+        $this->assertSame(1000.0, $product->precioVigente());
     }
 
     private function createProductWithStock(int $stock): int

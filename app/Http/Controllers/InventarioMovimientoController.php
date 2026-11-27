@@ -214,6 +214,7 @@ class InventarioMovimientoController extends Controller
                 'productos.*.cantidad' => ['required', 'integer', 'min:'.($request->input('tipo') === 'ajuste' ? 0 : 1), 'max:2147483647'],
                 'productos.*.precio_entrada' => [Rule::requiredIf($esCompra), 'nullable', 'numeric', 'min:0', 'max:99999999.99'],
                 'productos.*.aplicar_precio_venta' => ['nullable', 'boolean'],
+                'productos.*.precio_venta_manual' => ['nullable', 'numeric', 'min:0', 'max:99999999.99'],
             ];
         } else {
             $rules += [
@@ -302,14 +303,17 @@ class InventarioMovimientoController extends Controller
                         $datosProducto['costo_promedio_neto'] = $costoPromedio;
 
                         if ((bool) ($linea['aplicar_precio_venta'] ?? false)) {
-                            $precioRecomendado = Producto::calcularPrecioVentaRecomendado(
-                                $costoPromedio,
-                                (float) $producto->margen_objetivo,
-                            );
-                            if ($precioRecomendado > 99999999.99) {
+                            $precioVenta = isset($linea['precio_venta_manual'])
+                                && $linea['precio_venta_manual'] !== ''
+                                ? (float) $linea['precio_venta_manual']
+                                : Producto::calcularPrecioVentaRecomendado(
+                                    $costoPromedio,
+                                    (float) $producto->margen_objetivo,
+                                );
+                            if ($precioVenta > 99999999.99) {
                                 throw new \RuntimeException('El precio resultante supera el máximo permitido.');
                             }
-                            $datosProducto['precio'] = $precioRecomendado;
+                            $datosProducto['precio'] = round($precioVenta, 2);
                         }
                     }
                     $producto->update($datosProducto);

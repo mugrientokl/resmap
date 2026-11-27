@@ -2,6 +2,12 @@
 <html lang="es">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Acceso interno | RESMAP</title>@vite('resources/css/app.css')<link rel="stylesheet" href="{{ asset('css/global-controls.css') }}"><link rel="stylesheet" href="{{ asset('css/fondo-sistema.css') }}"><script defer src="{{ asset('js/notifications.js') }}"></script>
 <style>
+    .login-card {
+        background: linear-gradient(135deg, rgba(255, 255, 255, .72), rgba(255, 250, 248, .58));
+        -webkit-backdrop-filter: blur(22px) saturate(125%);
+        backdrop-filter: blur(22px) saturate(125%);
+    }
+
     .login-heading::after {
         content: "";
         display: block;
@@ -13,8 +19,8 @@
     }
 </style>
 </head>
-<body class="resmap-background flex min-h-screen items-center justify-center px-4 py-8 text-[#241817]">
-    <main class="w-full max-w-md rounded-[3rem] border border-[#d48880]/40 bg-white/95 px-7 py-10 shadow-[0_20px_60px_rgba(36,24,23,.25)] backdrop-blur-md sm:rounded-[4rem] sm:px-12 sm:py-12">
+<body class="resmap-background flex min-h-screen items-center justify-center px-4 py-8 text-[#241817]" style="--resmap-background-url: url('{{ $resmapBackgroundUrl }}')">
+    <main class="login-card w-full max-w-md rounded-[3rem] border border-white/70 px-7 py-10 shadow-[0_20px_60px_rgba(36,24,23,.25)] sm:rounded-[4rem] sm:px-12 sm:py-12">
         <div class="text-center">
             <img src="{{ asset('images/resmap-logo-renovado.png') }}" alt="RESMAP" class="mx-auto h-28 w-auto object-contain">
             <a href="{{ route('home') }}" class="mt-3 inline-flex items-center rounded-full border border-[#d9aaa3] px-5 py-2 text-sm font-bold text-[#8f241d] transition hover:bg-[#fffaf9] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#8f241d]" style="border-radius: 9999px">← Volver al sitio</a>

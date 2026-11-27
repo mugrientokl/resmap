@@ -6,13 +6,43 @@ use App\Models\Producto;
 use App\Models\User;
 use Illuminate\Contracts\Foundation\MaintenanceMode;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Mockery;
 use Tests\TestCase;
 
 class RecodificacionProductosTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_product_image_is_saved_as_webp(): void
+    {
+        Storage::fake('public');
+        $category = DB::table('categorias')->insertGetId(['nombre_categoria' => 'Herramientas']);
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+        $image = UploadedFile::fake()->image('destornilladores.png', 800, 600);
+
+        $this->actingAs($admin)->post(route('productos.store'), [
+            'nombre' => 'Juego destornilladores 8 piezas',
+            'precio' => 15000,
+            'costo_neto_unitario' => 10000,
+            'stock' => 5,
+            'stock_critico' => 1,
+            'unidad' => 'unidad',
+            'activo' => '1',
+            'id_categoria' => $category,
+            'imagen' => $image,
+        ])->assertSessionHasNoErrors();
+
+        $path = DB::table('productos')
+            ->where('nombre', 'Juego destornilladores 8 piezas')
+            ->value('imagen');
+
+        $this->assertNotNull($path);
+        $this->assertStringEndsWith('.webp', $path);
+        Storage::disk('public')->assertExists($path);
+    }
 
     public function test_conversion_preserves_products_relations_and_historical_quotation_codes(): void
     {

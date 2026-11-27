@@ -26,26 +26,17 @@ class CatalogoController extends Controller
 {
     public function home()
     {
-        $kitsSetsCategory = Categoria::where(
-            'nombre_categoria',
-            'KITS Y SETS'
-        )->first();
-
         return view('welcome', [
-            'kitsSetsCategory' => $kitsSetsCategory,
-            'kitsYSets' => $kitsSetsCategory
-                ? Producto::with('categoria')
-                    ->withSum('reservasActivas as stock_reservado', 'cantidad')
-                    ->where('activo', true)
-                    ->conStockDisponible()
-                    ->where('id_categoria', $kitsSetsCategory->id_categoria)
-                    ->orderByDesc('precio')
-                    ->limit(3)
-                    ->get()
-                : collect(),
+            'productosOferta' => Producto::with('categoria')
+                ->withSum('reservasActivas as stock_reservado', 'cantidad')
+                ->enOferta()
+                ->conStockDisponible()
+                ->orderByDesc('porcentaje_descuento')
+                ->limit(12)
+                ->get(),
             'productosStock' => Producto::query()
                 ->where('activo', true)
-                ->select('id_producto', 'stock', 'precio', 'unidad')
+                ->select('id_producto', 'stock', 'precio', 'precio_oferta', 'porcentaje_descuento', 'oferta_inicio_at', 'oferta_fin_at', 'unidad')
                 ->withSum('reservasActivas as stock_reservado', 'cantidad')
                 ->get(),
         ]);
@@ -61,7 +52,7 @@ class CatalogoController extends Controller
 
         $productosBuscador = Producto::query()
             ->where('activo', true)
-            ->select('id_producto', 'nombre', 'codigo_barra', 'codigo_origen', 'id_categoria', 'stock', 'precio', 'unidad')
+            ->select('id_producto', 'nombre', 'codigo_barra', 'codigo_origen', 'id_categoria', 'stock', 'precio', 'precio_oferta', 'porcentaje_descuento', 'oferta_inicio_at', 'oferta_fin_at', 'unidad')
             ->withSum('reservasActivas as stock_reservado', 'cantidad')
             ->orderBy('nombre')
             ->get();

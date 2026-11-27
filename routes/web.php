@@ -6,6 +6,7 @@ use App\Http\Controllers\BackupController;
 use App\Http\Controllers\CatalogoController;
 use App\Http\Controllers\CategoriaController;
 use App\Http\Controllers\ClienteController;
+use App\Http\Controllers\ConfiguracionController;
 use App\Http\Controllers\CotizacionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DetalleVentaController;
@@ -216,6 +217,10 @@ Route::middleware([
         ->middleware(['auth', 'permiso:productos.editar'])
         ->name('productos.update');
 
+    Route::put('/productos/{id}/estado-oferta', [ProductoController::class, 'estadoOferta'])
+        ->middleware(['auth', 'permiso:productos.editar'])
+        ->name('productos.estado-oferta');
+
     Route::delete('/productos/{id}', [ProductoController::class, 'destroy'])
         ->middleware(['auth', 'permiso:productos.eliminar'])
         ->name('productos.destroy');
@@ -295,6 +300,10 @@ Route::middleware([
         ->middleware(['auth', 'permiso:cotizaciones.editar'])
         ->name('cotizaciones.enviar');
 
+    Route::get('/cotizaciones/versiones/{version}/estado-envio', [CotizacionController::class, 'estadoEnvio'])
+        ->middleware(['auth', 'permiso:cotizaciones.ver', 'throttle:30,1'])
+        ->name('cotizaciones.estado-envio');
+
     Route::post('/cotizaciones/versiones/{version}/respuesta-interna', [CotizacionController::class, 'registrarRespuesta'])
         ->middleware(['auth', 'permiso:cotizaciones.editar'])
         ->name('cotizaciones.respuesta-interna');
@@ -302,6 +311,11 @@ Route::middleware([
     Route::post('/cotizaciones/versiones/{version}/convertir-venta', [CotizacionController::class, 'convertirEnVenta'])
         ->middleware(['auth', 'permiso:cotizaciones.editar', 'permiso:ventas.crear'])
         ->name('cotizaciones.convertir-venta');
+
+    Route::post('/ventas/{venta}/confirmar-pago', [CotizacionController::class, 'confirmarPago'])
+        ->middleware(['auth', 'permiso:cotizaciones.editar', 'permiso:ventas.crear'])
+        ->whereNumber('venta')
+        ->name('ventas.confirmar-pago');
 
     Route::post('/ventas/{venta}/generar-resumen', [CotizacionController::class, 'generarResumen'])
         ->middleware(['auth', 'permiso:cotizaciones.editar'])
@@ -368,6 +382,23 @@ Route::middleware([
     Route::get('/backups/{filename}', [BackupController::class, 'download'])
         ->middleware(['auth', 'role:Administrador'])
         ->name('backups.download');
+
+    Route::get('/administracion', [ConfiguracionController::class, 'index'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('configuracion.index');
+
+    Route::put('/administracion/fondo', [ConfiguracionController::class, 'actualizarFondo'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('configuracion.fondo.actualizar');
+
+    Route::post('/administracion/fondos', [ConfiguracionController::class, 'subirFondo'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->name('configuracion.fondos.subir');
+
+    Route::delete('/administracion/fondos/{id}', [ConfiguracionController::class, 'eliminarFondo'])
+        ->middleware(['auth', 'role:Administrador'])
+        ->whereUuid('id')
+        ->name('configuracion.fondos.eliminar');
 
     Route::get('/detalle-ventas', [DetalleVentaController::class, 'index'])
         ->middleware(['auth', 'permiso:reportes.ver']);

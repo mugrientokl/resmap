@@ -7,7 +7,7 @@
     @vite('resources/css/app.css')
     <link rel="stylesheet" href="{{ asset('css/fondo-sistema.css') }}">
 </head>
-<body class="resmap-background min-h-screen bg-[#f7f3f0] font-sans text-[#241817]">
+<body class="resmap-background min-h-screen bg-[#f7f3f0] font-sans text-[#241817]" style="--resmap-background-url: url('{{ $resmapBackgroundUrl }}')">
     <main class="flex min-h-screen items-center justify-center px-5 py-12">
         <section class="w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-xl">
             <header class="flex items-center justify-between bg-[#8f241d] px-8 py-6">

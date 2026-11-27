@@ -11,9 +11,12 @@ use App\Services\RegistroActividad;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class ProductoController extends Controller
@@ -87,7 +90,7 @@ class ProductoController extends Controller
                     $producto->codigo_origen,
                     $producto->nombre,
                     $producto->categoria?->nombre_categoria,
-                    $producto->precio,
+                    $producto->precioVigente(),
                     $producto->stock,
                     $producto->stock_critico,
                     $this->estadoStock($producto),
@@ -221,7 +224,7 @@ class ProductoController extends Controller
             'id_producto' => $producto->id_producto,
             'nombre' => $producto->nombre,
             'codigo' => $producto->codigo_origen ?: $producto->codigo_barra,
-            'precio' => (float) $producto->precio,
+            'precio' => $producto->precioVigente(),
             'stock' => $producto->stock_disponible,
         ]));
     }
@@ -254,7 +257,7 @@ class ProductoController extends Controller
         return response()->json([
             'id_producto' => $producto->id_producto,
             'nombre' => $producto->nombre,
-            'precio' => (float) $producto->precio,
+            'precio' => $producto->precioVigente(),
             'stock' => $producto->stock_disponible,
         ]);
     }
@@ -333,7 +336,7 @@ class ProductoController extends Controller
         unset($datos['imagen']);
 
         $imagenNueva = $request->hasFile('imagen')
-            ? $request->file('imagen')->store('productos', 'public')
+            ? $this->guardarImagenWebp($request->file('imagen'))
             : null;
         if ($imagenNueva !== null) {
             $datos['imagen'] = $imagenNueva;
@@ -390,10 +393,120 @@ class ProductoController extends Controller
         return view('productos.edit', compact('producto', 'categorias', 'nombresExistentes'));
     }
 
+    public function estadoOferta(Request $request, int $id)
+    {
+        $producto = Producto::query()->whereKey($id)->lockForUpdate()->firstOrFail();
+        $activoSolicitado = $request->boolean('activo');
+        $ofertaSolicitada = $request->boolean('oferta_activa');
+        $precioHabitual = (float) $producto->precio;
+
+        $datos = $request->validate([
+            'activo' => ['required', 'boolean'],
+            'motivo_desactivacion' => [
+                $producto->activo && ! $activoSolicitado ? 'required' : 'nullable',
+                'string',
+                'max:1000',
+            ],
+            'oferta_activa' => ['required', 'boolean'],
+            'porcentaje_descuento' => [
+                $ofertaSolicitada ? 'required' : 'nullable',
+                'numeric',
+                'min:0',
+                'max:100',
+            ],
+            'precio_oferta' => [
+                $ofertaSolicitada ? 'required' : 'nullable',
+                'numeric',
+                'min:0',
+                function (string $attribute, mixed $value, \Closure $fail) use ($precioHabitual): void {
+                    if ($value !== null && (float) $value >= $precioHabitual) {
+                        $fail('El precio de oferta debe ser menor que el precio habitual.');
+                    }
+                },
+            ],
+            'oferta_inicio_at' => ['nullable', 'date'],
+            'oferta_fin_at' => [
+                $ofertaSolicitada ? 'required' : 'nullable',
+                'date',
+                function (string $attribute, mixed $value, \Closure $fail) use ($request, $ofertaSolicitada): void {
+                    if (! $ofertaSolicitada || $value === null) {
+                        return;
+                    }
+                    $inicioTexto = $request->input('oferta_inicio_at');
+                    $inicio = filled($inicioTexto)
+                        ? Carbon::parse($inicioTexto)
+                        : now();
+                    if (Carbon::parse($value)->lte($inicio)) {
+                        $fail('La fecha de término debe ser posterior al inicio.');
+                    }
+                },
+            ],
+        ], [
+            'motivo_desactivacion.required' => 'Indica por qué se desactiva el repuesto.',
+            'porcentaje_descuento.required' => 'Indica el porcentaje de descuento.',
+            'precio_oferta.required' => 'Indica el precio de oferta.',
+            'precio_oferta.lt' => 'El precio de oferta debe ser menor que el precio habitual.',
+            'oferta_fin_at.required' => 'Indica cuándo termina la oferta.',
+            'oferta_fin_at.after' => 'La fecha de término debe ser posterior al inicio.',
+        ]);
+
+        $precioOferta = $ofertaSolicitada
+            ? (float) $datos['precio_oferta']
+            : null;
+        $porcentaje = $ofertaSolicitada
+            ? ($precioHabitual > 0
+                ? round((1 - $precioOferta / $precioHabitual) * 100, 2)
+                : 0)
+            : null;
+        $inicio = $ofertaSolicitada
+            ? ($datos['oferta_inicio_at'] ? Carbon::parse($datos['oferta_inicio_at']) : now())
+            : null;
+        $fin = $ofertaSolicitada
+            ? Carbon::parse($datos['oferta_fin_at'])
+            : null;
+
+        DB::transaction(function () use ($producto, $activoSolicitado, $precioOferta, $porcentaje, $inicio, $fin, $datos): void {
+            $seDesactiva = $producto->activo && ! $activoSolicitado;
+            $producto->update([
+                'activo' => $activoSolicitado,
+                'precio_oferta' => $precioOferta,
+                'porcentaje_descuento' => $porcentaje,
+                'oferta_inicio_at' => $inicio,
+                'oferta_fin_at' => $fin,
+            ]);
+
+            if ($seDesactiva) {
+                app(RegistroActividad::class)->evento(
+                    categoria: 'datos',
+                    accion: 'producto_desactivado',
+                    descripcion: 'Desactivó el repuesto '.$producto->nombre.': '.trim((string) ($datos['motivo_desactivacion'] ?? '')),
+                    modelo: Producto::class,
+                    modeloId: (int) $producto->id_producto,
+                    anteriores: ['activo' => true],
+                    nuevos: [
+                        'activo' => false,
+                        'motivo' => trim((string) ($datos['motivo_desactivacion'] ?? '')),
+                        'stock_conservado' => (int) $producto->stock,
+                    ],
+                );
+            }
+        });
+
+        $mensaje = $activoSolicitado ? 'Producto activo en el catálogo.' : 'Producto inactivo en el catálogo.';
+        if ($ofertaSolicitada) {
+            $mensaje .= ' Oferta configurada.';
+        } elseif ($request->has('oferta_activa')) {
+            $mensaje .= ' Oferta removida.';
+        }
+
+        return redirect()->route('productos.index')->with('success', $mensaje);
+    }
+
     public function update(Request $request, $id)
     {
         $producto = Producto::findOrFail($id);
-        $seDesactiva = $producto->activo && ! $request->boolean('activo');
+        $request->merge(['activo' => $producto->activo ? '1' : '0']);
+        $seDesactiva = false;
         if (is_string($request->input('nombre'))) {
             $request->merge(['nombre' => Producto::normalizarNombre($request->input('nombre'))]);
         }
@@ -462,7 +575,7 @@ class ProductoController extends Controller
         unset($datos['imagen'], $datos['motivo_desactivacion']);
 
         $imagenNueva = $request->hasFile('imagen')
-            ? $request->file('imagen')->store('productos', 'public')
+            ? $this->guardarImagenWebp($request->file('imagen'))
             : null;
         if ($imagenNueva !== null) {
             $datos['imagen'] = $imagenNueva;
@@ -472,10 +585,12 @@ class ProductoController extends Controller
         $productoDesactivado = false;
         $stockAnteriorAlDesactivar = 0;
         $stockConservado = 0;
+        $imagenAnterior = null;
 
         try {
-            DB::transaction(function () use ($datos, $id, $request, $stockNuevo, $motivoDesactivacion, &$productoDesactivado, &$stockAnteriorAlDesactivar, &$stockConservado): void {
+            DB::transaction(function () use ($datos, $id, $request, $stockNuevo, $motivoDesactivacion, &$productoDesactivado, &$stockAnteriorAlDesactivar, &$stockConservado, &$imagenAnterior): void {
                 $producto = Producto::query()->whereKey($id)->lockForUpdate()->firstOrFail();
+                $imagenAnterior = $producto->imagen;
                 $stockAnterior = (int) $producto->stock;
                 $stockReservado = ReservaInventario::query()
                     ->where('producto_id', $producto->id_producto)
@@ -528,6 +643,10 @@ class ProductoController extends Controller
             return redirect()->back()->withInput()->withErrors(['stock' => $exception->getMessage()]);
         }
 
+        if ($imagenNueva !== null && $imagenAnterior !== null && $imagenAnterior !== $imagenNueva) {
+            Storage::disk('public')->delete($imagenAnterior);
+        }
+
         if ($productoDesactivado) {
             app(RegistroActividad::class)->evento(
                 categoria: 'datos',
@@ -553,6 +672,175 @@ class ProductoController extends Controller
         return redirect()
             ->route('productos.index')
             ->with('success', 'Producto actualizado con éxito.');
+    }
+
+    private function guardarImagenWebp(UploadedFile $archivo): string
+    {
+        if (! extension_loaded('gd') || ! function_exists('imagewebp')) {
+            throw ValidationException::withMessages([
+                'imagen' => 'El servidor no tiene habilitado el procesamiento WebP de imágenes.',
+            ]);
+        }
+
+        $contenido = file_get_contents($archivo->getRealPath());
+        $origen = @imagecreatefromstring($contenido);
+        if ($origen === false) {
+            throw ValidationException::withMessages([
+                'imagen' => 'No se pudo leer el archivo de imagen.',
+            ]);
+        }
+
+        $anchoOrigen = imagesx($origen);
+        $altoOrigen = imagesy($origen);
+        $factor = min(1, 1200 / max($anchoOrigen, $altoOrigen));
+        $ancho = max(1, (int) round($anchoOrigen * $factor));
+        $alto = max(1, (int) round($altoOrigen * $factor));
+
+        $imagen = imagecreatetruecolor($ancho, $alto);
+        imagealphablending($imagen, false);
+        imagesavealpha($imagen, true);
+        $colorTransparente = imagecolorallocatealpha($imagen, 0, 0, 0, 127);
+        imagefill($imagen, 0, 0, $colorTransparente);
+        imagecopyresampled($imagen, $origen, 0, 0, 0, 0, $ancho, $alto, $anchoOrigen, $altoOrigen);
+        imagedestroy($origen);
+
+        $muestras = [
+            $this->colorRgb($imagen, 2, 2),
+            $this->colorRgb($imagen, $ancho - 3, 2),
+            $this->colorRgb($imagen, 2, $alto - 3),
+            $this->colorRgb($imagen, $ancho - 3, $alto - 3),
+        ];
+        $fondos = array_values(array_filter($muestras, fn (array $color): bool => $color[0] > 0 || $color[1] > 0 || $color[2] > 0));
+        if ($fondos !== []) {
+            $fondo = [
+                (int) round(array_sum(array_column($fondos, 0)) / count($fondos)),
+                (int) round(array_sum(array_column($fondos, 1)) / count($fondos)),
+                (int) round(array_sum(array_column($fondos, 2)) / count($fondos)),
+            ];
+            $this->eliminarFondoConectado($imagen, $fondo, $colorTransparente);
+        }
+
+        $recorte = $this->limitesContenidoVisible($imagen);
+        if ($recorte !== null) {
+            $recortada = imagecreatetruecolor($recorte['ancho'], $recorte['alto']);
+            imagealphablending($recortada, false);
+            imagesavealpha($recortada, true);
+            $transparencia = imagecolorallocatealpha($recortada, 0, 0, 0, 127);
+            imagefill($recortada, 0, 0, $transparencia);
+            imagecopy($recortada, $imagen, 0, 0, $recorte['x'], $recorte['y'], $recorte['ancho'], $recorte['alto']);
+            imagedestroy($imagen);
+            $imagen = $recortada;
+        }
+
+        $temporal = tempnam(sys_get_temp_dir(), 'resmap-webp-');
+        if ($temporal === false || ! imagewebp($imagen, $temporal, 86)) {
+            imagedestroy($imagen);
+            throw ValidationException::withMessages([
+                'imagen' => 'No se pudo convertir la imagen a formato WebP.',
+            ]);
+        }
+        imagedestroy($imagen);
+
+        $ruta = 'productos/'.Str::uuid().'.webp';
+        Storage::disk('public')->put($ruta, file_get_contents($temporal));
+        @unlink($temporal);
+
+        return $ruta;
+    }
+
+    private function colorRgb(\GdImage $imagen, int $x, int $y): array
+    {
+        $color = imagecolorat($imagen, $x, $y);
+        $alpha = ($color >> 24) & 0x7F;
+        if ($alpha >= 127) {
+            return [0, 0, 0];
+        }
+
+        return [($color >> 16) & 0xFF, ($color >> 8) & 0xFF, $color & 0xFF];
+    }
+
+    private function eliminarFondoConectado(\GdImage $imagen, array $fondo, int $transparente): void
+    {
+        $ancho = imagesx($imagen);
+        $alto = imagesy($imagen);
+        $visitados = str_repeat("\0", $ancho * $alto);
+        $pendientes = [];
+        $semillas = [
+            [0, 0], [$ancho - 1, 0], [0, $alto - 1], [$ancho - 1, $alto - 1],
+        ];
+
+        foreach ($semillas as [$x, $y]) {
+            $pendientes[] = $y * $ancho + $x;
+        }
+
+        while ($pendientes !== []) {
+            $indice = array_pop($pendientes);
+            if ($visitados[$indice] === "\1") {
+                continue;
+            }
+            $visitados[$indice] = "\1";
+
+            $x = $indice % $ancho;
+            $y = intdiv($indice, $ancho);
+            $color = $this->colorRgb($imagen, $x, $y);
+            $distancia = sqrt(
+                (($color[0] - $fondo[0]) ** 2)
+                + (($color[1] - $fondo[1]) ** 2)
+                + (($color[2] - $fondo[2]) ** 2)
+            );
+            if ($distancia > 52) {
+                continue;
+            }
+
+            imagesetpixel($imagen, $x, $y, $transparente);
+            if ($x > 0) {
+                $pendientes[] = $indice - 1;
+            }
+            if ($x < $ancho - 1) {
+                $pendientes[] = $indice + 1;
+            }
+            if ($y > 0) {
+                $pendientes[] = $indice - $ancho;
+            }
+            if ($y < $alto - 1) {
+                $pendientes[] = $indice + $ancho;
+            }
+        }
+    }
+
+    private function limitesContenidoVisible(\GdImage $imagen): ?array
+    {
+        $ancho = imagesx($imagen);
+        $alto = imagesy($imagen);
+        $minX = $ancho;
+        $minY = $alto;
+        $maxX = -1;
+        $maxY = -1;
+
+        for ($y = 0; $y < $alto; $y++) {
+            for ($x = 0; $x < $ancho; $x++) {
+                $color = imagecolorat($imagen, $x, $y);
+                $alpha = ($color >> 24) & 0x7F;
+                if ($alpha < 120) {
+                    $minX = min($minX, $x);
+                    $minY = min($minY, $y);
+                    $maxX = max($maxX, $x);
+                    $maxY = max($maxY, $y);
+                }
+            }
+        }
+
+        if ($maxX < 0) {
+            return null;
+        }
+
+        $margen = 12;
+        $x = max(0, $minX - $margen);
+        $y = max(0, $minY - $margen);
+        $derecha = min($ancho - 1, $maxX + $margen);
+        $abajo = min($alto - 1, $maxY + $margen);
+
+        return ['x' => $x, 'y' => $y, 'ancho' => $derecha - $x + 1, 'alto' => $abajo - $y + 1];
     }
 
     public function destroy($id)

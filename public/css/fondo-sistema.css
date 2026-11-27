@@ -1,6 +1,6 @@
 body.resmap-background {
     background-color: #f7f3f0;
-    background-image: linear-gradient(rgba(255, 255, 255, .08), rgba(255, 255, 255, .08)), url('../images/fondo-claro.png');
+    background-image: linear-gradient(rgba(255, 255, 255, .08), rgba(255, 255, 255, .08)), var(--resmap-background-url, url('../images/fondo-1.webp'));
     background-attachment: fixed;
     background-position: center;
     background-repeat: no-repeat;

@@ -27,7 +27,7 @@
     #carrito-modal .carrito-cantidad::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 </style>
 
-@php($datosCarrito = $productosStock->map(fn ($producto) => [$producto->id_producto, $producto->stock_disponible, $producto->precio, $producto->unidad])->values())
+@php($datosCarrito = $productosStock->map(fn ($producto) => [$producto->id_producto, $producto->stock_disponible, $producto->precioVigente(), $producto->unidad])->values())
 <script type="application/json" id="carrito-stock">@json($datosCarrito)</script>
 
 <div id="barra-carrito" class="z-40 hidden">
@@ -42,7 +42,7 @@
 <div id="carrito-modal"
     class="fixed inset-0 z-50 hidden bg-black/60"
     role="dialog" aria-modal="true" aria-labelledby="carrito-titulo">
-    <div class="resmap-glass ml-auto flex h-full w-full max-w-[26rem] flex-col text-[#241817] shadow-2xl">
+    <div id="carrito-panel" class="resmap-glass ml-auto flex h-full w-full max-w-[26rem] flex-col text-[#241817] shadow-2xl">
         <div class="flex items-center justify-between gap-3 border-b border-[#e8c8c3] p-5">
             <h2 id="carrito-titulo" class="text-2xl font-black text-[#8f241d]">
                 Productos seleccionados
@@ -212,7 +212,7 @@ const carritoStorageKey = 'resmap-carrito';
 function leerCarrito() {
     try {
         const datos = JSON.parse(
-            window.localStorage.getItem(carritoStorageKey) || '{}'
+            window.sessionStorage.getItem(carritoStorageKey) || '{}'
         );
 
         return datos && typeof datos === 'object' && !Array.isArray(datos)
@@ -240,7 +240,7 @@ const formatoPrecio = new Intl.NumberFormat('es-CL', {
 });
 
 function guardarCarrito() {
-    window.localStorage.setItem(
+    window.sessionStorage.setItem(
         carritoStorageKey,
         JSON.stringify(seleccion)
     );
@@ -504,6 +504,12 @@ function cerrarCarrito() {
     document.getElementById('carrito-modal').classList.add('hidden');
 }
 
+document.getElementById('carrito-modal').addEventListener('click', (event) => {
+    if (event.target === event.currentTarget) {
+        cerrarCarrito();
+    }
+});
+
 document.getElementById('carrito-ir-catalogo').addEventListener('click', event => {
     if (! @json(request()->routeIs('catalogo.index')) || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
@@ -689,7 +695,7 @@ if (urlParams.get('open_cotizacion') === 'true' || urlParams.get('open_cart') ==
 const confirmacionEnviada = document.getElementById('success-toast');
 
 if (confirmacionEnviada) {
-    window.localStorage.removeItem(carritoStorageKey);
+    window.sessionStorage.removeItem(carritoStorageKey);
     Object.keys(seleccion).forEach(id => delete seleccion[id]);
     renderCarrito();
 }

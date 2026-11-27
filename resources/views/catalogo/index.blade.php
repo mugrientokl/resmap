@@ -125,11 +125,11 @@
         @endif
     </form>
 
-    <div class="mt-10 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         @forelse($productos as $producto)
             <article class="resmap-glass catalogo-card group flex h-full min-w-0 flex-col rounded-[1.75rem] border p-4 text-[#241817] transition duration-300 hover:-translate-y-2 hover:border-[#f08c80] hover:shadow-[0_18px_40px_rgba(143,36,29,.35)]">
                 <div class="flex flex-1 flex-col">
-                    <div class="relative mb-3 aspect-square w-full overflow-hidden rounded-2xl border border-[#e8c8c3] md:mx-auto md:max-w-28">
+                    <div class="relative mb-3 aspect-[4/3] w-full overflow-hidden rounded-2xl border border-[#e8c8c3]">
                         @if($producto->imagen)
                             <img src="{{ asset('storage/'.$producto->imagen) }}"
                                 alt="{{ $producto->nombre }}"
@@ -139,6 +139,11 @@
                                 <span class="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#8f241d] text-white shadow-md" aria-hidden="true">
                                     <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7h16M7 7v10m10-10v10M5 17h14M9 11h6"/></svg>
                                 </span>
+                            </div>
+                        @endif
+                        @if($producto->estaEnOferta())
+                            <div class="absolute left-3 top-3 rounded-full bg-[#b52f25] px-3 py-1 text-xs font-black text-white shadow">
+                                Oferta -{{ number_format($producto->porcentaje_descuento, 0, ',', '.') }}%
                             </div>
                         @endif
                         @if($producto->stock_disponible <= 0)
@@ -161,7 +166,10 @@
 
                 <div class="mt-auto flex flex-wrap items-center justify-between gap-3 pt-5">
                     <span class="text-xl font-black text-[#241817]">
-                        $ {{ number_format($producto->precio, 0, ',', '.') }}
+                        @if($producto->estaEnOferta())
+                            <span class="mr-2 text-sm font-bold text-gray-400 line-through">$ {{ number_format($producto->precio, 0, ',', '.') }}</span>
+                        @endif
+                        $ {{ number_format($producto->precioVigente(), 0, ',', '.') }}
 
                         @if($producto->unidad === 'metro')
                             <small class="text-sm font-semibold">/ metro</small>

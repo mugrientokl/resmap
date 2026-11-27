@@ -57,6 +57,7 @@ class SeguimientoCotizacion
             'Cotización enviada' => $ultima?->enviada_at !== null && ! in_array($cotizacion?->estado, ['cambios_solicitados', 'vencida'], true),
             'Respuesta registrada' => $cotizacion?->estado === 'aceptada' || $venta !== null,
             'Venta y descuento de stock' => $venta?->estado_venta === 'confirmada' && $venta?->stock_descontado_at !== null,
+            'Pago completo' => $venta?->estado_pago === 'pagado',
         ];
 
         $etapas = [];
@@ -163,7 +164,18 @@ class SeguimientoCotizacion
                     .'. Pagado '.$pesos($venta->monto_pagado ?? 0).' de '.$pesos($venta->total)
                     .'; saldo '.$pesos((float) $venta->total - (float) ($venta->monto_pagado ?? 0)).'.'
                     : 'Medio de pago: '.$venta->medio_pago.' · '.$pesos($venta->monto_pagado ?? $venta->total).'.';
-                $agregar($venta->confirmada_at ?? $venta->credito_autorizado_at, $esCredito ? 'Crédito autorizado' : 'Pago confirmado', $detalle, 'exito');
+                $agregar($esCredito ? $venta->credito_autorizado_at : ($venta->pago_confirmado_at ?? $venta->confirmada_at), $esCredito ? 'Crédito autorizado' : 'Pago confirmado', $detalle, 'exito');
+                if ($esCredito && $venta->estado_pago === 'pagado') {
+                    $agregar($venta->pago_confirmado_at, 'Pago confirmado', 'El saldo del crédito quedó totalmente pagado.', 'exito');
+                }
+            }
+            if ($venta->estado_pago !== 'pagado') {
+                $agregar(
+                    null,
+                    'Pago pendiente',
+                    'Saldo por cobrar: '.$pesos(max(0, (float) $venta->total - (float) $venta->monto_pagado)).'.',
+                    'alerta'
+                );
             }
 
             foreach ($venta->eventosFacturacion->sortBy('created_at') as $evento) {
@@ -203,6 +215,7 @@ class SeguimientoCotizacion
     {
         $responsable = match ($estadoComercial['estado']) {
             'esperando_cliente' => 'Cliente',
+            'pendiente_pago', 'completada_pendiente_pago' => 'Cliente; equipo RESMAP debe confirmar el pago',
             'completada', 'cerrada' => 'Nadie; proceso finalizado',
             default => 'Equipo RESMAP',
         };
