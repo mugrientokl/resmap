@@ -91,11 +91,11 @@ class ConfiguracionController extends Controller
     {
         $validated = $request->validate([
             'notificaciones' => ['nullable', 'array'],
-            'notificaciones.*' => ['string', 'in:solicitudes,cotizaciones,ordenes_compra,stock_critico'],
+            'notificaciones.*' => ['string', 'in:solicitudes,cotizaciones,stock_critico'],
         ]);
 
         $activas = $validated['notificaciones'] ?? [];
-        foreach (['solicitudes', 'cotizaciones', 'ordenes_compra', 'stock_critico'] as $tipo) {
+        foreach (['solicitudes', 'cotizaciones', 'stock_critico'] as $tipo) {
             DB::table('configuraciones')->updateOrInsert(
                 ['clave' => 'notificacion_'.$tipo],
                 ['valor' => in_array($tipo, $activas, true) ? '1' : '0'],
@@ -262,7 +262,6 @@ class ConfiguracionController extends Controller
         $tipos = [
             'solicitudes' => 'Solicitudes y servicios web',
             'cotizaciones' => 'Cotizaciones pendientes',
-            'ordenes_compra' => 'Órdenes de compra recibidas',
             'stock_critico' => 'Stock crítico de productos',
         ];
 

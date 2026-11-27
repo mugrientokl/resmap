@@ -2,14 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\EnviarCotizacionWhatsApp;
 use App\Mail\CotizacionCliente;
 use App\Models\Cliente;
 use App\Models\CotizacionVersion;
+use App\Models\OrdenCompra;
 use App\Models\SolicitudWeb;
 use App\Models\User;
 use App\Models\Venta;
 use App\Notifications\NuevaCotizacionPendiente;
 use App\Notifications\SolicitudWebRecibida;
+use App\Services\WhatsAppCloudApi;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
@@ -18,6 +21,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Mockery;
 use Tests\TestCase;
 
 class B2BQuotationFlowTest extends TestCase
@@ -202,6 +206,80 @@ class B2BQuotationFlowTest extends TestCase
 
         $version->cotizacion->solicitud->cargo = null;
         $this->view('cotizaciones.pdf', $datos)->assertDontSee('Cargo / área:');
+    }
+
+    public function test_quote_number_matches_request_across_documents_and_delivery_channels(): void
+    {
+        Mail::fake();
+        Notification::fake();
+        $productId = $this->createProductWithStock(5);
+        $this->createProductRequest($productId, 1);
+        $service = SolicitudWeb::firstOrFail()->replicate();
+        $service->tipo_solicitud = 'servicio';
+        $service->save();
+        $this->createProductRequest($productId, 1);
+        $solicitudId = (int) SolicitudWeb::max('id_solicitud');
+        $admin = User::factory()->create(['rol' => 'Administrador']);
+
+        $this->actingAs($admin)->post(route('solicitudes.cotizacion.crear', $solicitudId))
+            ->assertSessionHasNoErrors();
+        $version = CotizacionVersion::with(['cotizacion.solicitud', 'detalles'])->firstOrFail();
+        $this->assertNotEquals($solicitudId, $version->cotizacion_id);
+        $this->get(route('solicitudes.show', $solicitudId))->assertSee('Cotización #'.$solicitudId);
+        $this->view('cotizaciones.pdf', [
+            'version' => $version,
+            'cliente' => Cliente::desdeSnapshot($version->snapshotDatosCliente()),
+            'logoDataUri' => '',
+        ])->assertSee('N.º '.$solicitudId);
+        $this->view('emails.cotizacion-pendiente', [
+            'name' => $admin->name,
+            'cotizacion' => $version->cotizacion,
+            'venceAt' => null,
+            'logoUrl' => '',
+            'urlSolicitud' => '#',
+        ])->assertSee('#'.$solicitudId);
+
+        $this->post(route('cotizaciones.enviar', $version))->assertSessionHasNoErrors();
+        $mail = Mail::sent(CotizacionCliente::class)->first();
+        $this->assertNotNull($mail);
+        $this->assertStringContainsString('Cotización RESMAP #'.$solicitudId, $mail->render());
+
+        $version->refresh()->update(['whatsapp_estado' => 'en_cola']);
+        $whatsapp = Mockery::mock(WhatsAppCloudApi::class);
+        $whatsapp->shouldReceive('enviarPlantillaCotizacion')->once()
+            ->withArgs(fn ($telefono, $texto, $parametros): bool => str_contains($texto, 'Cotización #'.$solicitudId)
+                && $parametros[1] === (string) $solicitudId)
+            ->andReturn('test-message');
+        (new EnviarCotizacionWhatsApp($version->id_version, '+56912345678', 'https://example.test/pdf'))->handle($whatsapp);
+
+        $this->post(route('cotizaciones.respuesta-interna', $version), ['decision' => 'aceptada'])
+            ->assertSessionHasNoErrors();
+        $this->post(route('cotizaciones.convertir-venta', $version), ['estado_pago' => 'pendiente'])
+            ->assertSessionHasNoErrors();
+        $venta = Venta::firstOrFail();
+        $this->getJson(route('reportes.ventas.detalle', $venta->id_venta))
+            ->assertOk()
+            ->assertJsonPath('cotizacion_id', $version->cotizacion_id)
+            ->assertJsonPath('cotizacion_numero', $solicitudId);
+        $this->view('reportes.venta-pdf', [
+            'venta' => $venta,
+            'cliente' => Cliente::desdeSnapshot($venta->snapshotDatosCliente()),
+            'despacho' => 0,
+            'logoDataUri' => '',
+        ])->assertSee('Origen: Cotización #'.$solicitudId);
+
+        $orden = new OrdenCompra(['numero' => 'OC-TEST', 'modalidad' => 'automatica_autorizada']);
+        $orden->id_orden_compra = 1;
+        $orden->created_at = now();
+        $orden->setRelation('version', $version);
+        $orden->setRelation('venta', $venta);
+        $this->view('cotizaciones.orden-compra-pdf', [
+            'ordenCompra' => $orden,
+            'version' => $version,
+            'venta' => $venta,
+            'cliente' => Cliente::desdeSnapshot($version->snapshotDatosCliente()),
+            'logoDataUri' => '',
+        ])->assertSee('#'.$solicitudId.' · Versión '.$version->numero_version);
     }
 
     public function test_team_records_acceptance_and_converts_quote_to_sale_once(): void

@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Notifications\NuevaCotizacionPendiente;
-use App\Notifications\OrdenCompraRecibida;
 use App\Notifications\ProductoStockCritico;
 use App\Notifications\ResetPasswordNotification;
 use App\Notifications\SolicitudWebRecibida;
@@ -85,9 +84,6 @@ class User extends Authenticatable implements CanResetPasswordContract
             }
             if (ConfiguracionSistema::notificacionActiva('cotizaciones')) {
                 $tipos[] = NuevaCotizacionPendiente::class;
-            }
-            if (ConfiguracionSistema::notificacionActiva('ordenes_compra')) {
-                $tipos[] = OrdenCompraRecibida::class;
             }
         }
 

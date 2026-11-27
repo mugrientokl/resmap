@@ -84,6 +84,7 @@ class ReporteController extends Controller
             'iva' => (float) $venta->iva,
             'total' => (float) $venta->total,
             'cotizacion_id' => $venta->cotizacionVersion?->cotizacion_id,
+            'cotizacion_numero' => $venta->cotizacionVersion?->cotizacion?->solicitud_id,
             'cotizacion_version' => $venta->cotizacionVersion?->numero_version,
             'resumen_disponible' => $venta->cotizacion_version_id === null
                 || ! empty($venta->datos_resumen) || $venta->resumen_interno_pdf !== null,

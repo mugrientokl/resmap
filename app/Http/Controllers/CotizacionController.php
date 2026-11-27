@@ -16,9 +16,7 @@ use App\Models\OrdenCompra;
 use App\Models\Producto;
 use App\Models\ReservaInventario;
 use App\Models\SolicitudWeb;
-use App\Models\User;
 use App\Models\Venta;
-use App\Notifications\OrdenCompraRecibida;
 use App\Rules\CorreoConDominio;
 use App\Rules\RutChileno;
 use App\Services\CotizacionPdf;
@@ -50,7 +48,6 @@ use Illuminate\Validation\ValidationException;
 use RuntimeException;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 
 class CotizacionController extends Controller
 {
@@ -681,7 +678,7 @@ class CotizacionController extends Controller
         }
 
         try {
-            $ordenCompraId = DB::transaction(function () use (
+            DB::transaction(function () use (
                 $request,
                 $datos,
                 $autorizaOrdenAutomatica,
@@ -801,7 +798,6 @@ class CotizacionController extends Controller
                     ->where('expira_at', '>', now())
                     ->update(['version_id' => $version->id_version]);
 
-                return $ordenCompra?->id_orden_compra;
             });
         } catch (\Throwable $exception) {
             if ($archivoPath !== null) {
@@ -809,36 +805,6 @@ class CotizacionController extends Controller
             }
 
             throw $exception;
-        }
-
-        if ($datos['decision'] === 'aceptar' && $ordenCompraId !== null) {
-            $ordenCompra = OrdenCompra::with([
-                'version.cotizacion.solicitud.cliente',
-                'venta.detalles',
-            ])->findOrFail($ordenCompraId);
-            $falloEnvioCorreo = false;
-
-            User::query()->whereIn('rol', ['Administrador', 'Vendedor'])->get()
-                ->filter(fn (User $user): bool => $user->tienePermiso('cotizaciones.ver'))->each(
-                    function (User $usuario) use ($ordenCompra, &$falloEnvioCorreo): void {
-                        try {
-                            $usuario->notify(new OrdenCompraRecibida($ordenCompra));
-                        } catch (TransportExceptionInterface|RuntimeException $exception) {
-                            Log::error('La orden de compra quedó registrada, pero no se pudo enviar el aviso al equipo por correo.', [
-                                'orden_compra_id' => $ordenCompra->id_orden_compra,
-                                'user_id' => $usuario->id,
-                                'error' => $exception->getMessage(),
-                            ]);
-                            $falloEnvioCorreo = true;
-                        }
-                    },
-                );
-
-            if ($falloEnvioCorreo) {
-                return redirect()->route('home')
-                    ->with('success', 'Tu respuesta y la orden de compra quedaron registradas.')
-                    ->with('warning', 'El sistema no pudo notificar por correo a todos los integrantes del equipo RESMAP. El equipo puede revisar la orden desde el sistema.');
-            }
         }
 
         return redirect()->route('home')->with('success', 'La respuesta a la cotización fue registrada.');

@@ -232,7 +232,7 @@ document.querySelectorAll('[data-sale-detail]').forEach(button => button.addEven
         if (sale.cotizacion_id) {
             const quote = document.createElement('p');
             quote.className = 'mt-4 text-sm';
-            quote.textContent = `Cotización de origen: #${sale.cotizacion_id}, versión ${sale.cotizacion_version}.`;
+            quote.textContent = `Cotización de origen: #${sale.cotizacion_numero}, versión ${sale.cotizacion_version}.`;
             saleContent.append(quote);
         }
         sale.ordenes_compra.forEach(order => {

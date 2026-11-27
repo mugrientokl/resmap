@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Responder cotización #{{ $version->cotizacion_id }} · RESMAP</title>
+    <title>Responder cotización #{{ $version->cotizacion->solicitud_id }} · RESMAP</title>
     @vite('resources/css/app.css')
     <link rel="stylesheet" href="{{ asset('css/fondo-sistema.css') }}">
 </head>
@@ -19,7 +19,7 @@
     <main class="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <div class="mb-7">
             <p class="text-sm font-bold uppercase tracking-[.2em] text-[#9f2f25]">Revisión de cotización</p>
-            <h1 class="mt-2 text-3xl font-black sm:text-4xl">Cotización #{{ $version->cotizacion_id }}</h1>
+            <h1 class="mt-2 text-3xl font-black sm:text-4xl">Cotización #{{ $version->cotizacion->solicitud_id }}</h1>
             <p class="mt-2 text-gray-600">Versión {{ $version->numero_version }} · Emitida el {{ $version->created_at->format('d/m/Y') }}</p>
         </div>
         @if($errors->any())

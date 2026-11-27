@@ -998,7 +998,7 @@
                         <a href="{{ route('home') }}" class="inline-block" aria-label="Ir al inicio de Resmap">
                             <img src="{{ $resmapLogoUrl }}" alt="Resmap" class="brand-logo h-auto object-contain" loading="lazy">
                         </a>
-                        <p class="text-base text-[#65504c]">Repuestos y soluciones industriales</p>
+                        <p class="text-base text-[#65504c]">Repuestos electricos y servicios para maquinaria pesada agricola y forestal</p>
                     </div>
 
                     <nav aria-label="Enlaces rápidos">

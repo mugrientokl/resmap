@@ -116,14 +116,14 @@ class AdministracionTest extends TestCase
 
         $this->actingAs($admin)
             ->put(route('configuracion.notificaciones.actualizar'), [
-                'notificaciones' => ['solicitudes', 'ordenes_compra'],
+                'notificaciones' => ['solicitudes'],
             ])
             ->assertSessionHasNoErrors();
 
         $this->assertDatabaseHas('configuraciones', ['clave' => 'notificacion_stock_critico', 'valor' => '0']);
         $this->assertDatabaseHas('configuraciones', ['clave' => 'notificacion_cotizaciones', 'valor' => '0']);
         $this->assertDatabaseHas('configuraciones', ['clave' => 'notificacion_solicitudes', 'valor' => '1']);
-        $this->assertDatabaseHas('configuraciones', ['clave' => 'notificacion_ordenes_compra', 'valor' => '1']);
+        $this->assertDatabaseMissing('configuraciones', ['clave' => 'notificacion_ordenes_compra']);
     }
 
     public function test_admin_can_select_default_and_upload_delete_custom_background(): void

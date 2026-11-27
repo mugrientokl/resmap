@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Cotización RESMAP #{{ $version->cotizacion_id }}</title>
+    <title>Cotización RESMAP #{{ $version->cotizacion->solicitud_id }}</title>
 </head>
 <body style="margin:0;background:#f3f4f6;color:#241817;font-family:Arial,Helvetica,sans-serif;">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:28px 12px;background:#f3f4f6;">
@@ -13,7 +13,7 @@
                 <tr><td style="padding:30px;">
                     <p style="margin:0;color:#9f2f25;font-size:12px;font-weight:bold;letter-spacing:2px;">COTIZACIÓN · RESMAP</p>
                     <h1 style="margin:12px 0 8px;color:#241817;font-size:26px;">Hola {{ $cliente->nombre }}</h1>
-                    <p style="margin:0;color:#57534e;font-size:14px;line-height:1.6;">Te enviamos la cotización <strong>#{{ $version->cotizacion_id }} · versión {{ $version->numero_version }}</strong>. Revísala y contáctanos por WhatsApp para responder o solicitar cambios.</p>
+                    <p style="margin:0;color:#57534e;font-size:14px;line-height:1.6;">Te enviamos la cotización <strong>#{{ $version->cotizacion->solicitud_id }} · versión {{ $version->numero_version }}</strong>. Revísala y contáctanos por WhatsApp para responder o solicitar cambios.</p>
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:22px 0;border-collapse:collapse;">
                         <tr>
                             <td style="width:50%;border:1px solid #ead8d5;background:#fffaf9;padding:14px;">
@@ -42,10 +42,6 @@
                     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:16px 0 24px;font-size:13px;">
                         <tr><td style="padding:4px 0;color:#57534e;">Neto</td><td align="right" style="padding:4px 0;">$ {{ number_format($version->neto, 0, ',', '.') }}</td></tr>
                         <tr><td style="padding:4px 0;color:#57534e;">IVA</td><td align="right" style="padding:4px 0;">$ {{ number_format($version->iva, 0, ',', '.') }}</td></tr>
-                        <tr><td style="padding:4px 0;color:#57534e;">Entrega</td><td align="right" style="padding:4px 0;">{{ match ($version->metodo_entrega) { 'despacho' => 'Despacho a domicilio', 'retiro' => 'Retiro en tienda', default => 'Por coordinar con RESMAP' } }}</td></tr>
-                        @if($version->metodo_entrega === 'despacho')
-                            <tr><td colspan="2" align="right" style="padding:4px 0;color:#57534e;">{{ $version->calle }} {{ $version->numero }}, {{ $version->comuna }}, {{ $version->ciudad }}</td></tr>
-                        @endif
                     </table>
                     <p style="margin:0 0 18px;font-size:13px;line-height:1.6;color:#57534e;">La cotización incluye los productos, valores, condiciones de entrega y vigencia indicados en el PDF adjunto. Comunícate con RESMAP para aceptar, rechazar o solicitar cambios.</p>
                     <p style="margin:0;"><a href="{{ $urlPdf }}" style="display:inline-block;background:#b52f25;color:#fff;padding:14px 22px;text-decoration:none;font-weight:bold;">Ver cotización PDF</a></p>

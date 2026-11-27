@@ -61,7 +61,7 @@ class EnviarCotizacionWhatsApp implements ShouldBeUnique, ShouldQueue
         $usarBotonUrl = (bool) config('services.whatsapp.quote_url_button');
         $parametros = [
             (string) ($cliente['nombre'] ?? 'Cliente'),
-            (string) $cotizacion->id_cotizacion,
+            (string) $cotizacion->solicitud_id,
             (string) $version->numero_version,
         ];
         if (! $usarBotonUrl) {
@@ -71,7 +71,7 @@ class EnviarCotizacionWhatsApp implements ShouldBeUnique, ShouldQueue
         try {
             $whatsapp->enviarPlantillaCotizacion(
                 $this->telefono,
-                "Cotización #{$cotizacion->id_cotizacion}, versión {$version->numero_version}. Comunícate con RESMAP para responder o solicitar cambios.",
+                "Cotización #{$cotizacion->solicitud_id}, versión {$version->numero_version}. Comunícate con RESMAP para responder o solicitar cambios.",
                 $parametros,
                 [],
                 $cotizacion,

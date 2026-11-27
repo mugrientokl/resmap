@@ -2,13 +2,19 @@
 
 namespace Database\Seeders;
 
+use App\Models\User;
+use App\Notifications\NuevaCotizacionPendiente;
+use App\Services\RegistroActividad;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class HistorialDemoSeeder extends Seeder
 {
-    private const MESES = 24;
+    private const MESES = 36;
+
+    private const CLIENTES = 80;
 
     private const VENTAS_MINIMAS_MES = 45;
 
@@ -21,7 +27,7 @@ class HistorialDemoSeeder extends Seeder
     /** @var array<int, int> */
     private array $usuarios = [];
 
-    /** @var array<int, array{id: int, empresa: bool, nombre: string, rut: string, creado: Carbon}> */
+    /** @var array<int, array<string, mixed>> */
     private array $clientes = [];
 
     /** @var array<int, object> */
@@ -42,19 +48,45 @@ class HistorialDemoSeeder extends Seeder
     /** @var array<int, float> */
     private array $ultimosCostos = [];
 
-    private int $contadorOc = 2000;
-
     private int $contadorDocumento = 20000;
 
-    private int $contadorClave = 0;
+    /** @var array<int, Carbon> */
+    private array $ultimoMovimiento = [];
+
+    private ?Carbon $ultimaVenta = null;
 
     /** @var array<string, int> */
     private array $resumen = [];
 
     public function run(): void
     {
-        if (app()->environment('production')) {
-            throw new \RuntimeException('Este seeder demo no puede ejecutarse en producción.');
+        if (! app()->environment(['local', 'testing'])) {
+            throw new \RuntimeException('Este historial solo puede generarse en entornos local o testing.');
+        }
+        if (app()->environment('local') && ! $this->command?->option('force')) {
+            throw new \RuntimeException('Para reemplazar el historial local se requiere la opción --force.');
+        }
+        if (in_array(DB::connection()->getDriverName(), ['mysql', 'mariadb'], true)) {
+            $host = DB::connection()->getConfig('host');
+            if (app()->environment('local') && ! in_array($host, ['127.0.0.1', 'localhost', '::1'], true)) {
+                throw new \RuntimeException('El reemplazo solo está permitido en una base de datos local.');
+            }
+            $tablasNoTransaccionales = DB::table('information_schema.tables')
+                ->whereRaw('TABLE_SCHEMA = DATABASE()')
+                ->whereIn('TABLE_NAME', [
+                    'eventos_webhook_whatsapp', 'mensajes_whatsapp', 'eventos_reserva', 'reservas_inventario',
+                    'eventos_facturacion', 'ordenes_compra', 'inventario_movimientos', 'cotizacion_detalles',
+                    'cotizacion_versiones', 'cotizaciones', 'solicitud_webs', 'detalle_ventas', 'ventas',
+                    'notifications', 'auditorias', 'configuraciones', 'clientes', 'productos',
+                ])
+                ->where('ENGINE', '!=', 'InnoDB')
+                ->count();
+            if ($tablasNoTransaccionales > 0) {
+                throw new \RuntimeException('Todas las tablas afectadas deben admitir transacciones antes de reemplazar el historial.');
+            }
+        }
+        if (DB::table('jobs')->exists()) {
+            throw new \RuntimeException('Hay trabajos pendientes en la cola. Revísalos antes de reemplazar el historial.');
         }
 
         mt_srand(20261122);
@@ -100,7 +132,17 @@ class HistorialDemoSeeder extends Seeder
             $this->crearVentasMensuales();
             $this->crearServicios();
             $this->ajustarStockFinal();
+            $this->crearNotificaciones();
             $this->validarHistoria();
+            $evento = app(RegistroActividad::class)->evento(
+                'sistema',
+                'importado',
+                'Registro histórico',
+                nuevos: $this->resumen,
+            );
+            if ($evento === null) {
+                throw new \RuntimeException('No se pudo registrar la generación del historial.');
+            }
         });
 
         foreach ($this->resumen as $clave => $valor) {
@@ -124,26 +166,21 @@ class HistorialDemoSeeder extends Seeder
             'solicitud_webs',
             'detalle_ventas',
             'ventas',
+            'notifications',
+            'auditorias',
         ] as $tabla) {
             DB::table($tabla)->delete();
         }
 
-        DB::table('clientes')->where('correo', 'like', '%@demo.resmap.test')->delete();
+        DB::table('configuraciones')->where('clave', 'notificacion_ordenes_compra')->delete();
 
         $this->resumen['Registros operacionales reemplazados'] = 1;
     }
 
     private function crearClientes(): void
     {
-        foreach (DB::table('clientes')->get(['id_cliente', 'rut', 'nombre', 'razon_social', 'created_at']) as $existente) {
+        foreach (DB::table('clientes')->get(['rut']) as $existente) {
             $this->ruts[(string) $existente->rut] = true;
-            $this->clientes[] = [
-                'id' => $existente->id_cliente,
-                'empresa' => ! empty($existente->razon_social),
-                'nombre' => (string) $existente->nombre,
-                'rut' => (string) $existente->rut,
-                'creado' => Carbon::parse($existente->created_at ?? $this->inicio->copy()->subDay()),
-            ];
         }
 
         $nombres = ['Camila', 'Matías', 'Francisca', 'Sebastián', 'Valentina', 'Cristóbal', 'Javiera', 'Felipe', 'Constanza', 'Nicolás', 'Daniela', 'Ignacio', 'Fernanda', 'Rodrigo', 'Carolina', 'Pablo'];
@@ -165,7 +202,7 @@ class HistorialDemoSeeder extends Seeder
             ['Metropolitana de Santiago', 'Santiago', 'Santiago'],
         ];
 
-        for ($i = 0; $i < 45; $i++) {
+        for ($i = 0; $i < self::CLIENTES; $i++) {
             $empresa = $i % 3 === 0;
             $creado = $this->inicio->copy()->subDays(mt_rand(15, 120))->setTime(mt_rand(9, 18), mt_rand(0, 59));
             $zona = $zonas[mt_rand(0, 100) <= 75 ? mt_rand(0, 7) : mt_rand(8, 10)];
@@ -173,33 +210,35 @@ class HistorialDemoSeeder extends Seeder
                 ? $empresas[array_rand($empresas)].' '.$sufijos[array_rand($sufijos)].' '.['SpA', 'Ltda.', 'S.A.'][mt_rand(0, 2)]
                 : $nombres[array_rand($nombres)].' '.$apellidos[array_rand($apellidos)].' '.$apellidos[array_rand($apellidos)];
             $rut = $this->generarRut($empresa);
-            $correo = 'demo'.($i + 1).'@demo.resmap.test';
-
-            $id = DB::table('clientes')->insertGetId([
+            $correo = Str::slug($nombre, '.').'.'.str_replace('-', '', $rut).'@jmail.com';
+            $contacto = $empresa ? $nombres[array_rand($nombres)].' '.$apellidos[array_rand($apellidos)] : $nombre;
+            $calle = ['Av. Los Carrera', 'Calle O\'Higgins', 'Pasaje Los Aromos', 'Av. Collao', 'Calle Maipú'][mt_rand(0, 4)];
+            $numero = (string) mt_rand(100, 3500);
+            $datos = [
                 'rut' => $rut,
                 'nombre' => $nombre,
                 'razon_social' => $empresa ? $nombre : null,
                 'giro' => $empresa ? $giros[array_rand($giros)] : null,
-                'contacto' => $empresa ? $nombres[array_rand($nombres)].' '.$apellidos[array_rand($apellidos)] : $nombre,
+                'contacto' => $contacto,
                 'correo' => $correo,
                 'telefono' => '+569'.mt_rand(30000000, 99999999),
-                'direccion' => ['Av. Los Carrera', 'Calle O\'Higgins', 'Pasaje Los Aromos', 'Av. Collao', 'Calle Maipú'][mt_rand(0, 4)].' '.mt_rand(100, 3500),
+                'direccion' => $calle.' '.$numero,
                 'region' => $zona[0],
                 'comuna' => $zona[1],
                 'ciudad' => $zona[2],
-                'created_at' => $creado,
-                'updated_at' => $creado,
-            ]);
+            ];
+            $id = DB::table('clientes')->insertGetId([...$datos, 'created_at' => $creado, 'updated_at' => $creado]);
             $this->clientes[] = [
+                ...$datos,
                 'id' => $id,
                 'empresa' => $empresa,
-                'nombre' => $nombre,
-                'rut' => $rut,
+                'calle' => $calle,
+                'numero' => $numero,
                 'creado' => $creado,
             ];
         }
 
-        $this->resumen['Clientes demo nuevos'] = 45;
+        $this->resumen['Clientes nuevos'] = self::CLIENTES;
     }
 
     private function generarRut(bool $empresa): string
@@ -245,14 +284,19 @@ class HistorialDemoSeeder extends Seeder
                 ? max(1, $this->ahora->day - 1)
                 : $mes->daysInMonth;
 
+            $fechas = [];
             foreach ($origenes as $indiceVenta => $origen) {
                 $dia = 1 + (int) floor(($indiceVenta * max(0, $ultimoDia - 1)) / max(1, $cantidad - 1));
                 $fecha = $mes->copy()->day($dia)->setTime(mt_rand(9, 18), mt_rand(0, 59), mt_rand(0, 59));
 
                 if ($fecha->gte($this->ahora)) {
-                    $fecha = $this->ahora->copy()->subHours(mt_rand(1, 20));
+                    $fecha = $this->ahora->copy()->subSecond();
                 }
+                $fechas[] = ['fecha' => $fecha, 'origen' => $origen];
+            }
+            usort($fechas, fn (array $a, array $b): int => $a['fecha']->getTimestamp() <=> $b['fecha']->getTimestamp());
 
+            foreach ($fechas as ['fecha' => $fecha, 'origen' => $origen]) {
                 if ($origen === 'pos') {
                     $this->crearVentaPos($fecha);
                     $ventasPos++;
@@ -261,18 +305,19 @@ class HistorialDemoSeeder extends Seeder
                     $ventasCotizaciones++;
                 }
 
+                $this->ultimaVenta = $fecha->copy();
                 $ventasTotales++;
             }
         }
 
-        $this->resumen['Ventas completas (24 meses)'] = $ventasTotales;
+        $this->resumen['Ventas completas (36 meses)'] = $ventasTotales;
         $this->resumen['Ventas POS completas'] = $ventasPos;
         $this->resumen['Ventas por cotización completas'] = $ventasCotizaciones;
     }
 
     private function crearVentaPos(Carbon $fecha): void
     {
-        $cliente = mt_rand(1, 100) <= 78 ? $this->clienteEn($fecha) : null;
+        $cliente = mt_rand(1, 100) <= 45 ? $this->clienteEn($fecha) : null;
         $lineas = $this->lineas(mt_rand(1, 4), 3);
         $total = array_sum(array_column($lineas, 'subtotal'));
         $neto = round($total / 1.19, 2);
@@ -286,15 +331,15 @@ class HistorialDemoSeeder extends Seeder
             'iva' => round($total - $neto, 2),
             'total' => $total,
             'medio_pago' => ['Efectivo', 'Efectivo', 'Transferencia', 'Tarjeta', 'Tarjeta'][mt_rand(0, 4)],
-            'estado_sii' => 'Emitido',
+            'estado_sii' => 'Pendiente',
             'user_id' => $vendedor,
             'id_cliente' => $cliente['id'] ?? null,
-            'contacto' => $cliente ? $cliente['nombre'] : null,
-            'cargo' => $cliente && $cliente['empresa'] ? 'Encargado de compras' : null,
+            'contacto' => $cliente['contacto'] ?? null,
+            'cargo' => $cliente && $cliente['empresa'] && mt_rand(0, 1) ? 'Encargado de compras' : null,
             'datos_cliente' => $cliente ? $this->datosCliente($cliente) : null,
             'estado_venta' => 'confirmada',
             'estado_pago' => 'pagado',
-            'estado_facturacion' => 'simulada_exitosa',
+            'estado_facturacion' => 'pendiente',
             'estado_entrega' => 'entregada',
             'monto_pagado' => $total,
             'stock_descontado_at' => $fecha,
@@ -319,8 +364,11 @@ class HistorialDemoSeeder extends Seeder
         $despacho = mt_rand(1, 100) <= 38 ? [3990, 5990, 7990][mt_rand(0, 2)] : 0;
         $total = $totalProductos + $despacho;
         $solicitada = $fecha->copy()->subDays(4)->setTime(mt_rand(9, 17), mt_rand(0, 59));
-        $revisada = $solicitada->copy()->addHours(mt_rand(2, 12));
-        $aceptada = $fecha->copy()->subDay()->setTime(mt_rand(9, 18), mt_rand(0, 59));
+        if ($this->ultimaVenta !== null && $solicitada->lt($this->ultimaVenta)) {
+            $solicitada = $this->ultimaVenta->copy();
+        }
+        $revisada = $solicitada->copy()->addMinutes(10)->min($fecha);
+        $aceptada = $fecha->copy()->subMinutes(5)->max($revisada);
         $zona = DB::table('clientes')->where('id_cliente', $cliente['id'])->first([
             'region',
             'comuna',
@@ -333,8 +381,8 @@ class HistorialDemoSeeder extends Seeder
             'estado' => 'Entregado y completado',
             'tipo_solicitud' => 'pedido',
             'id_cliente' => $cliente['id'],
-            'contacto' => $cliente['nombre'],
-            'cargo' => 'Encargado de compras',
+            'contacto' => $cliente['contacto'],
+            'cargo' => mt_rand(0, 1) ? 'Encargado de compras' : null,
             'datos_cliente' => $datosCliente,
             'detalles_productos' => json_encode(array_map(
                 fn (array $linea): array => [
@@ -346,8 +394,8 @@ class HistorialDemoSeeder extends Seeder
             'observaciones' => null,
             'atendida_at' => $fecha,
             'metodo_entrega' => $despacho > 0 ? 'despacho' : 'retiro',
-            'direccion_calle' => $despacho > 0 ? 'Av. Principal' : null,
-            'direccion_numero' => $despacho > 0 ? (string) mt_rand(100, 2500) : null,
+            'direccion_calle' => $despacho > 0 ? $cliente['calle'] : null,
+            'direccion_numero' => $despacho > 0 ? $cliente['numero'] : null,
             'direccion_comuna' => $despacho > 0 ? $zona->comuna : null,
             'direccion_ciudad' => $despacho > 0 ? $zona->ciudad : null,
             'direccion_region' => $despacho > 0 ? $zona->region : null,
@@ -375,8 +423,8 @@ class HistorialDemoSeeder extends Seeder
             'costo_despacho' => $despacho,
             'total' => $total,
             'metodo_entrega' => $despacho > 0 ? 'despacho' : 'retiro',
-            'calle' => $despacho > 0 ? 'Av. Principal' : null,
-            'numero' => $despacho > 0 ? (string) mt_rand(100, 2500) : null,
+            'calle' => $despacho > 0 ? $cliente['calle'] : null,
+            'numero' => $despacho > 0 ? $cliente['numero'] : null,
             'comuna' => $despacho > 0 ? $zona->comuna : null,
             'ciudad' => $despacho > 0 ? $zona->ciudad : null,
             'region' => $despacho > 0 ? $zona->region : null,
@@ -384,17 +432,18 @@ class HistorialDemoSeeder extends Seeder
             'token_cliente_hash' => null,
             'token_expira_at' => null,
             'enviada_at' => $revisada,
-            'email_estado' => 'aceptado_por_smtp',
+            'email_estado' => 'no_enviado',
             'whatsapp_estado' => 'sin_telefono',
             'aceptada_at' => $aceptada,
-            'telefono_aceptacion' => '+569'.mt_rand(30000000, 99999999),
-            'ip_aceptacion' => '190.'.mt_rand(10, 250).'.'.mt_rand(1, 250).'.'.mt_rand(1, 250),
+            'telefono_aceptacion' => $cliente['telefono'],
+            'ip_aceptacion' => null,
             'datos_cliente' => $datosCliente,
             'created_at' => $revisada,
             'updated_at' => $aceptada,
         ]);
 
         foreach ($lineas as $linea) {
+            $this->asegurarAbastecimiento($linea['producto'], $linea['cantidad'], $revisada, $vendedor);
             DB::table('cotizacion_detalles')->insert([
                 'version_id' => $idVersion,
                 'producto_id' => $linea['producto']->id_producto,
@@ -444,19 +493,36 @@ class HistorialDemoSeeder extends Seeder
             'iva' => $iva,
             'total' => $total,
             'medio_pago' => ['Transferencia', 'Transferencia', 'Tarjeta'][mt_rand(0, 2)],
-            'estado_sii' => 'Emitido',
+            'estado_sii' => 'Pendiente',
             'user_id' => $vendedor,
             'id_cliente' => $cliente['id'],
-            'contacto' => $cliente['nombre'],
-            'cargo' => 'Encargado de compras',
+            'contacto' => $cliente['contacto'],
+            'cargo' => mt_rand(0, 1) ? 'Encargado de compras' : null,
             'datos_cliente' => $datosCliente,
+            'datos_resumen' => json_encode([
+                'nombre' => $cliente['nombre'],
+                'rut' => $cliente['rut'],
+                'giro' => $cliente['giro'],
+                'contacto' => $cliente['contacto'],
+                'correo' => $cliente['correo'],
+                'telefono' => $cliente['telefono'],
+                'direccion' => $cliente['direccion'],
+                'region' => $cliente['region'],
+                'comuna' => $cliente['comuna'],
+                'ciudad' => $cliente['ciudad'],
+                'tipo_venta' => 'del_giro',
+                'tipo_compra' => 'del_giro',
+                'forma_pago' => 'Contado',
+                'numero_oc' => 'OC-'.mt_rand(10000, 99999),
+            ], JSON_THROW_ON_ERROR),
             'cotizacion_version_id' => $idVersion,
             'estado_venta' => 'confirmada',
             'estado_pago' => 'pagado',
-            'estado_facturacion' => 'simulada_exitosa',
+            'estado_facturacion' => 'pendiente',
             'estado_entrega' => 'entregada',
             'monto_pagado' => $total,
             'metodo_entrega' => $despacho > 0 ? 'despacho' : 'retiro',
+            'direccion_despacho' => $despacho > 0 ? $cliente['direccion'] : null,
             'comuna_despacho' => $despacho > 0 ? $zona->comuna : null,
             'ciudad_despacho' => $despacho > 0 ? $zona->ciudad : null,
             'region_despacho' => $despacho > 0 ? $zona->region : null,
@@ -470,26 +536,6 @@ class HistorialDemoSeeder extends Seeder
         $this->detallesVenta($idVenta, $lineas, $fecha);
         $this->registrarSalidasHistoricas($idVenta, $lineas, $fecha, $vendedor);
         DB::table('solicitud_webs')->where('id_solicitud', $idSolicitud)->update(['venta_id' => $idVenta]);
-        DB::table('ordenes_compra')->insert([
-            'version_id' => $idVersion,
-            'venta_id' => $idVenta,
-            'modalidad' => 'automatica',
-            'numero' => 'OC-'.(++$this->contadorOc),
-            'autorizada_por' => $vendedor,
-            'autorizada_at' => $aceptada,
-            'created_at' => $aceptada,
-            'updated_at' => $aceptada,
-        ]);
-        DB::table('eventos_facturacion')->insert([
-            'venta_id' => $idVenta,
-            'user_id' => $vendedor,
-            'proveedor' => 'simulado',
-            'resultado' => 'exitoso',
-            'clave_idempotencia' => 'historial-'.$idVenta.'-'.(++$this->contadorClave),
-            'respuesta' => json_encode(['mensaje' => 'Facturación simulada correctamente.']),
-            'created_at' => $fecha,
-            'updated_at' => $fecha,
-        ]);
     }
 
     /**
@@ -540,6 +586,7 @@ class HistorialDemoSeeder extends Seeder
                 'updated_at' => $fecha,
             ]);
             $this->stockHistorico[$idProducto] = $stockNuevo;
+            $this->ultimoMovimiento[$idProducto] = $fecha->copy();
         }
     }
 
@@ -561,6 +608,9 @@ class HistorialDemoSeeder extends Seeder
         );
         $costoTotal = round($costoUnitario * $cantidadAdquirida, 2);
         $fechaAdquisicion = $fecha->copy()->subDays(mt_rand(2, 12))->startOfDay();
+        if (isset($this->ultimoMovimiento[$idProducto]) && $fechaAdquisicion->lt($this->ultimoMovimiento[$idProducto])) {
+            $fechaAdquisicion = $this->ultimoMovimiento[$idProducto]->copy();
+        }
         $stockNuevo = $stockAnterior + $cantidadAdquirida;
 
         DB::table('inventario_movimientos')->insert([
@@ -579,12 +629,13 @@ class HistorialDemoSeeder extends Seeder
             'cantidad_adquirida' => $cantidadAdquirida,
             'costo_unitario_neto' => $costoUnitario,
             'costo_total_neto' => $costoTotal,
-            'observaciones' => 'Adquisición histórica para abastecer ventas demostrativas.',
+            'observaciones' => 'Compra de repuestos para reposición de inventario.',
             'fecha_evento' => $fechaAdquisicion->toDateString(),
             'created_at' => $fechaAdquisicion,
             'updated_at' => $fechaAdquisicion,
         ]);
         $this->stockHistorico[$idProducto] = $stockNuevo;
+        $this->ultimoMovimiento[$idProducto] = $fechaAdquisicion->copy();
         $this->ultimosCostos[$idProducto] = $costoUnitario;
     }
 
@@ -638,15 +689,10 @@ class HistorialDemoSeeder extends Seeder
         return $candidatos[array_rand($candidatos)];
     }
 
-    /** @param array{id: int, empresa: bool, nombre: string, rut: string, creado: Carbon} $cliente */
+    /** @param array<string, mixed> $cliente */
     private function datosCliente(array $cliente): string
     {
-        return json_encode([
-            'id_cliente' => $cliente['id'],
-            'rut' => $cliente['rut'],
-            'nombre' => $cliente['nombre'],
-            'empresa' => $cliente['empresa'],
-        ], JSON_THROW_ON_ERROR);
+        return json_encode(collect($cliente)->except(['id', 'empresa', 'creado', 'calle', 'numero'])->all(), JSON_THROW_ON_ERROR);
     }
 
     private function ajustarStockFinal(): void
@@ -680,9 +726,7 @@ class HistorialDemoSeeder extends Seeder
                     'cantidad' => $cantidad,
                     'stock_anterior' => $stockAnteriorHistorico,
                     'stock_nuevo' => $stockObjetivo,
-                    'motivo' => $esCritico
-                        ? 'Ajuste final de stock crítico demo'
-                        : 'Ajuste final de stock demo (+10 unidades)',
+                    'motivo' => 'Ajuste de inventario',
                     'fecha_evento' => $this->ahora->toDateString(),
                     'created_at' => $this->ahora,
                     'updated_at' => $this->ahora,
@@ -712,7 +756,8 @@ class HistorialDemoSeeder extends Seeder
             }
             $cliente = $this->clienteEn($fecha);
             $tipo = array_rand($tipos);
-            $completado = $i % 6 !== 0;
+            $completado = $i < 32;
+            $atendida = $completado ? $fecha->copy()->addDay()->min($this->ahora) : null;
 
             DB::table('solicitud_webs')->insert([
                 'fecha' => $fecha,
@@ -721,18 +766,51 @@ class HistorialDemoSeeder extends Seeder
                 'tipo_servicio' => $tipo,
                 'descripcion_servicio' => $tipos[$tipo],
                 'id_cliente' => $cliente['id'],
-                'contacto' => $cliente['nombre'],
-                'cargo' => $cliente['empresa'] ? 'Encargado de compras' : null,
+                'contacto' => $cliente['contacto'],
+                'cargo' => $cliente['empresa'] && mt_rand(0, 1) ? 'Encargado de compras' : null,
                 'datos_cliente' => $this->datosCliente($cliente),
                 'detalles_productos' => json_encode([]),
                 'observaciones' => null,
-                'atendida_at' => $completado ? $fecha->copy()->addDays(mt_rand(1, 5)) : null,
+                'atendida_at' => $atendida,
                 'created_at' => $fecha,
-                'updated_at' => $completado ? $fecha->copy()->addDays(1) : $fecha,
+                'updated_at' => $atendida ?? $fecha,
             ]);
         }
 
         $this->resumen['Solicitudes de servicio'] = 36;
+    }
+
+    private function crearNotificaciones(): void
+    {
+        $cotizaciones = DB::table('cotizaciones')
+            ->join('solicitud_webs', 'cotizaciones.solicitud_id', '=', 'solicitud_webs.id_solicitud')
+            ->orderByDesc('solicitud_webs.fecha')
+            ->limit(36)
+            ->get(['cotizaciones.id_cotizacion', 'cotizaciones.solicitud_id', 'solicitud_webs.fecha']);
+
+        foreach ($cotizaciones as $cotizacion) {
+            $fecha = Carbon::parse($cotizacion->fecha);
+            foreach ($this->usuarios as $usuarioId) {
+                DB::table('notifications')->insert([
+                    'id' => (string) Str::uuid(),
+                    'type' => NuevaCotizacionPendiente::class,
+                    'notifiable_type' => User::class,
+                    'notifiable_id' => $usuarioId,
+                    'data' => json_encode([
+                        'tipo' => 'cotizacion_pendiente',
+                        'cotizacion_id' => $cotizacion->id_cotizacion,
+                        'titulo' => 'Nueva cotización B2B',
+                        'mensaje' => 'Cotización #'.$cotizacion->solicitud_id.' pendiente de revisión comercial.',
+                        'url' => route('solicitudes.show', $cotizacion->solicitud_id),
+                    ], JSON_THROW_ON_ERROR),
+                    'read_at' => $fecha->copy()->addHour()->min($this->ahora),
+                    'created_at' => $fecha,
+                    'updated_at' => $fecha,
+                ]);
+            }
+        }
+
+        $this->resumen['Notificaciones'] = $cotizaciones->count() * count($this->usuarios);
     }
 
     private function validarHistoria(): void

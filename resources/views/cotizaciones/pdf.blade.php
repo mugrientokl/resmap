@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
     <meta charset="utf-8">
-    <title>Cotización RESMAP #{{ $version->cotizacion_id }}</title>
+    <title>Cotización RESMAP #{{ $version->cotizacion->solicitud_id }}</title>
     <style>
         @page { margin: 32px 38px 42px; }
         body { color: #292524; font-family: DejaVu Sans, sans-serif; font-size: 10px; }
@@ -45,7 +45,7 @@
         <tr>
             <td style="width: 30%;"><img class="logo" src="{{ $logoDataUri }}" alt="RESMAP"></td>
             <td class="number" style="width: 40%; text-align: center;">
-                <h1>COTIZACIÓN</h1><span class="quote-number">N.º {{ $version->cotizacion_id }}</span><br>
+                <h1>COTIZACIÓN</h1><span class="quote-number">N.º {{ $version->cotizacion->solicitud_id }}</span><br>
                 <span class="muted" style="font-size: 11px;">Versión {{ $version->numero_version }}</span><br>
                 <span class="muted" style="font-size: 8px; font-weight: normal;">
                     Fecha de emisión: {{ $version->created_at->format('d/m/Y') }}<br>

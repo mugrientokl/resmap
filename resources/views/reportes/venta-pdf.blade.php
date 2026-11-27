@@ -54,7 +54,7 @@
                 <h1>RESUMEN INTERNO<br>DE VENTA</h1>
                 <div class="number">Venta N.º {{ $venta->id_venta }}</div>
                 <div class="muted">Fecha de venta: {{ $venta->fecha?->format('d/m/Y H:i') }}</div>
-                <div class="muted">Origen: {{ $version ? 'Cotización #'.$version->cotizacion_id.' · Versión '.$version->numero_version : ($venta->solicitudServicio ? 'Servicio #'.$venta->solicitudServicio->id_solicitud : 'Venta en punto de venta (POS)') }}</div>
+                <div class="muted">Origen: {{ $version ? 'Cotización #'.$version->cotizacion->solicitud_id.' · Versión '.$version->numero_version : ($venta->solicitudServicio ? 'Servicio #'.$venta->solicitudServicio->id_solicitud : 'Venta en punto de venta (POS)') }}</div>
             </td>
             <td class="company" style="width: 35%;">
                 <strong>RESMAP</strong><br>

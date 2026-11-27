@@ -122,7 +122,7 @@
                 <div class="grid w-full grid-cols-1 gap-6 md:grid-cols-2 lg:gap-10">
                     <div class="resmap-glass hero-feature flex h-full flex-col rounded-[1.75rem] border p-6 text-[#241817] sm:p-8 lg:p-10">
                         <p class="m-0 text-sm font-bold uppercase tracking-[.15em] text-[#8f241d]">Soluciones para mantenerte trabajando</p>
-                        <h1 class="mt-4 text-3xl font-black leading-[1.1] tracking-tight sm:text-4xl xl:text-5xl">Repuestos confiables y servicio especializado para tu maquinaria.</h1>
+                        <h1 class="mt-4 text-3xl font-black leading-[1.1] tracking-tight sm:text-4xl xl:text-5xl">Repuestos confiables para tu maquinaria o vehículo automotorizado.</h1>
                         <p class="mb-8 mt-6 text-base leading-7 text-[#493733] sm:text-lg xl:text-xl xl:leading-8">Atendemos maquinaria pesada, agrícola y forestal con repuestos de primer nivel, mantención y soluciones técnicas coordinadas a tu operación.</p>
                         <a href="{{ route('catalogo.index') }}" class="hero-action mt-auto inline-flex min-h-14 items-center self-start rounded-xl bg-[#b52f25] px-6 py-3 font-bold text-white shadow-lg transition hover:bg-[#8f241d]">Ver catálogo completo <span class="ml-3" aria-hidden="true">→</span></a>
                     </div>
